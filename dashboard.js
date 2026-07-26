@@ -24,7 +24,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-
+  // 2. CHECK URL PARAMETER FOR ROLE INTERCONNECTION
+  const urlParams = new URLSearchParams(window.location.search);
+  const roleParam = urlParams.get('role');
+  if (roleParam) {
+    let targetTab = null;
+    if (roleParam === 'user') targetTab = document.querySelector('[data-target="user-panel"]');
+    if (roleParam === 'coach') targetTab = document.querySelector('[data-target="coach-panel"]');
+    if (roleParam === 'admin') targetTab = document.querySelector('[data-target="admin-panel"]');
+    
+    if (targetTab) {
+      targetTab.click();
+    }
+  }
 
   // 3. TABLE BUTTON CLICK INTERACTION (For mock interactive feedback)
   const actionButtons = document.querySelectorAll('.btn-action, .btn-download, .btn-table-edit');
