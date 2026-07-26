@@ -3,187 +3,135 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI Cognitive Alarm Platform</title>
+  <title>AI Intelligent Cognitive Alarm Platform</title>
   <link rel="stylesheet" href="css/style.css" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 </head>
 <body>
 
-  <!-- Navigation -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <div class="nav-logo">
-        <span class="logo-icon">⏰</span>
-        <span class="logo-text">CogniAlarm <span class="logo-accent">AI</span></span>
+  <!-- ── Split layout: left = content, right = blue panel ── -->
+  <div class="page-split">
+
+    <!-- LEFT PANEL -->
+    <div class="panel-left">
+
+      <!-- Hero copy -->
+      <div class="hero-content">
+        <div class="badge">Powered by Adaptive AI</div>
+
+        <h1 class="hero-title">
+          Wake up sharper.<br />
+          Build the habit that sticks.
+        </h1>
+
+        <p class="hero-subtitle">
+          Solve a cognitive challenge to dismiss your alarm. The platform learns
+          your patterns and adapts — for you, your coach, and your organization.
+        </p>
+
+        <!-- Feature rows -->
+        <ul class="feature-list">
+          <li>
+            <span class="feat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a5 5 0 0 1 5 5c0 1.8-.6 3.4-1.7 4.6L21 18l-3 3-6.4-5.7A5 5 0 1 1 12 2z"/></svg>
+            </span>
+            Personalized puzzles, riddles &amp; memory challenges before every dismiss
+          </li>
+          <li>
+            <span class="feat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            </span>
+            Adaptive difficulty tuned to snooze patterns &amp; performance
+          </li>
+          <li>
+            <span class="feat-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </span>
+            Behavioral analytics across sleep, wake, and productivity
+          </li>
+        </ul>
       </div>
-      <ul class="nav-links">
-        <li><a href="#features">Features</a></li>
-        <li><a href="#how-it-works">How it Works</a></li>
-        <li><a href="#roles">Get Started</a></li>
-      </ul>
-      <a href="#roles" class="btn-nav">Try Now</a>
-    </div>
-  </nav>
 
-  <!-- Hero Section -->
-  <section class="hero">
-    <div class="hero-inner">
-      <div class="hero-badge">Powered by Adaptive AI</div>
-      <h1 class="hero-title">
-        Wake up sharper.<br />
-        Build the habit that sticks.
-      </h1>
-      <p class="hero-subtitle">
-        Solve a cognitive challenge to dismiss your alarm. The platform learns your patterns
-        and adapts — for you, your coach, and your organization.
-      </p>
+      <!-- Continue As -->
+      <div class="roles-wrap">
+        <p class="roles-label">CONTINUE AS</p>
 
-      <!-- Feature Pills -->
-      <div class="feature-pills">
-        <div class="pill">
-          <span class="pill-icon">🧩</span>
-          <span>Personalized puzzles, riddles &amp; memory challenges before every dismiss</span>
-        </div>
-        <div class="pill">
-          <span class="pill-icon">🔄</span>
-          <span>Adaptive difficulty tuned to snooze patterns &amp; performance</span>
-        </div>
-        <div class="pill">
-          <span class="pill-icon">📈</span>
-          <span>Behavioral analytics across sleep, wake, and productivity</span>
-        </div>
-      </div>
-    </div>
-  </section>
+        <div class="role-cards">
 
-  <!-- Continue As Section -->
-  <section class="roles-section" id="roles">
-    <div class="roles-container">
-      <p class="roles-label">CONTINUE AS</p>
-
-      <div class="role-cards">
-
-        <!-- User Card -->
-        <div class="role-card" onclick="navigateTo('user-dashboard.html')">
-          <div class="role-card-inner">
-            <div class="role-icon-wrap user-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <!-- User -->
+          <div class="role-card" onclick="location.href='user-dashboard.html'">
+            <div class="role-icon user-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </div>
-            <div class="role-info">
+            <div class="role-text">
               <h3>User</h3>
               <p>Solve your morning challenge, track your habit score, and see what's driving your wake-up streak.</p>
-              <a href="user-dashboard.html" class="role-link user-link">Enter dashboard <span>→</span></a>
+              <a href="user-dashboard.html" class="role-link user-link">Enter dashboard →</a>
             </div>
           </div>
-        </div>
 
-        <!-- Wellness Coach Card -->
-        <div class="role-card" onclick="navigateTo('coach-dashboard.html')">
-          <div class="role-card-inner">
-            <div class="role-icon-wrap coach-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <!-- Wellness Coach -->
+          <div class="role-card" onclick="location.href='coach-dashboard.html'">
+            <div class="role-icon coach-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
-            <div class="role-info">
+            <div class="role-text">
               <h3>Wellness Coach</h3>
               <p>Monitor client adherence, spot at-risk sleepers early, and review cohort-wide sleep trends.</p>
-              <a href="coach-dashboard.html" class="role-link coach-link">Enter dashboard <span>→</span></a>
+              <a href="coach-dashboard.html" class="role-link coach-link">Enter dashboard →</a>
             </div>
           </div>
-        </div>
 
-        <!-- Admin Card -->
-        <div class="role-card" onclick="navigateTo('admin-dashboard.html')">
-          <div class="role-card-inner">
-            <div class="role-icon-wrap admin-icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <!-- Admin -->
+          <div class="role-card" onclick="location.href='admin-dashboard.html'">
+            <div class="role-icon admin-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <div class="role-info">
+            <div class="role-text">
               <h3>Admin</h3>
               <p>Manage users, watch system uptime, and monitor how the recommendation engine is performing.</p>
-              <a href="admin-dashboard.html" class="role-link admin-link">Enter dashboard <span>→</span></a>
+              <a href="admin-dashboard.html" class="role-link admin-link">Enter dashboard →</a>
             </div>
           </div>
-        </div>
 
-      </div>
-    </div>
-  </section>
-
-  <!-- How It Works Section -->
-  <section class="how-it-works" id="how-it-works">
-    <div class="section-container">
-      <h2 class="section-title">How it works</h2>
-      <p class="section-subtitle">Three steps between you and a sharper morning routine</p>
-      <div class="steps-grid">
-        <div class="step-card">
-          <div class="step-number">01</div>
-          <h4>Set Your Alarm</h4>
-          <p>Schedule your wake time and choose your preferred challenge category — math, memory, or logic.</p>
-        </div>
-        <div class="step-card">
-          <div class="step-number">02</div>
-          <h4>Solve to Dismiss</h4>
-          <p>When the alarm rings, complete a cognitive challenge tailored to your current performance level.</p>
-        </div>
-        <div class="step-card">
-          <div class="step-number">03</div>
-          <h4>Track Your Growth</h4>
-          <p>View your habit score, snooze trends, and weekly analytics to understand your progress over time.</p>
         </div>
       </div>
-    </div>
-  </section>
 
-  <!-- Features Section -->
-  <section class="features-section" id="features">
-    <div class="section-container">
-      <h2 class="section-title">Built around your brain</h2>
-      <p class="section-subtitle">Every feature is designed to reinforce consistency without friction</p>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🧠</div>
-          <h4>Cognitive Challenges</h4>
-          <p>Math problems, pattern recognition, memory sequences — varied daily so your brain never auto-pilots.</p>
+    </div><!-- /panel-left -->
+
+    <!-- RIGHT PANEL — solid sky-blue decorative panel -->
+    <div class="panel-right">
+      <div class="panel-right-content">
+        <div class="brand-mark">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="24" r="22" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+            <circle cx="24" cy="24" r="14" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.5)" stroke-width="1.5"/>
+            <line x1="24" y1="14" x2="24" y2="24" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <line x1="24" y1="24" x2="30" y2="28" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="24" cy="24" r="2" fill="#fff"/>
+          </svg>
         </div>
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h4>Adaptive Difficulty</h4>
-          <p>The AI adjusts challenge complexity based on your solve time, snooze history, and performance trends.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h4>Sleep Analytics</h4>
-          <p>Visualize your wake patterns, streak data, and habit scores across days, weeks, and months.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔔</div>
-          <h4>Smart Notifications</h4>
-          <p>Contextual reminders and nudges based on your behavioral patterns — not generic push alerts.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">👥</div>
-          <h4>Team Insights</h4>
-          <p>Coaches and managers get anonymized team-level trends to identify patterns and support performance.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🔒</div>
-          <h4>Privacy First</h4>
-          <p>Data is processed locally where possible, and individual reports are never shared without consent.</p>
+        <h2 class="panel-heading">AI Intelligent<br />Cognitive Alarm<br />Platform</h2>
+        <p class="panel-sub">Your mind, trained every morning.</p>
+
+        <div class="panel-stats">
+          <div class="stat">
+            <span class="stat-num">98%</span>
+            <span class="stat-label">Wake-up accuracy</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">3×</span>
+            <span class="stat-label">Better habit retention</span>
+          </div>
+          <div class="stat">
+            <span class="stat-num">50k+</span>
+            <span class="stat-label">Active users</span>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
+    </div><!-- /panel-right -->
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="footer-container">
-      <div class="footer-brand">
-        <span class="logo-icon">⏰</span>
-        <span class="logo-text">CogniAlarm <span class="logo-accent">AI</span></span>
-      </div>
-      <p class="footer-copy">© 2025 AI Intelligent Cognitive Alarm Platform. All rights reserved.</p>
-    </div>
-  </footer>
+  </div><!-- /page-split -->
 
   <script src="js/main.js"></script>
 </body>
