@@ -11,13 +11,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!targetPanel || tab.classList.contains('active')) return;
 
       // Deactivate current tab and panel
-      const activeTab = document.querySelector('.role-tab.active');
-      const activePanel = document.querySelector('.panel-section.active');
-
-      if (activeTab) activeTab.classList.remove('active');
-      if (activePanel) {
-        activePanel.classList.remove('active');
-      }
+      document.querySelectorAll('.role-tab.active').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel-section.active').forEach(p => p.classList.remove('active'));
 
       // Activate clicked tab
       tab.classList.add('active');

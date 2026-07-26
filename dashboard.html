@@ -17,7 +17,7 @@
     <!-- Top Header and Brand Area -->
     <header class="dashboard-header">
       <div class="brand-logo">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <polyline points="12 6 12 12 16 14"></polyline>
         </svg>
@@ -26,14 +26,14 @@
       
       <!-- Upper Navigation Panel (Tabs matching the user reference layout) -->
       <nav class="role-selector-panel">
-        <button class="role-tab active" data-target="user-panel">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="role-tab" data-target="user-panel">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
           <span>User</span>
         </button>
         <button class="role-tab" data-target="coach-panel">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
             <circle cx="9" cy="7" r="4"></circle>
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
@@ -41,8 +41,8 @@
           </svg>
           <span>Wellness Coach</span>
         </button>
-        <button class="role-tab" data-target="admin-panel">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="role-tab active" data-target="admin-panel">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
           </svg>
           <span>Admin</span>
@@ -54,7 +54,7 @@
     <main class="dashboard-content">
       
       <!-- ==================== 1. USER PANEL ==================== -->
-      <section id="user-panel" class="panel-section active">
+      <section id="user-panel" class="panel-section">
         <div class="panel-header-info">
           <h2>User Dashboard</h2>
           <p>Track your alarm performance, daily habit compliance, and cognitive sharpness.</p>
@@ -409,88 +409,88 @@
       </section>
 
       <!-- ==================== 3. ADMIN PANEL ==================== -->
-      <section id="admin-panel" class="panel-section">
+      <section id="admin-panel" class="panel-section active">
         <div class="panel-header-info">
           <h2>Admin Dashboard</h2>
           <p>Manage system preferences, monitor algorithmic performance, user logs, and security statuses.</p>
         </div>
 
-        <div class="dashboard-grid">
+        <div class="dashboard-grid admin-layout">
           <!-- Card: Platform Analytics -->
-          <div class="dashboard-card">
+          <div class="dashboard-card platform-analytics">
             <h3>Platform Analytics</h3>
-            <div class="stat-box-grid">
-              <div class="stat-box">
+            <div class="analytics-grid">
+              <div class="stat-box-blue">
                 <span class="num">12,492</span>
-                <span class="desc">Total Users</span>
+                <span class="desc">TOTAL USERS</span>
               </div>
-              <div class="stat-box">
+              <div class="stat-box-blue">
                 <span class="num">9,820</span>
-                <span class="desc">Active Daily Alarms</span>
+                <span class="desc">ACTIVE DAILY ALARMS</span>
               </div>
-              <div class="stat-box text-success">
+              <div class="stat-box-blue">
                 <span class="num">99.98%</span>
-                <span class="desc">API Uptime</span>
+                <span class="desc">API UPTIME</span>
               </div>
-              <div class="stat-box">
+              <div class="stat-box-blue">
                 <span class="num">0.82s</span>
-                <span class="desc">Avg API Latency</span>
+                <span class="desc">AVG API LATENCY</span>
               </div>
             </div>
           </div>
 
           <!-- Card: System Reports -->
-          <div class="dashboard-card">
+          <div class="dashboard-card system-reports">
             <h3>System Reports</h3>
-            <ul class="report-list">
+            <ul class="report-list-modern">
               <li>
                 <div class="report-info">
                   <span class="report-title">Database Health Audit</span>
                   <span class="report-meta">Generated July 25, 2026 - 12MB</span>
                 </div>
-                <button class="btn-download">Download</button>
+                <button class="btn-download-white">Download</button>
               </li>
               <li>
                 <div class="report-info">
                   <span class="report-title">Monthly Circadian Accuracy</span>
                   <span class="report-meta">Generated July 01, 2026 - 4.2MB</span>
                 </div>
-                <button class="btn-download">Download</button>
+                <button class="btn-download-white">Download</button>
               </li>
               <li>
                 <div class="report-info">
                   <span class="report-title">System Error Logs (Weekly)</span>
                   <span class="report-meta">Generated July 20, 2026 - 850KB</span>
                 </div>
-                <button class="btn-download">Download</button>
+                <button class="btn-download-white">Download</button>
               </li>
             </ul>
           </div>
 
           <!-- Card: Recommendation Monitoring -->
-          <div class="dashboard-card">
+          <div class="dashboard-card recommendation-monitoring">
             <h3>Recommendation Monitoring</h3>
-            <div class="recommendations-container">
+            <div class="recommendations-container-modern">
               <div class="rec-log-item">
                 <span class="timestamp">12:34:55</span>
-                <span class="log-text">Algorithmic recommendation rule applied: <strong>Increase puzzle difficulty</strong> for User #9834 (Wakeup snooze trend detected).</span>
+                <span class="log-text">Algorithmic recommendation rule applied:<br><strong>Increase puzzle difficulty</strong> for User #9834<br>(Wakeup snooze trend detected).</span>
               </div>
               <div class="rec-log-item">
                 <span class="timestamp">11:15:02</span>
-                <span class="log-text">Algorithmic recommendation rule applied: <strong>Suggest 10m exercise habit</strong> for User #1204 (Consistent early wakeup success).</span>
+                <span class="log-text">Algorithmic recommendation rule applied:<br><strong>Suggest 10m exercise habit</strong> for User #1204<br>(Consistent early wakeup success).</span>
               </div>
               <div class="rec-log-item">
                 <span class="timestamp">09:02:18</span>
-                <span class="log-text">System alert: Circadian drift detected in 12% of Cohort B users. Recommendation pipeline updated.</span>
+                <span class="log-text">System alert: Circadian drift detected in 12% of<br>Cohort B users. Recommendation pipeline<br>updated.</span>
               </div>
             </div>
           </div>
 
           <!-- Card: User Management -->
-          <div class="dashboard-card grid-col-span-2">
+          <div class="dashboard-card user-management full-width">
             <h3>User Management</h3>
             <div class="table-responsive">
-              <table class="data-table">
+              <table class="data-table clean-table">
                 <thead>
                   <tr>
                     <th>User ID</th>
@@ -529,15 +529,6 @@
                     <td><span class="badge badge-success">Active</span></td>
                     <td>Nov 20, 2024</td>
                     <td><button class="btn-table-edit">Edit</button></td>
-                  </tr>
-                  <tr>
-                    <td>#USR-1102</td>
-                    <td>David Miller</td>
-                    <td>d.miller@example.com</td>
-                    <td><span class="badge-role role-user">User</span></td>
-                    <td><span class="badge badge-warning">Suspended</span></td>
-                    <td>Feb 18, 2025</td>
-                    <td><button class="btn-table-edit text-warning">Enable</button></td>
                   </tr>
                 </tbody>
               </table>

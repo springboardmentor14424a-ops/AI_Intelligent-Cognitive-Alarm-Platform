@@ -39,13 +39,12 @@ body {
   color: var(--color-primary);
 }
 
-/* Upper Panel Selector (Matches the shape/tabs in reference layout) */
 .role-selector-panel {
   display: flex;
-  background-color: var(--color-bg-light);
-  padding: 6px;
+  background-color: var(--card-bg);
+  padding: 4px;
   border-radius: 30px; /* pill shape */
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--border-color);
   gap: 4px;
 }
 
@@ -53,26 +52,26 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 22px;
+  padding: 8px 24px;
   border: none;
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--text-muted);
   font-family: var(--font-primary);
   font-weight: 500;
   font-size: 0.92rem;
   border-radius: 25px; /* rounded pill items */
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.25s ease;
 }
 
 .role-tab:hover {
-  color: var(--color-primary);
+  color: var(--text-dark);
 }
 
 .role-tab.active {
-  background: linear-gradient(90deg, var(--grad-btn-start) 0%, var(--grad-btn-end) 100%);
+  background: var(--color-primary-light);
   color: #ffffff;
-  box-shadow: 0 4px 10px rgba(2, 141, 208, 0.2);
+  box-shadow: none;
 }
 
 .btn-logout {
@@ -543,85 +542,126 @@ body {
 }
 
 /* --- ADMIN SPECIFIC STYLES --- */
-.report-list {
+.admin-layout {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stat-box-blue {
+  background-color: #F0F8FF;
+  border-radius: 8px;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.stat-box-blue .num {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 4px;
+}
+
+.stat-box-blue .desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.report-list-modern {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
 }
 
-.report-list li {
+.report-list-modern li {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--color-bg-light);
-  padding: 12px 16px;
+  background-color: var(--bg-light);
+  padding: 14px 20px;
   border-radius: 8px;
 }
 
 .report-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
 .report-title {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  color: var(--color-text-dark);
+  color: var(--text-dark);
 }
 
 .report-meta {
-  font-size: 0.72rem;
-  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  color: var(--text-muted);
 }
 
-.btn-download {
-  padding: 6px 12px;
-  border: none;
-  background-color: #ffffff;
-  color: var(--color-text-dark);
+.btn-download-white {
+  padding: 6px 16px;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  color: var(--text-dark);
   font-family: var(--font-primary);
   font-weight: 500;
-  font-size: 0.75rem;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  font-size: 0.8rem;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: all 0.25s ease;
 }
 
-.btn-download:hover {
-  background-color: var(--color-primary);
-  color: #ffffff;
+.btn-download-white:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
-.recommendations-container {
+.recommendations-container-modern {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
 }
 
-.rec-log-item {
+.recommendations-container-modern .rec-log-item {
   display: flex;
-  gap: 10px;
-  font-size: 0.8rem;
-  line-height: 1.4;
-  border-bottom: 1px solid var(--color-bg-light);
-  padding-bottom: 10px;
+  gap: 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
-.rec-log-item:last-child {
-  border-bottom: none;
-}
-
-.rec-log-item .timestamp {
+.recommendations-container-modern .timestamp {
   font-weight: 600;
   color: var(--color-primary);
   flex-shrink: 0;
 }
 
-.rec-log-item .log-text {
-  color: var(--color-text-dark);
+.recommendations-container-modern .log-text {
+  color: var(--text-dark);
+}
+
+.dashboard-card.full-width {
+  grid-column: span 3;
+}
+
+.clean-table th {
+  background-color: var(--card-bg);
+  border-bottom: 2px solid var(--border-color);
+  color: var(--text-muted);
+}
+
+.clean-table td {
+  border-bottom: 1px solid var(--border-color);
 }
 
 .btn-table-edit {
@@ -630,7 +670,7 @@ body {
   color: var(--color-primary);
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
 }
 
 .btn-table-edit:hover {
