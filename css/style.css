@@ -284,13 +284,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
   flex-shrink: 0;
 }
 
-.user-icon  { background: linear-gradient(135deg, #38b6ff, #0ea5e9); }
+.role-icon-wrap svg {
+  width: 24px;
+  height: 24px;
+}
+
+.user-icon  { background: linear-gradient(135deg, #f97040, #f05a28); }
 .coach-icon { background: linear-gradient(135deg, #818cf8, #6366f1); }
-.admin-icon { background: linear-gradient(135deg, #34d399, #059669); }
+.admin-icon { background: linear-gradient(135deg, #2dd4bf, #0d9488); }
+
+.role-link.user-link  { color: #f05a28; }
+.role-link.coach-link { color: #6366f1; }
+.role-link.admin-link { color: #0d9488; }
+
+.role-link.user-link:hover  { color: #c2440f; }
+.role-link.coach-link:hover { color: #4338ca; }
+.role-link.admin-link:hover { color: #0f766e; }
 
 .role-info h3 {
   font-size: 1.05rem;
@@ -309,13 +321,11 @@ body {
 .role-link {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--sky-blue);
   text-decoration: none;
   transition: color 0.2s, letter-spacing 0.2s;
 }
 
 .role-link:hover {
-  color: var(--accent);
   letter-spacing: 0.02em;
 }
 
