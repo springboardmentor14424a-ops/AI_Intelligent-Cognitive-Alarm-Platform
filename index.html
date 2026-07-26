@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Cognitive Alarm Platform</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-logo">
+        <span class="logo-icon">⏰</span>
+        <span class="logo-text">CogniAlarm <span class="logo-accent">AI</span></span>
+      </div>
+      <ul class="nav-links">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how-it-works">How it Works</a></li>
+        <li><a href="#roles">Get Started</a></li>
+      </ul>
+      <a href="#roles" class="btn-nav">Try Now</a>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-badge">Powered by Adaptive AI</div>
+      <h1 class="hero-title">
+        Wake up sharper.<br />
+        Build the habit that sticks.
+      </h1>
+      <p class="hero-subtitle">
+        Solve a cognitive challenge to dismiss your alarm. The platform learns your patterns
+        and adapts — for you, your coach, and your organization.
+      </p>
+
+      <!-- Feature Pills -->
+      <div class="feature-pills">
+        <div class="pill">
+          <span class="pill-icon">🧩</span>
+          <span>Personalized puzzles, riddles &amp; memory challenges before every dismiss</span>
+        </div>
+        <div class="pill">
+          <span class="pill-icon">🔄</span>
+          <span>Adaptive difficulty tuned to snooze patterns &amp; performance</span>
+        </div>
+        <div class="pill">
+          <span class="pill-icon">📈</span>
+          <span>Behavioral analytics across sleep, wake, and productivity</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Continue As Section -->
+  <section class="roles-section" id="roles">
+    <div class="roles-container">
+      <p class="roles-label">CONTINUE AS</p>
+
+      <div class="role-cards">
+
+        <!-- User Card -->
+        <div class="role-card" onclick="navigateTo('user-dashboard.html')">
+          <div class="role-card-inner">
+            <div class="role-icon-wrap user-icon">
+              <span>⏰</span>
+            </div>
+            <div class="role-info">
+              <h3>User</h3>
+              <p>Solve your morning challenge, track your habit score, and see what's driving your wake-up streak.</p>
+              <a href="user-dashboard.html" class="role-link">Enter dashboard <span>→</span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coach Card -->
+        <div class="role-card" onclick="navigateTo('coach-dashboard.html')">
+          <div class="role-card-inner">
+            <div class="role-icon-wrap coach-icon">
+              <span>👤</span>
+            </div>
+            <div class="role-info">
+              <h3>Coach / Manager</h3>
+              <p>Monitor team performance, review analytics, and configure adaptive challenge settings.</p>
+              <a href="coach-dashboard.html" class="role-link">Enter dashboard <span>→</span></a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Admin Card -->
+        <div class="role-card" onclick="navigateTo('admin-dashboard.html')">
+          <div class="role-card-inner">
+            <div class="role-icon-wrap admin-icon">
+              <span>🛡️</span>
+            </div>
+            <div class="role-info">
+              <h3>Admin</h3>
+              <p>Oversee platform activity, manage users, and access full system-wide behavioral reports.</p>
+              <a href="admin-dashboard.html" class="role-link">Enter dashboard <span>→</span></a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="section-container">
+      <h2 class="section-title">How it works</h2>
+      <p class="section-subtitle">Three steps between you and a sharper morning routine</p>
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">01</div>
+          <h4>Set Your Alarm</h4>
+          <p>Schedule your wake time and choose your preferred challenge category — math, memory, or logic.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">02</div>
+          <h4>Solve to Dismiss</h4>
+          <p>When the alarm rings, complete a cognitive challenge tailored to your current performance level.</p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">03</div>
+          <h4>Track Your Growth</h4>
+          <p>View your habit score, snooze trends, and weekly analytics to understand your progress over time.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section" id="features">
+    <div class="section-container">
+      <h2 class="section-title">Built around your brain</h2>
+      <p class="section-subtitle">Every feature is designed to reinforce consistency without friction</p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🧠</div>
+          <h4>Cognitive Challenges</h4>
+          <p>Math problems, pattern recognition, memory sequences — varied daily so your brain never auto-pilots.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h4>Adaptive Difficulty</h4>
+          <p>The AI adjusts challenge complexity based on your solve time, snooze history, and performance trends.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">📊</div>
+          <h4>Sleep Analytics</h4>
+          <p>Visualize your wake patterns, streak data, and habit scores across days, weeks, and months.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔔</div>
+          <h4>Smart Notifications</h4>
+          <p>Contextual reminders and nudges based on your behavioral patterns — not generic push alerts.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">👥</div>
+          <h4>Team Insights</h4>
+          <p>Coaches and managers get anonymized team-level trends to identify patterns and support performance.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h4>Privacy First</h4>
+          <p>Data is processed locally where possible, and individual reports are never shared without consent.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <span class="logo-icon">⏰</span>
+        <span class="logo-text">CogniAlarm <span class="logo-accent">AI</span></span>
+      </div>
+      <p class="footer-copy">© 2025 AI Intelligent Cognitive Alarm Platform. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>
