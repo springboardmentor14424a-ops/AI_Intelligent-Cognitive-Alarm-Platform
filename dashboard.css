@@ -1,0 +1,379 @@
+/* =====================================================================
+   SIMMER — station dashboard
+   Aesthetic continues the ticket-rail kitchen-vlog language from the
+   landing page: warm parchment, handwritten headline, mono receipt
+   type for anything time- or number-driven. Widgets read like the
+   clipboards and printed tickets clipped around a real kitchen.
+   ===================================================================== */
+
+:root {
+  --bg: #FBF1E4;
+  --bg-card: #FFFBF3;
+  --bg-sunk: #F2E4C8;
+  --ink: #2B231C;
+  --ink-soft: #6B5D4F;
+  --ink-faint: #9C8B76;
+  --tomato: #D6472B;
+  --tomato-dark: #B5381F;
+  --tomato-wash: rgba(214,71,43,0.1);
+  --mustard: #E8A93A;
+  --mustard-wash: rgba(232,169,58,0.16);
+  --sage: #6E7F53;
+  --sage-wash: rgba(110,127,83,0.13);
+  --line: #D8C4A0;
+
+  --font-display: "Caveat", cursive;
+  --font-body: "Quicksand", sans-serif;
+  --font-mono: "Courier Prime", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image: radial-gradient(circle at 1px 1px, rgba(43,35,28,0.045) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+a { color: inherit; }
+
+.dash {
+  min-height: 100vh;
+  padding: 0 6vw 80px;
+}
+
+/* ---------------------------------------------------------------------
+   Topbar
+   --------------------------------------------------------------------- */
+
+.dash-topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 0 18px;
+  flex-wrap: wrap;
+}
+
+.brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  color: var(--tomato-dark);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-icon { font-size: 1.4rem; }
+
+.dash-role-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px 6px 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.dash-role-chip .chip-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--tomato-wash);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.dash-role-chip .chip-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.dash-role-chip .chip-station {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--tomato-dark);
+}
+
+.dash-topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.clock.mono {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+  color: var(--ink-soft);
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.back-link {
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--ink-soft);
+  border-bottom: 1px dashed var(--ink-faint);
+  padding-bottom: 1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.back-link:hover {
+  color: var(--tomato-dark);
+  border-color: var(--tomato-dark);
+}
+
+/* ---------------------------------------------------------------------
+   Hero
+   --------------------------------------------------------------------- */
+
+.dash-hero {
+  padding: 14px 0 8px;
+  max-width: 640px;
+}
+
+.dash-hero .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--sage);
+  margin-bottom: 10px;
+}
+
+.dash-hero .eyebrow::before {
+  content: "● ";
+  color: var(--tomato);
+}
+
+.dash-hero .display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  line-height: 1.08;
+  margin: 0 0 10px;
+}
+
+.dash-hero p {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------
+   Widget board
+   --------------------------------------------------------------------- */
+
+.widget-board {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+
+.widget {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 20px 18px;
+  box-shadow: 0 10px 22px -16px rgba(43,35,28,0.32);
+}
+
+.widget-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 10px;
+}
+
+.widget-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  margin: 0;
+}
+
+.widget-sub {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* status pills, shared across widget kinds */
+.pill {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pill-urgent { background: var(--tomato-wash); color: var(--tomato-dark); }
+.pill-pending { background: var(--mustard-wash); color: #8A5E10; }
+.pill-done { background: var(--sage-wash); color: var(--sage); }
+
+/* --- tickets widget kind --- */
+
+.tickets-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.ticket-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-sunk);
+  border-radius: 6px;
+}
+
+.ticket-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.ticket-title { font-weight: 600; font-size: 0.92rem; }
+
+.ticket-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); }
+
+.ticket-time {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+/* --- checklist widget kind --- */
+
+.checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.check-row { display: flex; align-items: flex-start; gap: 10px; }
+
+.check-mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  margin-top: 1px;
+}
+
+.check-row.is-done .check-mark {
+  background: var(--sage);
+  border-color: var(--sage);
+  color: #fff;
+}
+
+.check-row.is-done .check-label { color: var(--ink-faint); text-decoration: line-through; }
+
+.check-label { font-size: 0.9rem; font-weight: 600; }
+
+.check-detail { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); margin-top: 1px; }
+
+/* --- table widget kind --- */
+
+.widget-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+.widget-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ink-faint);
+  padding: 0 8px 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.widget-table td {
+  padding: 8px 8px 8px 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.widget-table tr:last-child td { border-bottom: none; }
+
+/* --- stats widget kind --- */
+
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; }
+
+.stat-item {
+  background: var(--bg-sunk);
+  border-radius: 8px;
+  padding: 12px 12px 10px;
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--tomato-dark);
+  display: block;
+}
+
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+
+/* --- empty / unknown role state --- */
+
+.dash-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ink-soft);
+}
+
+.dash-empty a {
+  color: var(--tomato-dark);
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px dashed var(--tomato-dark);
+}
+
+/* ---------------------------------------------------------------------
+   Responsive
+   --------------------------------------------------------------------- */
+
+@media (max-width: 560px) {
+  .dash { padding: 0 5vw 60px; }
+  .dash-topbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+  .widget-board { grid-template-columns: 1fr; }
+}
