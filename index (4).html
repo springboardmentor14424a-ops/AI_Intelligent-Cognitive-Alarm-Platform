@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simmer: a kitchen-vlog styled dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Quicksand:wght@500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   SIMMER — a kitchen-vlog styled dashboard
+   Single-file build: landing lineup + role dashboard, hash-routed.
+   Aesthetic: a warm "order ticket rail". Cards and widgets read like
+   tickets and clipboards pinned around a real kitchen — perforated
+   edges, dashed rules, a handwritten headline the way a chef scrawls
+   the daily special on a chalkboard, mono type wherever something is
+   a time, count, or timestamp.
+   ===================================================================== */
+
+:root {
+  --bg: #FBF1E4;
+  --bg-card: #FFFBF3;
+  --bg-sunk: #F2E4C8;
+  --ink: #2B231C;
+  --ink-soft: #6B5D4F;
+  --ink-faint: #9C8B76;
+  --tomato: #D6472B;
+  --tomato-dark: #B5381F;
+  --tomato-wash: rgba(214,71,43,0.1);
+  --mustard: #E8A93A;
+  --mustard-wash: rgba(232,169,58,0.16);
+  --sage: #6E7F53;
+  --sage-wash: rgba(110,127,83,0.13);
+  --line: #D8C4A0;
+
+  --font-display: "Caveat", cursive;
+  --font-body: "Quicksand", sans-serif;
+  --font-mono: "Courier Prime", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* subtle woven-linen texture so the cream isn't flat */
+body {
+  background-image: radial-gradient(circle at 1px 1px, rgba(43,35,28,0.045) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}
+
+a { color: inherit; }
+
+.is-hidden { display: none !important; }
+
+/* =====================================================================
+   LANDING PAGE
+   ===================================================================== */
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 28px 6vw 80px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ambient blobs — soft simmering steam / sauce splashes behind the hero */
+.blob {
+  position: absolute;
+  border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
+  filter: blur(38px);
+  opacity: 0.5;
+  z-index: 0;
+  pointer-events: none;
+  animation: blob-drift 16s ease-in-out infinite;
+}
+
+.blob-1 { width: 420px; height: 420px; top: -160px; left: -120px; background: var(--mustard); animation-delay: 0s; }
+.blob-2 { width: 360px; height: 360px; top: 120px; right: -140px; background: var(--tomato); opacity: 0.28; animation-delay: -5s; }
+.blob-3 { width: 300px; height: 300px; bottom: -140px; left: 38%; background: var(--sage); opacity: 0.3; animation-delay: -10s; }
+
+@keyframes blob-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(18px, -14px) scale(1.05); }
+  66% { transform: translate(-14px, 12px) scale(0.97); }
+}
+
+.landing-topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-topbar .brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 2rem;
+  color: var(--tomato-dark);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+}
+
+.landing-topbar .brand-icon { font-size: 1.6rem; }
+
+.landing-topbar .clock.mono {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  color: var(--ink-soft);
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  box-shadow: 0 1px 0 rgba(43,35,28,0.05);
+}
+
+.hero {
+  position: relative;
+  z-index: 2;
+  max-width: 720px;
+  margin: 9vh auto 6vh;
+  text-align: center;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--sage);
+  margin-bottom: 14px;
+}
+
+.eyebrow::before {
+  content: "● ";
+  color: var(--tomato);
+}
+
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2.6rem, 6vw, 4.4rem);
+  line-height: 1.05;
+  margin: 0 0 18px;
+  color: var(--ink);
+}
+
+.hero p {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.console-frame {
+  position: relative;
+  z-index: 2;
+  max-width: 980px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.console-frame-inner {
+  background: linear-gradient(180deg, #EFE1C6 0%, #E7D6B4 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 34px clamp(18px, 4vw, 44px) 40px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 18px 40px -22px rgba(43,35,28,0.35);
+  position: relative;
+}
+
+/* the rail bar the tickets "hang" from */
+.console-frame-inner::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 6%;
+  right: 6%;
+  height: 4px;
+  background: repeating-linear-gradient(90deg, var(--ink-faint) 0 10px, transparent 10px 20px);
+  opacity: 0.5;
+  border-radius: 2px;
+}
+
+.console-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--tomato-dark);
+  text-align: center;
+  margin-bottom: 26px;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 26px 22px;
+}
+
+.role-card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 22px 18px 18px;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  cursor: pointer;
+  transform: rotate(var(--tilt, 0deg));
+  box-shadow: 0 10px 22px -14px rgba(43,35,28,0.32);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.role-card:nth-child(3n+1) { --tilt: -1.1deg; }
+.role-card:nth-child(3n+2) { --tilt: 0.8deg; }
+.role-card:nth-child(3n+3) { --tilt: -0.5deg; }
+
+.role-card:hover,
+.role-card:focus-visible {
+  transform: rotate(0deg) translateY(-6px);
+  box-shadow: 0 20px 30px -16px rgba(43,35,28,0.4);
+  border-color: var(--tomato);
+}
+
+.role-card:focus-visible { outline: 2px solid var(--tomato-dark); outline-offset: 3px; }
+
+/* perforated tear-strip at the top of each ticket */
+.role-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background-image: radial-gradient(circle 4px at 12px 0, var(--bg) 96%, transparent 100%);
+  background-repeat: repeat-x;
+  background-size: 24px 10px;
+  background-position: top center;
+}
+
+.role-card .pin {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tomato);
+  box-shadow: 0 0 0 3px rgba(214,71,43,0.15);
+}
+
+.role-icon { font-size: 1.9rem; display: block; margin-bottom: 10px; }
+
+.role-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  color: var(--ink);
+  margin: 0 0 2px;
+}
+
+.role-station {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--tomato-dark);
+  margin-bottom: 10px;
+}
+
+.role-desc { font-size: 0.88rem; line-height: 1.5; color: var(--ink-soft); margin: 0 0 14px; }
+
+.role-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px dashed var(--line);
+  padding-top: 12px;
+}
+
+.role-tag {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.5px;
+  color: var(--sage);
+  background: rgba(110,127,83,0.1);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+@media (max-width: 560px) {
+  .landing { padding: 20px 5vw 60px; }
+  .landing-topbar { flex-direction: row; }
+  .landing-topbar .brand { font-size: 1.6rem; }
+  .hero { margin: 6vh auto 5vh; }
+  .console-frame-inner { padding: 26px 16px 30px; }
+}
+
+/* =====================================================================
+   DASHBOARD
+   ===================================================================== */
+
+.dash { min-height: 100vh; padding: 0 6vw 80px; }
+
+.dash-topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 0 18px;
+  flex-wrap: wrap;
+}
+
+.dash-topbar .brand {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.7rem;
+  color: var(--tomato-dark);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dash-topbar .brand-icon { font-size: 1.4rem; }
+
+.role-switch { position: relative; }
+
+.dash-role-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px 6px 8px;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dash-role-chip:hover,
+.dash-role-chip[aria-expanded="true"] { border-color: var(--tomato); }
+
+.dash-role-chip:focus-visible { outline: 2px solid var(--tomato-dark); outline-offset: 2px; }
+
+.dash-role-chip::after {
+  content: "⌄";
+  margin-left: 2px;
+  color: var(--ink-faint);
+  font-size: 0.9rem;
+  transition: transform 0.2s ease;
+}
+
+.dash-role-chip[aria-expanded="true"]::after { transform: rotate(180deg); }
+
+.role-switch-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  min-width: 230px;
+  list-style: none;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 16px 30px -14px rgba(43,35,28,0.4);
+}
+
+.role-switch-menu[hidden] { display: none; }
+
+.role-switch-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+
+.role-switch-item:hover,
+.role-switch-item:focus-visible { background: var(--bg-sunk); outline: none; }
+
+.role-switch-item .item-icon { width: 22px; text-align: center; font-size: 1rem; }
+.role-switch-item .item-name { font-weight: 700; color: var(--ink); display: block; }
+.role-switch-item .item-station {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--tomato-dark);
+}
+
+.dash-role-chip .chip-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--tomato-wash);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+}
+
+.dash-role-chip .chip-name { font-weight: 700; color: var(--ink); }
+.dash-role-chip .chip-station {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--tomato-dark);
+}
+
+.dash-topbar-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+
+.dash-topbar-right .clock.mono {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+  color: var(--ink-soft);
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+}
+
+.back-link {
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--ink-soft);
+  border-bottom: 1px dashed var(--ink-faint);
+  padding-bottom: 1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+
+.back-link:hover { color: var(--tomato-dark); border-color: var(--tomato-dark); }
+
+.dash-hero { padding: 14px 0 8px; max-width: 640px; }
+
+.dash-hero .eyebrow { font-size: 0.72rem; margin-bottom: 10px; }
+
+.dash-hero .display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4.2vw, 2.9rem);
+  line-height: 1.08;
+  margin: 0 0 10px;
+}
+
+.dash-hero p { font-size: 0.98rem; line-height: 1.55; color: var(--ink-soft); margin: 0; }
+
+.widget-board {
+  margin-top: 30px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 22px;
+  align-items: start;
+}
+
+.widget {
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 20px 18px;
+  box-shadow: 0 10px 22px -16px rgba(43,35,28,0.32);
+}
+
+.widget-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+  border-bottom: 1px dashed var(--line);
+  padding-bottom: 10px;
+}
+
+.widget-title { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; margin: 0; }
+
+.widget-sub {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+/* status pills, shared across widget kinds */
+.pill {
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.pill-urgent { background: var(--tomato-wash); color: var(--tomato-dark); }
+.pill-pending { background: var(--mustard-wash); color: #8A5E10; }
+.pill-done { background: var(--sage-wash); color: var(--sage); }
+
+/* --- tickets widget kind --- */
+.tickets-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.ticket-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--bg-sunk); border-radius: 6px; }
+
+.ticket-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ticket-title { font-weight: 600; font-size: 0.92rem; }
+.ticket-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); }
+.ticket-time { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
+
+/* --- checklist widget kind --- */
+.checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: background 0.15s ease;
+}
+
+.check-row:hover { background: var(--bg-sunk); }
+
+.check-mark {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  margin-top: 1px;
+}
+
+.check-row.is-done .check-mark { background: var(--sage); border-color: var(--sage); color: #fff; }
+.check-row.is-done .check-label { color: var(--ink-faint); text-decoration: line-through; }
+.check-label { font-size: 0.9rem; font-weight: 600; }
+.check-detail { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); margin-top: 1px; }
+
+/* --- table widget kind --- */
+.widget-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+.widget-table th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--ink-faint);
+  padding: 0 8px 8px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.widget-table td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.widget-table tr:last-child td { border-bottom: none; }
+
+/* --- stats widget kind --- */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; }
+
+.stat-item { background: var(--bg-sunk); border-radius: 8px; padding: 12px 12px 10px; text-align: center; }
+.stat-value { font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; color: var(--tomato-dark); display: block; }
+.stat-label { font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
+
+/* --- empty / unknown role state --- */
+.dash-empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--ink-soft); }
+.dash-empty a { color: var(--tomato-dark); font-weight: 700; text-decoration: none; border-bottom: 1px dashed var(--tomato-dark); cursor: pointer; }
+
+@media (max-width: 560px) {
+  .dash { padding: 0 5vw 60px; }
+  .dash-topbar-right { margin-left: 0; width: 100%; justify-content: space-between; }
+  .widget-board { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- LANDING PAGE                                                   -->
+<!-- ============================================================ -->
+<div class="landing" id="page-landing">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <div class="landing-topbar">
+    <div class="brand"><span class="brand-icon">🍳</span>Simmer</div>
+    <div class="clock mono">--:--:--</div>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">now plating: today's shift</div>
+    <h1 class="display">Grab an apron. Pick your station.</h1>
+    <p>Simmer plates up a different workspace for every role in the kitchen, so nobody wades through tools they don't need. Choose a station below to step in.</p>
+  </div>
+
+  <div class="console-frame">
+    <div class="console-frame-inner">
+      <div class="console-label">today's lineup</div>
+      <div class="role-grid" id="role-grid"><!-- injected by script --></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- DASHBOARD                                                      -->
+<!-- ============================================================ -->
+<div class="dash is-hidden" id="page-dashboard">
+
+  <header class="dash-topbar">
+    <a class="brand" href="#lineup"><span class="brand-icon">🍳</span>Simmer</a>
+
+    <div class="role-switch">
+      <button class="dash-role-chip" id="role-chip" type="button" aria-haspopup="listbox" aria-expanded="false"><!-- injected --></button>
+      <ul class="role-switch-menu" id="role-switch-menu" role="listbox" hidden><!-- injected --></ul>
+    </div>
+
+    <div class="dash-topbar-right">
+      <div class="clock mono">--:--:--</div>
+      <a class="back-link" href="#lineup">← back to lineup</a>
+    </div>
+  </header>
+
+  <section class="dash-hero">
+    <div class="eyebrow" id="dash-eyebrow">now on shift</div>
+    <h1 class="display" id="dash-greeting">Welcome to the kitchen.</h1>
+    <p id="dash-subline">Pick a station from the lineup to see your board.</p>
+  </section>
+
+  <main class="widget-board" id="widget-board">
+    <!-- injected by script -->
+  </main>
+
+</div>
+
+<script>
+/* =====================================================================
+   SIMMER — app behavior
+   Two "pages" (#page-landing, #page-dashboard) toggled by a tiny hash
+   router: any hash of the form #role=<slug> shows that station's
+   dashboard; anything else shows the lineup. This keeps the whole app
+   to a single file with no server or page reloads required.
+   ===================================================================== */
+
+const STATIONS = [
+  { slug: "executive-chef", icon: "🔥", name: "Executive Chef", station: "the pass", desc: "Oversee the menu, plating standards, and every ticket before it goes out.", tags: ["menu", "quality", "plating"] },
+  { slug: "sous-chef", icon: "🥘", name: "Sous Chef", station: "back of house", desc: "Run prep lists, staff scheduling, and keep every station stocked.", tags: ["prep", "staffing", "inventory"] },
+  { slug: "line-cook", icon: "🍳", name: "Line Cook", station: "the grill", desc: "Fire tickets, track timers, and follow recipe cards station-side.", tags: ["tickets", "timers", "recipes"] },
+  { slug: "pastry-chef", icon: "🍰", name: "Pastry Chef", station: "the bench", desc: "Manage the dessert program, allergens, and daily bake counts.", tags: ["desserts", "allergens", "bakes"] },
+  { slug: "front-of-house", icon: "🧾", name: "Front of House", station: "the floor", desc: "Handle reservations, table turns, and guest requests in real time.", tags: ["reservations", "tables", "guests"] },
+  { slug: "steward", icon: "🧽", name: "Steward", station: "the wash", desc: "Keep the cleaning schedule, equipment log, and dish flow moving.", tags: ["cleaning", "equipment", "logs"] },
+];
+
+const ROLES = {
+  "executive-chef": {
+    icon: "🔥", name: "Executive Chef", station: "the pass",
+    greeting: "Eyes on the pass.",
+    subline: "Every ticket crosses your board before it leaves the kitchen.",
+    widgets: [
+      { kind: "tickets", title: "On the pass", sub: "6 firing", rows: [
+        { title: "Table 12 — Duck breast x2", meta: "fired 6 min ago", status: "urgent", time: "6:12" },
+        { title: "Table 7 — Risotto x1", meta: "fired 4 min ago", status: "pending", time: "4:03" },
+        { title: "Table 3 — Tasting menu, course 4", meta: "fired 2 min ago", status: "pending", time: "2:20" },
+        { title: "Table 9 — Steak frites x3", meta: "plated, awaiting expo", status: "done", time: "0:00" },
+      ]},
+      { kind: "checklist", title: "Quality checks", sub: "3 of 5", rows: [
+        { label: "Taste the soup base", detail: "before dinner service", done: true },
+        { label: "Check walk-in temps", detail: "logged at 3:00pm", done: true },
+        { label: "Sign off tasting menu plating", detail: "new course 4 garnish", done: true },
+        { label: "Review tonight's allergen list", detail: "3 guests flagged", done: false },
+        { label: "Approve tomorrow's specials board", detail: "sous chef draft pending", done: false },
+      ]},
+      { kind: "table", title: "Today's specials", sub: "3 live", columns: ["Dish", "86'd at", "Notes"], rows: [
+        ["Roasted beet salad", "—", "running strong"],
+        ["Seared scallops", "8:45pm", "last of the batch"],
+        ["Chocolate torte", "—", "pastry restocking 6pm"],
+      ]},
+    ],
+  },
+
+  "sous-chef": {
+    icon: "🥘", name: "Sous Chef", station: "back of house",
+    greeting: "Keep the line stocked.",
+    subline: "Prep, people, and inventory — the shift runs on all three.",
+    widgets: [
+      { kind: "checklist", title: "Prep list", sub: "4 of 7", rows: [
+        { label: "Butcher 20lb short rib", detail: "for braise, done by 2pm", done: true },
+        { label: "Mise for grill station", detail: "sauces, garnish, proteins", done: true },
+        { label: "Stock reduction, round 2", detail: "veal stock, 6 more hours", done: true },
+        { label: "Blanch vegetables for banquet", detail: "150 covers Saturday", done: true },
+        { label: "Portion fish delivery", detail: "arrived 11am, needs breakdown", done: false },
+        { label: "Restock walk-in labels", detail: "FIFO dates due for update", done: false },
+        { label: "Prep tomorrow's stocks", detail: "chicken + veg", done: false },
+      ]},
+      { kind: "table", title: "Staff on shift", sub: "6 clocked in", columns: ["Name", "Station", "Until"], rows: [
+        ["Marcus", "Grill", "11:00pm"],
+        ["Priya", "Sauté", "10:30pm"],
+        ["Devon", "Garde manger", "9:30pm"],
+        ["Ana", "Pastry", "8:00pm"],
+        ["Leo", "Dish", "11:00pm"],
+      ]},
+      { kind: "checklist", title: "Low stock", sub: "3 items", rows: [
+        { label: "Heavy cream", detail: "1.5 qt left, order tomorrow", done: false },
+        { label: "Fresh thyme", detail: "down to last bunch", done: false },
+        { label: "Butcher paper", detail: "reorder this week", done: false },
+      ]},
+    ],
+  },
+
+  "line-cook": {
+    icon: "🍳", name: "Line Cook", station: "the grill",
+    greeting: "Fire when ready.",
+    subline: "Your queue, your timers, your recipe cards — all in one place.",
+    widgets: [
+      { kind: "tickets", title: "Your queue", sub: "4 up", rows: [
+        { title: "Ribeye, medium rare", meta: "table 14, seat 2", status: "urgent", time: "7:40" },
+        { title: "Chicken thigh, crispy skin", meta: "table 14, seat 3", status: "urgent", time: "7:10" },
+        { title: "Salmon, skin on", meta: "table 6, seat 1", status: "pending", time: "3:15" },
+        { title: "Lamb chops x2", meta: "table 2, seat 1 & 2", status: "pending", time: "1:02" },
+      ]},
+      { kind: "checklist", title: "Recipe card — Ribeye", sub: "step 3 of 5", rows: [
+        { label: "Bring to room temp, season", detail: "kosher salt, cracked pepper", done: true },
+        { label: "Sear 3 min per side", detail: "high heat, cast iron", done: true },
+        { label: "Baste with butter + thyme", detail: "tilt pan, spoon continuously", done: false },
+        { label: "Rest 5 minutes", detail: "tented loosely", done: false },
+        { label: "Slice against the grain, plate", detail: "fan across the plate", done: false },
+      ]},
+      { kind: "stats", title: "Station notes", sub: "shift so far", stats: [
+        { value: "38", label: "tickets fired" },
+        { value: "6.2m", label: "avg fire time" },
+        { value: "2", label: "sent back" },
+      ]},
+    ],
+  },
+
+  "pastry-chef": {
+    icon: "🍰", name: "Pastry Chef", station: "the bench",
+    greeting: "Sweet side's covered.",
+    subline: "Bakes on the clock, allergens tracked, counts up to date.",
+    widgets: [
+      { kind: "table", title: "Bake schedule", sub: "next 3", columns: ["Item", "Ready by", "Qty"], rows: [
+        ["Chocolate torte", "5:30pm", "12"],
+        ["Brioche for tomorrow", "6:00am", "40"],
+        ["Sorbet churn", "7:00pm", "3 batches"],
+      ]},
+      { kind: "checklist", title: "Allergen tracker", sub: "flagged tonight", rows: [
+        { label: "Chocolate torte", detail: "contains tree nuts (almond flour)", done: false },
+        { label: "Brioche", detail: "contains dairy, egg, gluten", done: false },
+        { label: "Sorbet", detail: "dairy-free, gluten-free", done: true },
+      ]},
+      { kind: "stats", title: "Remaining tonight", sub: "as of last count", stats: [
+        { value: "9", label: "torte slices" },
+        { value: "14", label: "sorbet scoops" },
+        { value: "0", label: "brioche left" },
+      ]},
+    ],
+  },
+
+  "front-of-house": {
+    icon: "🧾", name: "Front of House", station: "the floor",
+    greeting: "Full house tonight.",
+    subline: "Reservations, tables, and guest requests, all on one board.",
+    widgets: [
+      { kind: "table", title: "Reservations", sub: "next up", columns: ["Time", "Party", "Table"], rows: [
+        ["7:00pm", "Chen, party of 4", "12"],
+        ["7:15pm", "Alvarez, party of 2", "6"],
+        ["7:30pm", "Whitfield, party of 6", "2 + 3"],
+        ["8:00pm", "Osei, party of 2", "9"],
+      ]},
+      { kind: "stats", title: "Table status", sub: "18 total", stats: [
+        { value: "11", label: "seated" },
+        { value: "4", label: "open" },
+        { value: "3", label: "turning soon" },
+      ]},
+      { kind: "checklist", title: "Guest requests", sub: "2 open", rows: [
+        { label: "Table 3 — highchair needed", detail: "requested 5 min ago", done: false },
+        { label: "Table 9 — birthday candle", detail: "for the torte, dessert course", done: false },
+        { label: "Table 6 — extra napkins", detail: "delivered", done: true },
+      ]},
+    ],
+  },
+
+  "steward": {
+    icon: "🧽", name: "Steward", station: "the wash",
+    greeting: "Clean line, clear head.",
+    subline: "Cleaning schedule, equipment status, and dish flow at a glance.",
+    widgets: [
+      { kind: "checklist", title: "Cleaning schedule", sub: "by area", rows: [
+        { label: "Grill station breakdown", detail: "nightly, after last fire", done: false },
+        { label: "Walk-in floor mop", detail: "due by 10pm", done: false },
+        { label: "Sanitize prep tables", detail: "every 4 hours", done: true },
+        { label: "Empty grease trap", detail: "logged Tuesdays", done: true },
+      ]},
+      { kind: "checklist", title: "Equipment log", sub: "2 flagged", rows: [
+        { label: "Dish machine — rinse temp low", detail: "reported to manager", done: false },
+        { label: "Walk-in door seal", detail: "worn, needs replacing", done: false },
+        { label: "Ice machine", detail: "cleaned and running", done: true },
+      ]},
+      { kind: "stats", title: "Dish flow", sub: "this hour", stats: [
+        { value: "142", label: "covers washed" },
+        { value: "6m", label: "avg turnaround" },
+      ]},
+    ],
+  },
+};
+
+let activeSlug = null;
+let clockTimerStarted = false;
+
+/* -----------------------------------------------------------------
+   Router — a hash of "#role=<slug>" shows the dashboard for that
+   station; anything else (including "", "#", "#lineup") shows the
+   lineup.
+   ----------------------------------------------------------------- */
+
+function showPage(name) {
+  document.getElementById("page-landing").classList.toggle("is-hidden", name !== "landing");
+  document.getElementById("page-dashboard").classList.toggle("is-hidden", name !== "dashboard");
+  window.scrollTo(0, 0);
+}
+
+function route() {
+  const hash = window.location.hash;
+  if (hash.startsWith("#role=")) {
+    showPage("dashboard");
+    renderDashboard(decodeURIComponent(hash.slice("#role=".length)));
+  } else {
+    showPage("landing");
+  }
+}
+
+/* -----------------------------------------------------------------
+   Landing lineup
+   ----------------------------------------------------------------- */
+
+function renderRoleGrid() {
+  const grid = document.getElementById("role-grid");
+  if (!grid) return;
+
+  grid.innerHTML = STATIONS.map((role) => `
+    <a class="role-card" href="#role=${role.slug}" aria-label="Open the ${role.name} station">
+      <span class="pin" aria-hidden="true"></span>
+      <span class="role-icon" aria-hidden="true">${role.icon}</span>
+      <p class="role-name">${role.name}</p>
+      <p class="role-station">${role.station}</p>
+      <p class="role-desc">${role.desc}</p>
+      <span class="role-tags">
+        ${role.tags.map((tag) => `<span class="role-tag">#${tag}</span>`).join("")}
+      </span>
+    </a>
+  `).join("");
+}
+
+function updateShiftEyebrow() {
+  const eyebrowEl = document.querySelector("#page-landing .eyebrow");
+  if (!eyebrowEl) return;
+  const hour = new Date().getHours();
+  const shift = hour < 11 ? "morning" : hour < 17 ? "afternoon" : "evening";
+  eyebrowEl.textContent = `now plating: today's ${shift} shift`;
+}
+
+/* -----------------------------------------------------------------
+   Dashboard — widget renderers
+   ----------------------------------------------------------------- */
+
+function timeToSeconds(str) {
+  const [m, s] = str.split(":").map(Number);
+  return (m || 0) * 60 + (s || 0);
+}
+
+function secondsToTime(total) {
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function renderTickets(widget, widgetIndex) {
+  const rowsHTML = widget.rows.map((row, rowIndex) => `
+    <li class="ticket-row" data-widget="${widgetIndex}" data-row="${rowIndex}">
+      <div class="ticket-main">
+        <span class="ticket-title">${row.title}</span>
+        <span class="ticket-meta">${row.meta}</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <span class="ticket-time mono" data-seconds="${timeToSeconds(row.time)}">${row.time}</span>
+        <span class="pill pill-${row.status}">${row.status === "urgent" && timeToSeconds(row.time) <= 0 ? "away" : row.status}</span>
+      </div>
+    </li>
+  `).join("");
+  return `<ul class="tickets-list">${rowsHTML}</ul>`;
+}
+
+function renderChecklist(widget, widgetIndex) {
+  const rowsHTML = widget.rows.map((row, rowIndex) => `
+    <li class="check-row ${row.done ? "is-done" : ""}" data-widget="${widgetIndex}" data-row="${rowIndex}" tabindex="0" role="checkbox" aria-checked="${row.done}">
+      <span class="check-mark">${row.done ? "✓" : ""}</span>
+      <span>
+        <span class="check-label">${row.label}</span>
+        <div class="check-detail">${row.detail}</div>
+      </span>
+    </li>
+  `).join("");
+  return `<ul class="checklist">${rowsHTML}</ul>`;
+}
+
+function renderTable(widget) {
+  const headHTML = widget.columns.map((col) => `<th>${col}</th>`).join("");
+  const bodyHTML = widget.rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`).join("");
+  return `
+    <table class="widget-table">
+      <thead><tr>${headHTML}</tr></thead>
+      <tbody>${bodyHTML}</tbody>
+    </table>
+  `;
+}
+
+function renderStats(widget) {
+  const itemsHTML = widget.stats.map((stat) => `
+    <div class="stat-item">
+      <span class="stat-value">${stat.value}</span>
+      <span class="stat-label">${stat.label}</span>
+    </div>
+  `).join("");
+  return `<div class="stats-row">${itemsHTML}</div>`;
+}
+
+const WIDGET_RENDERERS = { tickets: renderTickets, checklist: renderChecklist, table: renderTable, stats: renderStats };
+
+function renderWidget(widget, widgetIndex) {
+  const renderer = WIDGET_RENDERERS[widget.kind];
+  if (!renderer) return "";
+  return `
+    <section class="widget" data-kind="${widget.kind}">
+      <div class="widget-head">
+        <h2 class="widget-title">${widget.title}</h2>
+        <span class="widget-sub mono" data-widget="${widgetIndex}">${widget.sub}</span>
+      </div>
+      ${renderer(widget, widgetIndex)}
+    </section>
+  `;
+}
+
+function refreshChecklistSub(widgetIndex) {
+  const role = ROLES[activeSlug];
+  const widget = role.widgets[widgetIndex];
+  if (widget.kind !== "checklist") return;
+  const done = widget.rows.filter((r) => r.done).length;
+  widget.sub = `${done} of ${widget.rows.length}`;
+  const subEl = document.querySelector(`.widget-sub[data-widget="${widgetIndex}"]`);
+  if (subEl) subEl.textContent = widget.sub;
+}
+
+function renderEmptyState() {
+  const board = document.getElementById("widget-board");
+  board.innerHTML = `
+    <div class="dash-empty">
+      <p>We couldn't find that station.</p>
+      <a href="#lineup">← head back to the lineup and pick one</a>
+    </div>
+  `;
+}
+
+function renderDashboard(slug) {
+  const role = ROLES[slug];
+
+  const chip = document.getElementById("role-chip");
+  const eyebrow = document.getElementById("dash-eyebrow");
+  const greeting = document.getElementById("dash-greeting");
+  const subline = document.getElementById("dash-subline");
+  const board = document.getElementById("widget-board");
+  const roleSwitch = document.querySelector(".role-switch");
+
+  if (!role) {
+    if (roleSwitch) roleSwitch.style.display = "none";
+    renderEmptyState();
+    return;
+  }
+
+  if (roleSwitch) roleSwitch.style.display = "";
+  activeSlug = slug;
+  renderRoleSwitchMenu(slug);
+
+  chip.innerHTML = `
+    <span class="chip-icon" aria-hidden="true">${role.icon}</span>
+    <span>
+      <span class="chip-name">${role.name}</span><br>
+      <span class="chip-station">${role.station}</span>
+    </span>
+  `;
+
+  eyebrow.textContent = `on shift · ${role.station}`;
+  greeting.textContent = role.greeting;
+  subline.textContent = role.subline;
+
+  board.innerHTML = role.widgets.map((w, i) => renderWidget(w, i)).join("");
+}
+
+function renderRoleSwitchMenu(currentSlug) {
+  const menu = document.getElementById("role-switch-menu");
+  if (!menu) return;
+  const others = Object.keys(ROLES).filter((slug) => slug !== currentSlug);
+  menu.innerHTML = others.map((slug) => {
+    const r = ROLES[slug];
+    return `
+      <li class="role-switch-item" role="option" tabindex="0" data-slug="${slug}">
+        <span class="item-icon" aria-hidden="true">${r.icon}</span>
+        <span>
+          <span class="item-name">${r.name}</span>
+          <span class="item-station">${r.station}</span>
+        </span>
+      </li>
+    `;
+  }).join("");
+}
+
+function setRoleSwitchOpen(open) {
+  const chip = document.getElementById("role-chip");
+  const menu = document.getElementById("role-switch-menu");
+  if (!chip || !menu) return;
+  chip.setAttribute("aria-expanded", String(open));
+  menu.hidden = !open;
+}
+
+function switchRole(slug) {
+  setRoleSwitchOpen(false);
+  window.location.hash = `role=${slug}`;
+  document.getElementById("role-chip")?.focus();
+}
+
+/* -----------------------------------------------------------------
+   Clock, ticket countdowns, checklist interactions
+   ----------------------------------------------------------------- */
+
+function startClock() {
+  const clockEls = document.querySelectorAll(".clock.mono");
+  if (!clockEls.length) return;
+
+  function tick() {
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    const text = `${hh}:${mm}:${ss}`;
+    clockEls.forEach((el) => { el.textContent = text; });
+  }
+
+  tick();
+  setInterval(tick, 1000);
+}
+
+function startTicketCountdown() {
+  setInterval(() => {
+    document.querySelectorAll(".ticket-time[data-seconds]").forEach((el) => {
+      let seconds = Number(el.dataset.seconds);
+      if (seconds <= 0) return;
+      seconds -= 1;
+      el.dataset.seconds = String(seconds);
+      el.textContent = secondsToTime(seconds);
+
+      if (seconds === 0) {
+        const pill = el.nextElementSibling;
+        if (pill && pill.classList.contains("pill")) {
+          pill.textContent = "away";
+          pill.className = "pill pill-done";
+        }
+      }
+    });
+  }, 1000);
+}
+
+function handleChecklistToggle(rowEl) {
+  const widgetIndex = Number(rowEl.dataset.widget);
+  const rowIndex = Number(rowEl.dataset.row);
+  const role = ROLES[activeSlug];
+  const widget = role.widgets[widgetIndex];
+  const row = widget.rows[rowIndex];
+
+  row.done = !row.done;
+  rowEl.classList.toggle("is-done", row.done);
+  rowEl.setAttribute("aria-checked", String(row.done));
+  rowEl.querySelector(".check-mark").textContent = row.done ? "✓" : "";
+  refreshChecklistSub(widgetIndex);
+}
+
+function wireBoardInteractions() {
+  const board = document.getElementById("widget-board");
+  if (!board) return;
+
+  board.addEventListener("click", (e) => {
+    const rowEl = e.target.closest(".check-row");
+    if (rowEl && board.contains(rowEl)) handleChecklistToggle(rowEl);
+  });
+
+  board.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const rowEl = e.target.closest(".check-row");
+    if (rowEl && board.contains(rowEl)) {
+      e.preventDefault();
+      handleChecklistToggle(rowEl);
+    }
+  });
+}
+
+function wireRoleSwitcher() {
+  const chip = document.getElementById("role-chip");
+  const menu = document.getElementById("role-switch-menu");
+  if (!chip || !menu) return;
+
+  chip.addEventListener("click", () => setRoleSwitchOpen(menu.hidden));
+
+  menu.addEventListener("click", (e) => {
+    const item = e.target.closest(".role-switch-item");
+    if (item) switchRole(item.dataset.slug);
+  });
+
+  menu.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const item = e.target.closest(".role-switch-item");
+    if (item) {
+      e.preventDefault();
+      switchRole(item.dataset.slug);
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest(".role-switch")) setRoleSwitchOpen(false);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") setRoleSwitchOpen(false);
+  });
+}
+
+/* -----------------------------------------------------------------
+   Boot
+   ----------------------------------------------------------------- */
+
+document.addEventListener("DOMContentLoaded", () => {
+  renderRoleGrid();
+  updateShiftEyebrow();
+  wireBoardInteractions();
+  wireRoleSwitcher();
+  window.addEventListener("hashchange", route);
+  route();
+
+  if (!clockTimerStarted) {
+    startClock();
+    startTicketCountdown();
+    clockTimerStarted = true;
+  }
+});
+</script>
+</body>
+</html>
