@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Intelligent Cognitive Alarm Platform</title>
+  <style>
+    body { font-family: Arial; margin: 0; background: #f4f6f8; }
+    header { background: #1f2937; color: white; padding: 20px; }
+    nav { background: #374151; padding: 12px; }
+    nav a { color: white; margin: 15px; cursor: pointer; }
+    .container { padding: 30px; }
+    .card {
+      background: white; padding: 20px; margin: 15px 0;
+      border-radius: 10px; box-shadow: 0 2px 8px #ccc;
+    }
+    button {
+      padding: 10px 20px; border: 0; border-radius: 6px;
+      background: #2563eb; color: white; cursor: pointer;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>AI Intelligent Cognitive Alarm Platform</h1>
+  <p>Smart monitoring and intelligent alert management system</p>
+</header>
+
+<nav>
+  <a onclick="show('home')">Home</a>
+  <a onclick="show('admin')">Admin Dashboard</a>
+  <a onclick="show('user')">User Dashboard</a>
+  <a onclick="show('alert')">Alert Manager</a>
+</nav>
+
+<div class="container">
+
+  <section id="home">
+    <div class="card">
+      <h2>Welcome</h2>
+      <p>Welcome to the AI Intelligent Cognitive Alarm Platform.</p>
+      <p>This dashboard provides role-based access and intelligent alarm monitoring.</p>
+      <button onclick="show('admin')">Login / Continue</button>
+    </div>
+  </section>
+
+  <section id="admin" style="display:none">
+    <div class="card">
+      <h2>Admin Dashboard</h2>
+      <p>Manage users, system settings and platform activity.</p>
+      <ul>
+        <li>Total Users: 120</li>
+        <li>Active Alerts: 8</li>
+        <li>System Status: Online</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="user" style="display:none">
+    <div class="card">
+      <h2>User Dashboard</h2>
+      <p>View your alerts and monitor current status.</p>
+      <ul>
+        <li>Personal Alerts: 3</li>
+        <li>Notifications: 5</li>
+        <li>Status: Active</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="alert" style="display:none">
+    <div class="card">
+      <h2>Alert Manager Dashboard</h2>
+      <p>Monitor and manage intelligent alarms.</p>
+      <ul>
+        <li>Critical Alerts: 2</li>
+        <li>Warnings: 6</li>
+        <li>Resolved: 15</li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<script>
+function show(page) {
+  document.querySelectorAll("section").forEach(
+    section => section.style.display = "none"
+  );
+  document.getElementById(page).style.display = "block";
+}
+</script>
+
+</body>
+</html>
