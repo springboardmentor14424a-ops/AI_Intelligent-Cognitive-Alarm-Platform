@@ -1,9 +1,3 @@
-/* =====================================================================
-   SIMMER — station dashboard behavior
-   Reads ?role= from the URL, looks up that station's board, and
-   renders its widgets. Each widget has a "kind" (tickets, checklist,
-   table, stats) with a small renderer of its own below.
-   ===================================================================== */
 
 const ROLES = {
   "executive-chef": {
