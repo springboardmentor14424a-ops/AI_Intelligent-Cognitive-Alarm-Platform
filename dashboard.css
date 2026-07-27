@@ -1,10 +1,4 @@
-/* =====================================================================
-   SIMMER — station dashboard
-   Aesthetic continues the ticket-rail kitchen-vlog language from the
-   landing page: warm parchment, handwritten headline, mono receipt
-   type for anything time- or number-driven. Widgets read like the
-   clipboards and printed tickets clipped around a real kitchen.
-   ===================================================================== */
+
 
 :root {
   --bg: #FBF1E4;
@@ -147,9 +141,6 @@ a { color: inherit; }
   border-color: var(--tomato-dark);
 }
 
-/* ---------------------------------------------------------------------
-   Hero
-   --------------------------------------------------------------------- */
 
 .dash-hero {
   padding: 14px 0 8px;
@@ -185,9 +176,6 @@ a { color: inherit; }
   margin: 0;
 }
 
-/* ---------------------------------------------------------------------
-   Widget board
-   --------------------------------------------------------------------- */
 
 .widget-board {
   margin-top: 30px;
@@ -231,7 +219,6 @@ a { color: inherit; }
   white-space: nowrap;
 }
 
-/* status pills, shared across widget kinds */
 .pill {
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -246,7 +233,6 @@ a { color: inherit; }
 .pill-pending { background: var(--mustard-wash); color: #8A5E10; }
 .pill-done { background: var(--sage-wash); color: var(--sage); }
 
-/* --- tickets widget kind --- */
 
 .tickets-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 
@@ -272,8 +258,6 @@ a { color: inherit; }
   color: var(--ink-soft);
   white-space: nowrap;
 }
-
-/* --- checklist widget kind --- */
 
 .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 
@@ -304,7 +288,6 @@ a { color: inherit; }
 
 .check-detail { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); margin-top: 1px; }
 
-/* --- table widget kind --- */
 
 .widget-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 
@@ -327,7 +310,6 @@ a { color: inherit; }
 
 .widget-table tr:last-child td { border-bottom: none; }
 
-/* --- stats widget kind --- */
 
 .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; }
 
@@ -352,7 +334,6 @@ a { color: inherit; }
   margin-top: 2px;
 }
 
-/* --- empty / unknown role state --- */
 
 .dash-empty {
   grid-column: 1 / -1;
@@ -367,10 +348,6 @@ a { color: inherit; }
   text-decoration: none;
   border-bottom: 1px dashed var(--tomato-dark);
 }
-
-/* ---------------------------------------------------------------------
-   Responsive
-   --------------------------------------------------------------------- */
 
 @media (max-width: 560px) {
   .dash { padding: 0 5vw 60px; }
