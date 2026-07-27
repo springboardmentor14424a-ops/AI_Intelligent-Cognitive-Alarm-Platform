@@ -1,8 +1,3 @@
-/* =====================================================================
-   SIMMER — landing page behavior
-   Renders the station line-up as pinned order tickets and keeps the
-   kitchen clock ticking, receipt-printer style.
-   ===================================================================== */
 
 const STATIONS = [
   {
