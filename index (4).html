@@ -7,15 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Quicksand:wght@500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
 <style>
-/* =====================================================================
-   SIMMER — a kitchen-vlog styled dashboard
-   Single-file build: landing lineup + role dashboard, hash-routed.
-   Aesthetic: a warm "order ticket rail". Cards and widgets read like
-   tickets and clipboards pinned around a real kitchen — perforated
-   edges, dashed rules, a handwritten headline the way a chef scrawls
-   the daily special on a chalkboard, mono type wherever something is
-   a time, count, or timestamp.
-   ===================================================================== */
 
 :root {
   --bg: #FBF1E4;
@@ -49,7 +40,6 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* subtle woven-linen texture so the cream isn't flat */
 body {
   background-image: radial-gradient(circle at 1px 1px, rgba(43,35,28,0.045) 1px, transparent 0);
   background-size: 22px 22px;
@@ -63,10 +53,6 @@ a { color: inherit; }
 
 .is-hidden { display: none !important; }
 
-/* =====================================================================
-   LANDING PAGE
-   ===================================================================== */
-
 .landing {
   position: relative;
   min-height: 100vh;
@@ -76,7 +62,6 @@ a { color: inherit; }
   flex-direction: column;
 }
 
-/* ambient blobs — soft simmering steam / sauce splashes behind the hero */
 .blob {
   position: absolute;
   border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
@@ -187,7 +172,6 @@ a { color: inherit; }
   position: relative;
 }
 
-/* the rail bar the tickets "hang" from */
 .console-frame-inner::before {
   content: "";
   position: absolute;
@@ -244,7 +228,6 @@ a { color: inherit; }
 
 .role-card:focus-visible { outline: 2px solid var(--tomato-dark); outline-offset: 3px; }
 
-/* perforated tear-strip at the top of each ticket */
 .role-card::before {
   content: "";
   position: absolute;
@@ -315,10 +298,6 @@ a { color: inherit; }
   .hero { margin: 6vh auto 5vh; }
   .console-frame-inner { padding: 26px 16px 30px; }
 }
-
-/* =====================================================================
-   DASHBOARD
-   ===================================================================== */
 
 .dash { min-height: 100vh; padding: 0 6vw 80px; }
 
@@ -503,7 +482,6 @@ a { color: inherit; }
   white-space: nowrap;
 }
 
-/* status pills, shared across widget kinds */
 .pill {
   font-family: var(--font-mono);
   font-size: 0.62rem;
@@ -518,7 +496,6 @@ a { color: inherit; }
 .pill-pending { background: var(--mustard-wash); color: #8A5E10; }
 .pill-done { background: var(--sage-wash); color: var(--sage); }
 
-/* --- tickets widget kind --- */
 .tickets-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 
 .ticket-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--bg-sunk); border-radius: 6px; }
@@ -528,7 +505,6 @@ a { color: inherit; }
 .ticket-meta { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); }
 .ticket-time { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-soft); white-space: nowrap; }
 
-/* --- checklist widget kind --- */
 .checklist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 
 .check-row {
@@ -562,7 +538,6 @@ a { color: inherit; }
 .check-label { font-size: 0.9rem; font-weight: 600; }
 .check-detail { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-soft); margin-top: 1px; }
 
-/* --- table widget kind --- */
 .widget-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 
 .widget-table th {
@@ -579,14 +554,12 @@ a { color: inherit; }
 .widget-table td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .widget-table tr:last-child td { border-bottom: none; }
 
-/* --- stats widget kind --- */
 .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 14px; }
 
 .stat-item { background: var(--bg-sunk); border-radius: 8px; padding: 12px 12px 10px; text-align: center; }
 .stat-value { font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; color: var(--tomato-dark); display: block; }
 .stat-label { font-size: 0.72rem; color: var(--ink-soft); margin-top: 2px; }
 
-/* --- empty / unknown role state --- */
 .dash-empty { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--ink-soft); }
 .dash-empty a { color: var(--tomato-dark); font-weight: 700; text-decoration: none; border-bottom: 1px dashed var(--tomato-dark); cursor: pointer; }
 
@@ -599,9 +572,6 @@ a { color: inherit; }
 </head>
 <body>
 
-<!-- ============================================================ -->
-<!-- LANDING PAGE                                                   -->
-<!-- ============================================================ -->
 <div class="landing" id="page-landing">
   <div class="blob blob-1"></div>
   <div class="blob blob-2"></div>
@@ -621,22 +591,19 @@ a { color: inherit; }
   <div class="console-frame">
     <div class="console-frame-inner">
       <div class="console-label">today's lineup</div>
-      <div class="role-grid" id="role-grid"><!-- injected by script --></div>
+      <div class="role-grid" id="role-grid"></div>
     </div>
   </div>
 </div>
 
-<!-- ============================================================ -->
-<!-- DASHBOARD                                                      -->
-<!-- ============================================================ -->
 <div class="dash is-hidden" id="page-dashboard">
 
   <header class="dash-topbar">
     <a class="brand" href="#lineup"><span class="brand-icon">🍳</span>Simmer</a>
 
     <div class="role-switch">
-      <button class="dash-role-chip" id="role-chip" type="button" aria-haspopup="listbox" aria-expanded="false"><!-- injected --></button>
-      <ul class="role-switch-menu" id="role-switch-menu" role="listbox" hidden><!-- injected --></ul>
+      <button class="dash-role-chip" id="role-chip" type="button" aria-haspopup="listbox" aria-expanded="false"></button>
+      <ul class="role-switch-menu" id="role-switch-menu" role="listbox" hidden></ul>
     </div>
 
     <div class="dash-topbar-right">
@@ -652,19 +619,12 @@ a { color: inherit; }
   </section>
 
   <main class="widget-board" id="widget-board">
-    <!-- injected by script -->
+   
   </main>
 
 </div>
 
 <script>
-/* =====================================================================
-   SIMMER — app behavior
-   Two "pages" (#page-landing, #page-dashboard) toggled by a tiny hash
-   router: any hash of the form #role=<slug> shows that station's
-   dashboard; anything else shows the lineup. This keeps the whole app
-   to a single file with no server or page reloads required.
-   ===================================================================== */
 
 const STATIONS = [
   { slug: "executive-chef", icon: "🔥", name: "Executive Chef", station: "the pass", desc: "Oversee the menu, plating standards, and every ticket before it goes out.", tags: ["menu", "quality", "plating"] },
@@ -831,11 +791,6 @@ const ROLES = {
 let activeSlug = null;
 let clockTimerStarted = false;
 
-/* -----------------------------------------------------------------
-   Router — a hash of "#role=<slug>" shows the dashboard for that
-   station; anything else (including "", "#", "#lineup") shows the
-   lineup.
-   ----------------------------------------------------------------- */
 
 function showPage(name) {
   document.getElementById("page-landing").classList.toggle("is-hidden", name !== "landing");
@@ -853,9 +808,6 @@ function route() {
   }
 }
 
-/* -----------------------------------------------------------------
-   Landing lineup
-   ----------------------------------------------------------------- */
 
 function renderRoleGrid() {
   const grid = document.getElementById("role-grid");
@@ -883,9 +835,6 @@ function updateShiftEyebrow() {
   eyebrowEl.textContent = `now plating: today's ${shift} shift`;
 }
 
-/* -----------------------------------------------------------------
-   Dashboard — widget renderers
-   ----------------------------------------------------------------- */
 
 function timeToSeconds(str) {
   const [m, s] = str.split(":").map(Number);
@@ -1051,10 +1000,6 @@ function switchRole(slug) {
   document.getElementById("role-chip")?.focus();
 }
 
-/* -----------------------------------------------------------------
-   Clock, ticket countdowns, checklist interactions
-   ----------------------------------------------------------------- */
-
 function startClock() {
   const clockEls = document.querySelectorAll(".clock.mono");
   if (!clockEls.length) return;
@@ -1154,10 +1099,6 @@ function wireRoleSwitcher() {
     if (e.key === "Escape") setRoleSwitchOpen(false);
   });
 }
-
-/* -----------------------------------------------------------------
-   Boot
-   ----------------------------------------------------------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
   renderRoleGrid();
