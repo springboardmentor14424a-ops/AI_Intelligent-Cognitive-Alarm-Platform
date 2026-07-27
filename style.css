@@ -1,10 +1,3 @@
-/* =====================================================================
-   SIMMER — landing page
-   Aesthetic: a warm kitchen-vlog "order ticket rail". Cards read like
-   tickets pinned above the pass, timestamps set in a receipt-printer
-   mono, headline in a loose handwritten script the way a chef scrawls
-   the daily special on a chalkboard.
-   ===================================================================== */
 
 :root {
   --bg: #FBF1E4;
@@ -34,7 +27,6 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* subtle woven-linen texture so the cream isn't flat */
 body {
   background-image:
     radial-gradient(circle at 1px 1px, rgba(43,35,28,0.045) 1px, transparent 0);
@@ -45,9 +37,6 @@ body {
   * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
 
-/* ---------------------------------------------------------------------
-   Landing shell
-   --------------------------------------------------------------------- */
 
 .landing {
   position: relative;
@@ -58,7 +47,6 @@ body {
   flex-direction: column;
 }
 
-/* ambient blobs — soft simmering steam / sauce splashes behind the hero */
 .blob {
   position: absolute;
   border-radius: 42% 58% 63% 37% / 41% 44% 56% 59%;
@@ -104,9 +92,6 @@ body {
   66% { transform: translate(-14px, 12px) scale(0.97); }
 }
 
-/* ---------------------------------------------------------------------
-   Topbar
-   --------------------------------------------------------------------- */
 
 .landing-topbar {
   position: relative;
@@ -140,10 +125,6 @@ body {
   padding: 6px 12px;
   box-shadow: 0 1px 0 rgba(43,35,28,0.05);
 }
-
-/* ---------------------------------------------------------------------
-   Hero
-   --------------------------------------------------------------------- */
 
 .hero {
   position: relative;
@@ -184,10 +165,6 @@ body {
   margin: 0 auto;
 }
 
-/* ---------------------------------------------------------------------
-   Console frame — the ticket rail
-   --------------------------------------------------------------------- */
-
 .console-frame {
   position: relative;
   z-index: 2;
@@ -207,7 +184,6 @@ body {
   position: relative;
 }
 
-/* the rail bar the tickets "hang" from */
 .console-frame-inner::before {
   content: "";
   position: absolute;
@@ -233,10 +209,6 @@ body {
   text-align: center;
   margin-bottom: 26px;
 }
-
-/* ---------------------------------------------------------------------
-   Role grid — order tickets
-   --------------------------------------------------------------------- */
 
 .role-grid {
   display: grid;
@@ -275,7 +247,6 @@ body {
   outline-offset: 3px;
 }
 
-/* perforated tear-strip at the top of each ticket */
 .role-card::before {
   content: "";
   position: absolute;
@@ -348,9 +319,6 @@ body {
   border-radius: 999px;
 }
 
-/* ---------------------------------------------------------------------
-   Responsive
-   --------------------------------------------------------------------- */
 
 @media (max-width: 560px) {
   .landing { padding: 20px 5vw 60px; }
