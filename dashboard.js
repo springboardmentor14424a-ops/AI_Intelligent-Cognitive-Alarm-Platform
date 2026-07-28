@@ -1,6 +1,3 @@
-/* ============================================================
-   dashboard.js — logic for dashboard.html (all 4 role dashboards)
-   ============================================================ */
 
 const SESSION_KEY = 'cogniAlarmSession';
 
