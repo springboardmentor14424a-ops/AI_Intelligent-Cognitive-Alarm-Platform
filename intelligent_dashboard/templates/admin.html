@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="dashboard">
+
+<div class="sidebar">
+<h2>Admin</h2>
+
+<a href="{{ url_for('admin') }}">Dashboard</a>
+<a href="#">Users</a>
+<a href="#">Reports</a>
+<a href="#">Settings</a>
+<a href="{{ url_for('logout') }}">Logout</a>
+</div>
+
+<div class="content">
+
+<h1>Admin Dashboard</h1>
+
+<div class="cards">
+
+<div class="card">
+<h3>Total Users</h3>
+<h2>250</h2>
+</div>
+
+<div class="card">
+<h3>Active Users</h3>
+<h2>190</h2>
+</div>
+
+<div class="card">
+<h3>Today's Alarms</h3>
+<h2>720</h2>
+</div>
+
+<div class="card">
+<h3>System Health</h3>
+<h2>98%</h2>
+</div>
+
+</div>
+
+<h2>Recent Users</h2>
+
+<table>
+
+<tr>
+<th>Name</th>
+<th>Role</th>
+<th>Status</th>
+</tr>
+
+<tr>
+<td>Rahul</td>
+<td>User</td>
+<td>Active</td>
+</tr>
+
+<tr>
+<td>Riya</td>
+<td>Coach</td>
+<td>Active</td>
+</tr>
+
+<tr>
+<td>John</td>
+<td>User</td>
+<td>Inactive</td>
+</tr>
+
+</table>
+
+</div>
+
+</div>
+
+</body>
+</html>

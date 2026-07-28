@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Coach Dashboard</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+<div class="dashboard">
+
+<div class="sidebar">
+
+<h2>Coach</h2>
+
+<a href="{{ url_for('coach') }}">Dashboard</a>
+<a href="#">Challenges</a>
+<a href="#">Reports</a>
+<a href="#">Profile</a>
+<a href="{{ url_for('logout') }}">Logout</a>
+
+</div>
+
+<div class="content">
+
+<h1>Coach Dashboard</h1>
+
+<div class="cards">
+
+<div class="card">
+<h3>Assigned Users</h3>
+<h2>45</h2>
+</div>
+
+<div class="card">
+<h3>Completed Challenges</h3>
+<h2>34</h2>
+</div>
+
+<div class="card">
+<h3>Habit Score</h3>
+<h2>88%</h2>
+</div>
+
+<div class="card">
+<h3>Pending Reports</h3>
+<h2>7</h2>
+</div>
+
+</div>
+
+<h2>User Progress</h2>
+
+<table>
+
+<tr>
+<th>User</th>
+<th>Habit Score</th>
+<th>Status</th>
+</tr>
+
+<tr>
+<td>Alice</td>
+<td>90%</td>
+<td>Excellent</td>
+</tr>
+
+<tr>
+<td>Bob</td>
+<td>80%</td>
+<td>Good</td>
+</tr>
+
+<tr>
+<td>Chris</td>
+<td>70%</td>
+<td>Needs Improvement</td>
+</tr>
+
+</table>
+
+</div>
+
+</div>
+
+</body>
+</html>

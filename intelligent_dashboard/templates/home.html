@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Cognitive Alarm Platform</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<nav>
+    <h2>Intelligent Cognitive Alarm Platform</h2>
+
+    <a href="{{ url_for('login') }}">
+        <button>Login</button>
+    </a>
+</nav>
+
+<div class="container">
+
+    <h1>Welcome</h1>
+
+    <p>
+        A smart dashboard that helps users manage alarms,
+        monitor activities and provide role-based access.
+    </p>
+
+    <div class="cards">
+
+        <div class="card">
+            <h3>Admin</h3>
+            <p>Manage users and reports</p>
+        </div>
+
+        <div class="card">
+            <h3>Coach</h3>
+            <p>Track user progress</p>
+        </div>
+
+        <div class="card">
+            <h3>User</h3>
+            <p>View alarms and activities</p>
+        </div>
+
+    </div>
+
+    <br>
+
+    <a href="{{ url_for('login') }}">
+        <button class="primary">Get Started</button>
+    </a>
+
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>

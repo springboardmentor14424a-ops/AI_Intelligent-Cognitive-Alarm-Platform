@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>User Dashboard</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+<div class="dashboard">
+
+<div class="sidebar">
+
+<h2>User</h2>
+
+<a href="{{ url_for('user') }}">Dashboard</a>
+<a href="#">My Alarms</a>
+<a href="#">Progress</a>
+<a href="#">Profile</a>
+<a href="{{ url_for('logout') }}">Logout</a>
+
+</div>
+
+<div class="content">
+
+<h1>User Dashboard</h1>
+
+<div class="cards">
+
+<div class="card">
+<h3>Today's Alarm</h3>
+<h2>6:30 AM</h2>
+</div>
+
+<div class="card">
+<h3>Habit Score</h3>
+<h2>82%</h2>
+</div>
+
+<div class="card">
+<h3>Sleep Hours</h3>
+<h2>7.5 hrs</h2>
+</div>
+
+<div class="card">
+<h3>Challenges Completed</h3>
+<h2>4</h2>
+</div>
+
+</div>
+
+<h2>Today's Tasks</h2>
+
+<ul>
+<li>✔ Wake Up Early</li>
+<li>✔ Exercise</li>
+<li>✔ Read 20 Minutes</li>
+<li>✔ Drink Water</li>
+</ul>
+
+</div>
+
+</div>
+
+</body>
+</html>
