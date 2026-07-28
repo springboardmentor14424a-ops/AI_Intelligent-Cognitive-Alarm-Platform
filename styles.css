@@ -13,9 +13,8 @@ body {
   min-height: 100vh;
 }
 
-/* ========================================== */
 /* 1. LOGIN PAGE STYLES */
-/* ========================================== */
+
 .login-page {
   display: flex;
   justify-content: center;
@@ -105,9 +104,9 @@ body {
 }
 
 
-/* ========================================== */
+
 /* 2. MAIN APPLICATION & DASHBOARDS STYLES */
-/* ========================================== */
+
 .app-page {
   display: none;
 }
