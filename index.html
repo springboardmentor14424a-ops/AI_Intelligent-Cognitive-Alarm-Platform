@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intelligent Cognitive Alarm Platform</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- 1. LOGIN PAGE (First screen shown) -->
+  <!-- ========================================== -->
+  <div id="page-login" class="login-page">
+    <div class="login-box">
+      <h2>Intelligent Cognitive Alarm Platform</h2>
+      <p class="subtitle">Please select your role and log in</p>
+
+      <form id="login-form">
+        <!-- Role Selection Dropdown -->
+        <div class="form-group">
+          <label for="role-select">Select Role:</label>
+          <select id="role-select">
+            <option value="User">User</option>
+            <option value="Wellness Coach">Wellness Coach</option>
+            <option value="Administrator">Administrator</option>
+          </select>
+        </div>
+
+        <!-- Full Name Field -->
+        <div class="form-group">
+          <label for="name-input">Full Name:</label>
+          <input type="text" id="name-input" required>
+        </div>
+
+        <!-- Email Field -->
+        <div class="form-group">
+          <label for="email-input">Email Address:</label>
+          <input type="email" id="email-input" required>
+        </div>
+
+        <!-- Password Field -->
+        <div class="form-group">
+          <label for="password-input">Password:</label>
+          <input type="password" id="password-input" required>
+          <small class="hint-text">Must be > 7 chars, include 1 uppercase, 1 lowercase, 1 number, and 1 special char.</small>
+        </div>
+
+        <!-- Login Button -->
+        <button type="submit" id="login-btn">Login</button>
+
+        <!-- Validation Error Message Display -->
+        <div id="error-message" class="error-text"></div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================== -->
+  <!-- 2. MAIN APPLICATION (Shown after login) -->
+  <!-- ========================================== -->
+  <div id="page-app" class="app-page">
+
+    <!-- Navbar -->
+    <header class="navbar">
+      <h1 class="logo">Intelligent Cognitive Alarm Platform</h1>
+      <div class="user-nav">
+        <span id="user-tag" class="user-tag">Logged in as: User</span>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </header>
+
+    <main class="container">
+
+      <!-- ========================================== -->
+      <!-- A. USER DASHBOARD (Page 6 Specs) -->
+      <!-- ========================================== -->
+      <section id="view-user" class="dashboard-view">
+        <h2 class="section-title">User Dashboard</h2>
+
+        <!-- Habit Score -->
+        <div class="card">
+          <h3>1. Habit Score</h3>
+          <p class="score-text">Total Habit Score: <strong>88 / 100</strong></p>
+          <p class="sub-heading">Weighted Scoring Breakdown:</p>
+          <ul class="simple-list">
+            <li>Wake-Up Consistency (35% weight): 92%</li>
+            <li>Challenge Completion Success (25% weight): 85%</li>
+            <li>Snooze Reduction (20% weight): 80%</li>
+            <li>Sleep Schedule Adherence (20% weight): 90%</li>
+          </ul>
+        </div>
+
+        <!-- Wake-up Statistics -->
+        <div class="card">
+          <h3>2. Wake-up Statistics</h3>
+          <div class="grid-3">
+            <div class="stat-box">
+              <span class="label">Preferred Wake-up Time</span>
+              <span class="value">06:30 AM</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">Wake-up Streak</span>
+              <span class="value">14 Days</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">Avg Dismiss Latency</span>
+              <span class="value">42 Seconds</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alarm History -->
+        <div class="card">
+          <h3>3. Alarm History</h3>
+          <table class="simple-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Alarm Name</th>
+                <th>Dismissed At</th>
+                <th>Snoozes</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Today, 06:30 AM</td>
+                <td>Morning Focus</td>
+                <td>06:31 AM</td>
+                <td>0</td>
+                <td><span class="status-badge success">On Time</span></td>
+              </tr>
+              <tr>
+                <td>Yesterday, 06:30 AM</td>
+                <td>Morning Focus</td>
+                <td>06:34 AM</td>
+                <td>1</td>
+                <td><span class="status-badge success">Resolved</span></td>
+              </tr>
+              <tr>
+                <td>Jul 25, 06:30 AM</td>
+                <td>Morning Focus</td>
+                <td>06:32 AM</td>
+                <td>0</td>
+                <td><span class="status-badge success">On Time</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Challenge Performance -->
+        <div class="card">
+          <h3>4. Challenge Performance</h3>
+          <ul class="simple-list">
+            <li>Math Problems: 32 Solved (96% Accuracy)</li>
+            <li>Logic Puzzles: 24 Solved (91% Accuracy)</li>
+            <li>Memory Challenges: 18 Solved (95% Accuracy)</li>
+          </ul>
+        </div>
+
+        <!-- Productivity Insights -->
+        <div class="card">
+          <h3>5. Productivity Insights</h3>
+          <p class="info-box">Going to bed by 10:30 PM improves morning puzzle accuracy by 18% and reduces snoozing.</p>
+        </div>
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- B. WELLNESS COACH DASHBOARD (Page 7 Specs) -->
+      <!-- ========================================== -->
+      <section id="view-coach" class="dashboard-view">
+        <h2 class="section-title">Wellness Coach Dashboard</h2>
+
+        <!-- User Behavior Insights -->
+        <div class="card">
+          <h3>1. User Behavior Insights</h3>
+          <div class="grid-3">
+            <div class="stat-box">
+              <span class="label">Total Active Clients</span>
+              <span class="value">48 Users</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">Cohort Avg Habit Score</span>
+              <span class="value">81.4 / 100</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">Oversleep Risk Alerts</span>
+              <span class="value danger">3 Clients</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Habit Adherence Analytics -->
+        <div class="card">
+          <h3>2. Habit Adherence Analytics (Client Roster)</h3>
+          <table class="simple-table">
+            <thead>
+              <tr>
+                <th>Client Name</th>
+                <th>Wake Streak</th>
+                <th>Habit Score</th>
+                <th>Avg Snoozes</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Sarah Jenkins</td>
+                <td>19 Days</td>
+                <td>91 / 100</td>
+                <td>0.1 / day</td>
+                <td><span class="status-badge success">Healthy</span></td>
+              </tr>
+              <tr>
+                <td>Marcus Vance</td>
+                <td>3 Days</td>
+                <td>62 / 100</td>
+                <td>2.4 / day</td>
+                <td><span class="status-badge danger">High Risk</span></td>
+              </tr>
+              <tr>
+                <td>David Chen</td>
+                <td>12 Days</td>
+                <td>85 / 100</td>
+                <td>0.4 / day</td>
+                <td><span class="status-badge success">Healthy</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Sleep Trend Reports -->
+        <div class="card">
+          <h3>3. Sleep Trend Reports</h3>
+          <p>Average Client Sleep Duration: <strong>7.4 Hours</strong></p>
+          <p>Sleep Schedule Consistency Index: <strong>88%</strong></p>
+        </div>
+
+        <!-- Progress Monitoring -->
+        <div class="card">
+          <h3>4. Progress Monitoring & Interventions</h3>
+          <div class="form-row">
+            <input type="text" id="guidance-input">
+            <button class="btn" onclick="sendGuidance()">Send Guidance</button>
+          </div>
+          <p id="guidance-msg" class="msg-text"></p>
+        </div>
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- C. ADMINISTRATOR DASHBOARD (Page 7 Specs) -->
+      <!-- ========================================== -->
+      <section id="view-admin" class="dashboard-view">
+        <h2 class="section-title">Administrator Dashboard</h2>
+
+        <!-- Platform Analytics -->
+        <div class="card">
+          <h3>1. Platform Analytics</h3>
+          <div class="grid-3">
+            <div class="stat-box">
+              <span class="label">Total Registered Users</span>
+              <span class="value">12,480</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">Daily Alarms Fired</span>
+              <span class="value">34,190</span>
+            </div>
+            <div class="stat-box">
+              <span class="label">System Uptime</span>
+              <span class="value success">99.99%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Management -->
+        <div class="card">
+          <h3>2. User Management</h3>
+          <table class="simple-table">
+            <thead>
+              <tr>
+                <th>User Name</th>
+                <th>Email</th>
+                <th>Assigned Role</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Alex Morgan</td>
+                <td>alex.m@example.com</td>
+                <td>User</td>
+                <td><span class="status-badge success">Active</span></td>
+              </tr>
+              <tr>
+                <td>Dr. Emily Watson</td>
+                <td>emily.watson@health.org</td>
+                <td>Wellness Coach</td>
+                <td><span class="status-badge success">Active</span></td>
+              </tr>
+              <tr>
+                <td>David K.</td>
+                <td>admin@cognitivealarm.io</td>
+                <td>Administrator</td>
+                <td><span class="status-badge success">Active</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Recommendation Monitoring -->
+        <div class="card">
+          <h3>3. Recommendation Monitoring</h3>
+          <p>AI Recommendation Delivery Rate: <strong>96.4%</strong></p>
+          <p>User Recommendation Acceptance Rate: <strong>91.2%</strong></p>
+        </div>
+
+        <!-- System Reports -->
+        <div class="card">
+          <h3>4. System Reports</h3>
+          <div class="btn-group">
+            <button class="btn-secondary" onclick="exportReport('Habit Report')">Export Habit Report (PDF)</button>
+            <button class="btn-secondary" onclick="exportReport('Wake-Up Data')">Export Wake-Up Data (Excel)</button>
+            <button class="btn-secondary" onclick="exportReport('Challenge Audit')">Export Challenge Audit (PDF)</button>
+          </div>
+          <p id="report-msg" class="msg-text"></p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

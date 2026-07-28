@@ -1,0 +1,331 @@
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f6f9;
+  color: #333333;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ========================================== */
+/* 1. LOGIN PAGE STYLES */
+/* ========================================== */
+.login-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.login-box {
+  background-color: #ffffff;
+  padding: 30px;
+  width: 420px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.login-box h2 {
+  font-size: 20px;
+  color: #333333;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #666666;
+  margin-bottom: 24px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: bold;
+  color: #444444;
+  margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+  outline: none;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #007bff;
+}
+
+.hint-text {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+#login-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+#login-btn:hover {
+  background-color: #0056b3;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 12px;
+  text-align: center;
+}
+
+
+/* ========================================== */
+/* 2. MAIN APPLICATION & DASHBOARDS STYLES */
+/* ========================================== */
+.app-page {
+  display: none;
+}
+
+/* Navbar */
+.navbar {
+  background-color: #1e293b;
+  color: #ffffff;
+  padding: 16px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-size: 18px;
+}
+
+.user-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-tag {
+  font-size: 14px;
+  background-color: #334155;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.logout-btn {
+  padding: 6px 14px;
+  background-color: #dc2626;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.logout-btn:hover {
+  background-color: #b91c1c;
+}
+
+/* Layout Container */
+.container {
+  max-width: 1000px;
+  margin: 28px auto;
+  padding: 0 16px;
+}
+
+/* Dashboard Views */
+.dashboard-view {
+  display: none;
+}
+
+.section-title {
+  font-size: 22px;
+  margin-bottom: 20px;
+  color: #0f172a;
+}
+
+/* Cards */
+.card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.card h3 {
+  font-size: 16px;
+  color: #1e293b;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+
+/* Grids and Stats */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.stat-box {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-box .label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: bold;
+}
+
+.stat-box .value {
+  font-size: 18px;
+  font-weight: bold;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.stat-box .value.success {
+  color: #16a34a;
+}
+
+.stat-box .value.danger {
+  color: #dc2626;
+}
+
+/* Lists */
+.simple-list {
+  margin-left: 20px;
+  margin-top: 8px;
+}
+
+.simple-list li {
+  margin-bottom: 6px;
+}
+
+/* Tables */
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.simple-table th,
+.simple-table td {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+  font-size: 14px;
+}
+
+.simple-table th {
+  background-color: #f8fafc;
+  color: #475569;
+}
+
+/* Badges */
+.status-badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.status-badge.success {
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.status-badge.danger {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Form Controls and Buttons */
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+.form-row input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+}
+
+.btn {
+  padding: 8px 16px;
+  background-color: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  padding: 8px 14px;
+  background-color: #e2e8f0;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-secondary:hover {
+  background-color: #cbd5e1;
+}
+
+.btn-group {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.info-box {
+  background-color: #fef3c7;
+  color: #92400e;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.msg-text {
+  margin-top: 10px;
+  color: #16a34a;
+  font-weight: bold;
+  font-size: 14px;
+}
