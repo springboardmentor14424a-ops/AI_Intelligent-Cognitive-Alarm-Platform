@@ -3,36 +3,62 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simmer: a kitchen-vlog styled dashboard</title>
+<title>CogniAlarm — AI Intelligent Cognitive Alarm Platform</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Quicksand:wght@500;600;700&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="landing" id="page-landing">
-  <div class="blob blob-1"></div>
-  <div class="blob blob-2"></div>
-  <div class="blob blob-3"></div>
+<main>
+  <section class="page active" id="page-landing">
+    <div class="landing-wrap">
+      <span class="eyebrow">● live cognitive monitoring network</span>
+      <div class="hero">
+        <div>
+          <h1>Alarms that understand<br><span class="accentline">the mind, not just the clock.</span></h1>
+          <p class="lead">CogniAlarm reads focus, fatigue and stress signals from wearables and check-ins,
+            then raises the right alert to the right person — before attention fully drops. Pick a role below to
+            open its dashboard.</p>
+          <div class="hero-stats">
+            <div><strong>12,480</strong><span>Signals / day</span></div>
+            <div><strong>96.4%</strong><span>Alarm accuracy</span></div>
+            <div><strong>2.1s</strong><span>Avg. alert latency</span></div>
+          </div>
+        </div>
+        <div class="wave-panel">
+          <div class="wave-panel-head">
+            <span class="label">Cognitive signal — live</span>
+            <span class="wave-status"><span class="dot"></span> stable</span>
+          </div>
+          <canvas id="waveCanvas" width="500" height="150"></canvas>
+          <div class="wave-readouts">
+            <div><div class="v" id="wvFocus" style="color:var(--cyan);">—</div><div class="k">Focus idx</div></div>
+            <div><div class="v" id="wvFatigue" style="color:var(--amber);">—</div><div class="k">Fatigue idx</div></div>
+            <div><div class="v" id="wvAlarms" style="color:var(--violet);">—</div><div class="k">Alarms/hr</div></div>
+          </div>
+        </div>
+      </div>
 
-  <div class="landing-topbar">
-    <div class="brand"><span class="brand-icon">🍳</span>Simmer</div>
-    <div class="clock mono" id="live-clock">--:--:--</div>
-  </div>
+      <div class="picker">
+        <div class="picker-head">
+          <div>
+            <h2>Choose your dashboard</h2>
+            <p>Role-based access — each dashboard shows only what that role is permitted to see.</p>
+          </div>
+          <div class="name-field">
+            <input type="text" id="nameInput" placeholder="Your name (optional)">
+          </div>
+        </div>
+        <div class="role-grid" id="roleGrid"></div>
+      </div>
 
-  <div class="hero">
-    <div class="eyebrow">now plating: today's shift</div>
-    <h1 class="display">Grab an apron. Pick your station.</h1>
-    <p>Simmer plates up a different workspace for every role in the kitchen, so nobody wades through tools they don't need. Choose a station below to step in.</p>
-  </div>
-
-  <div class="console-frame">
-    <div class="console-frame-inner">
-      <div class="console-label">today's lineup</div>
-      <div class="role-grid" id="role-grid"></div>
+      <p class="foot-note">Demo build — data shown is simulated for evaluation purposes. No real patient or student data is used.</p>
     </div>
-  </div>
-</div>
+  </section>
+</main>
+
+<div class="toast-wrap" id="toastWrap"></div>
 
 <script src="script.js"></script>
 </body>
