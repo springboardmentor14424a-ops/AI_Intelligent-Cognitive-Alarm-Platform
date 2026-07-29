@@ -1,74 +1,100 @@
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-  document.querySelectorAll('form').forEach(form => form.classList.remove('active'));
-  
-  if (tabId === 'signin') {
-    document.getElementById('tabSignin').classList.add('active');
-    document.getElementById('signinForm').classList.add('active');
-    document.getElementById('panelTitle').innerHTML = 'Welcome<br>back.';
-    document.getElementById('panelLede').innerText = 'Sign in to reach your coach, your care team, or your patients — all in one calm, secure place.';
+const takenEmails = ["admin@wellspring.io","coach@wellspring.io"];
+
+function switchTab(tab){
+  const isSignin = tab === 'signin';
+  document.getElementById('tabSignin').classList.toggle('active', isSignin);
+  document.getElementById('tabSignup').classList.toggle('active', !isSignin);
+  document.getElementById('signinForm').classList.toggle('active', isSignin);
+  document.getElementById('signupForm').classList.toggle('active', !isSignin);
+
+  document.getElementById('panelTitle').innerHTML = isSignin ? "Welcome<br>back." : "Join the<br>network.";
+  document.getElementById('panelLede').textContent = isSignin
+    ? "Sign in to reach your coach, your care team, or your patients — all in one calm, secure place."
+    : "Create your account and choose the role that fits how you'll use Cognitive Alarm.";
+}
+
+function toggleVis(id, btn){
+  const input = document.getElementById(id);
+  const isPass = input.type === 'password';
+  input.type = isPass ? 'text' : 'password';
+  btn.textContent = isPass ? 'HIDE' : 'SHOW';
+}
+
+function checkEmailUnique(){
+  const val = document.getElementById('su-email').value.trim().toLowerCase();
+  const hint = document.getElementById('emailHint');
+  const input = document.getElementById('su-email');
+  if(!val){
+    hint.textContent = "Must be unique — we'll check availability.";
+    hint.className = "hint";
+    input.classList.remove('field-error');
+    return;
+  }
+  if(takenEmails.includes(val)){
+    hint.textContent = "That email is already registered.";
+    hint.className = "hint err";
+    input.classList.add('field-error');
   } else {
-    document.getElementById('tabSignup').classList.add('active');
-    document.getElementById('signupForm').classList.add('active');
-    document.getElementById('panelTitle').innerHTML = 'Join<br>us.';
-    document.getElementById('panelLede').innerText = 'Create an account to track your cognitive habits and wake up sharper.';
+    hint.textContent = "Available.";
+    hint.className = "hint ok";
+    input.classList.remove('field-error');
   }
 }
 
-function handleSignin(e) {
+function checkStrength(){
+  const val = document.getElementById('su-pass').value;
+  const hint = document.getElementById('passHint');
+  if(val.length === 0){
+    hint.textContent = "Stored as a salted hash (bcrypt) — never in plain text.";
+    hint.className = "hint";
+  } else if(val.length < 8){
+    hint.textContent = "At least 8 characters needed.";
+    hint.className = "hint err";
+  } else {
+    hint.textContent = "Looks good — will be hashed before saving.";
+    hint.className = "hint ok";
+  }
+}
+
+function handleSignin(e){
   e.preventDefault();
-  // Redirect to dashboard (index.html) as default user, or if we had a role saved, redirect there
-  // Since we don't have a role select in signin in this template, we default to user.
+  // Instead of an alert, we can route directly to the user dashboard as requested in the HTML, 
+  // or keep the alert as provided. I'll use the user's provided alert, but also redirect to the dashboard for the demo.
+  alert("Signing in with provider: LOCAL\n(This is a UI demo — wire this up to your auth API.)");
   window.location.href = 'index.html?role=user';
   return false;
 }
 
-function handleSignup(e) {
+function handleSignup(e){
   e.preventDefault();
-  const role = document.getElementById('su-role').value || 'user';
+  const email = document.getElementById('su-email').value.trim().toLowerCase();
+  if(takenEmails.includes(email)){
+    checkEmailUnique();
+    return false;
+  }
+  const name = document.getElementById('su-name').value;
+  const role = document.getElementById('su-role').value;
+  alert(
+    "Account payload (demo):\n" +
+    "name: " + name + "\n" +
+    "email: " + email + "\n" +
+    "password: [encrypted client-side placeholder]\n" +
+    "role: " + role + "\n" +
+    "provider: LOCAL"
+  );
+  
+  // Route to the respective dashboard
   let targetRole = 'user';
   if (role === 'wellness_coach') targetRole = 'coach';
   if (role === 'admin') targetRole = 'admin';
   window.location.href = `index.html?role=${targetRole}`;
+  
   return false;
 }
 
-function toggleVis(inputId, btn) {
-  const input = document.getElementById(inputId);
-  if (input.type === 'password') {
-    input.type = 'text';
-    btn.textContent = 'HIDE';
-  } else {
-    input.type = 'password';
-    btn.textContent = 'SHOW';
-  }
-}
-
-function handleOAuth(mode) {
-  // Mock OAuth redirection
+function handleOAuth(mode){
+  document.getElementById('providerNote') && (document.getElementById('providerNote').innerHTML =
+    "Provider set to <b>GOOGLE</b> — role still applies, password field is skipped.");
+  alert("Redirecting to Google OAuth for " + mode + "...\n(Demo — connect this to your real OAuth flow.)");
   window.location.href = 'index.html?role=user';
-}
-
-function checkEmailUnique() {
-  const hint = document.getElementById('emailHint');
-  const email = document.getElementById('su-email').value;
-  if (email.includes('@') && email.includes('.')) {
-    hint.textContent = 'Email is available.';
-    hint.className = 'hint ok';
-  } else {
-    hint.textContent = "Must be unique — we'll check availability.";
-    hint.className = 'hint';
-  }
-}
-
-function checkStrength() {
-  const hint = document.getElementById('passHint');
-  const pass = document.getElementById('su-pass').value;
-  if (pass.length >= 8) {
-    hint.textContent = 'Password strength: Strong';
-    hint.className = 'hint ok';
-  } else {
-    hint.textContent = 'Stored as a salted hash (bcrypt) — never in plain text.';
-    hint.className = 'hint';
-  }
 }
