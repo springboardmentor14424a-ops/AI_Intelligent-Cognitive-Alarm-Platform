@@ -1,0 +1,1 @@
+export default function NeuralCore() { return <div className="neural-core" aria-label="Animated neural core"><div className="orbit orbit-a"><i /><i /><i /></div><div className="orbit orbit-b"><i /><i /></div><div className="orbit orbit-c"><i /><i /><i /><i /></div><div className="core-halo" /><div className="core" /></div>; }
