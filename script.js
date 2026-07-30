@@ -57,39 +57,72 @@ function checkStrength() {
   }
 }
 
-function handleSignin(e) {
+// ── Sign In → calls FastAPI backend ──────────────────────────
+async function handleSignin(e) {
   e.preventDefault();
-  // TODO: wire up to your auth API
-  window.location.href = 'dashboard.html';
-  return false;
-}
+  const email    = document.getElementById('si-email').value.trim();
+  const password = document.getElementById('si-pass').value;
 
-function handleSignup(e) {
-  e.preventDefault();
-  const email = document.getElementById('su-email').value.trim().toLowerCase();
-  if (takenEmails.includes(email)) {
-    checkEmailUnique();
-    return false;
+  try {
+    const res = await fetch('http://localhost:8000/auth/signin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.detail || 'Sign in failed');
+      return false;
+    }
+
+    // Save JWT token and user info for dashboard use
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    window.location.href = 'dashboard.html';
+
+  } catch (err) {
+    alert('Cannot connect to server. Make sure the backend is running.');
   }
-  const name = document.getElementById('su-name').value;
-  const role = document.getElementById('su-role').value;
-  // TODO: wire up to your registration API
-  alert(
-    "Account payload (demo):\n" +
-    "name: " + name + "\n" +
-    "email: " + email + "\n" +
-    "password: [encrypted client-side placeholder]\n" +
-    "role: " + role + "\n" +
-    "provider: LOCAL"
-  );
   return false;
 }
 
+// ── Sign Up → calls FastAPI backend ──────────────────────────
+async function handleSignup(e) {
+  e.preventDefault();
+  const full_name = document.getElementById('su-name').value.trim();
+  const email     = document.getElementById('su-email').value.trim();
+  const password  = document.getElementById('su-pass').value;
+  const role      = document.getElementById('su-role').value;
+
+  try {
+    const res = await fetch('http://localhost:8000/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ full_name, email, password, role })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.detail || 'Sign up failed');
+      return false;
+    }
+
+    // Save JWT token and user info for dashboard use
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+    window.location.href = 'dashboard.html';
+
+  } catch (err) {
+    alert('Cannot connect to server. Make sure the backend is running.');
+  }
+  return false;
+}
+
+// ── Google OAuth ──────────────────────────────────────────────
 function handleOAuth(mode) {
-  const note = document.getElementById('providerNote');
-  if (note) {
-    note.innerHTML = 'Provider set to <b>GOOGLE</b> — role still applies, password field is skipped.';
-  }
-  // TODO: redirect to your real OAuth flow
-  alert("Redirecting to Google OAuth for " + mode + "...\n(Demo — connect this to your real OAuth flow.)");
+  // TODO: redirect to your real Google OAuth flow
+  alert("Redirecting to Google OAuth for " + mode + "...\n(Connect this to your Google Client ID.)");
 }

@@ -1,6 +1,42 @@
+// ── Step 1: Check login on every dashboard page load ─────────
+const user = JSON.parse(localStorage.getItem('user'));
+const token = localStorage.getItem('token');
+
+if (!token || !user) {
+    window.location.href = 'index.html';
+}
+
+// ── Step 3: Sign out function ─────────────────────────────────
+function signOut() {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'index.html';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const roleTabs = document.querySelectorAll('.role-tab');
-  const panelSections = document.querySelectorAll('.panel-section');
+
+  // ── Step 2: Show user name + auto-open correct panel by role ──
+  if (user) {
+    // Display the logged-in user's name in the header if element exists
+    const userNameEl = document.getElementById('loggedInUser');
+    if (userNameEl) userNameEl.textContent = user.full_name;
+
+    // Auto-open the panel that matches the user's role
+    let targetPanelId = 'user-panel'; // default
+    if (user.role === 'admin')           targetPanelId = 'admin-panel';
+    else if (user.role === 'wellness_coach') targetPanelId = 'coach-panel';
+
+    // Deactivate all panels and tabs
+    document.querySelectorAll('.panel-section').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+
+    // Activate the correct panel and its matching tab
+    const correctPanel = document.getElementById(targetPanelId);
+    const correctTab   = document.querySelector(`[data-target="${targetPanelId}"]`);
+    if (correctPanel) correctPanel.classList.add('active');
+    if (correctTab)   correctTab.classList.add('active');
+  }
 
   // 1. DYNAMIC TAB SWITCHING LOGIC
   roleTabs.forEach(tab => {
