@@ -8,7 +8,17 @@ import auth
 router = APIRouter()
 
 def get_user_by_username(db: Session, username: str):
-    return db.query(User).filter(User.username == username).first()
+    if not username:
+        return None
+    if username.isdigit():
+        user_by_id = db.query(User).filter(User.id == int(username)).first()
+        if user_by_id:
+            return user_by_id
+    return db.query(User).filter(
+        (User.email == username) | 
+        (User.name == username) | 
+        (User.email.like(f"{username}@%"))
+    ).first()
 
 @router.get("/me")
 def get_my_profile(current_user: User = Depends(auth.get_current_user)):

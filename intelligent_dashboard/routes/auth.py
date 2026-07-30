@@ -83,8 +83,8 @@ def login_user(
     db.add(log)
     db.commit()
     
-    access_token = auth.create_access_token(user.username, user.role)
-    refresh_token = auth.create_refresh_token(user.username, user.role)
+    access_token = auth.create_access_token(user.email, user.role)
+    refresh_token = auth.create_refresh_token(user.email, user.role)
     
     target = "/dashboard/admin" if user.role == 'administrator' else f"/dashboard/{user.role}"
     redirect = RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
@@ -105,7 +105,7 @@ def forgot_password(email: str = Form(...), db: Session = Depends(get_db)):
     if not user:
         return {"message": "Reset instructions sent to email."}
         
-    reset_token = auth.create_access_token(user.username, user.role, expires_delta=datetime.timedelta(minutes=15))
+    reset_token = auth.create_access_token(user.email, user.role, expires_delta=datetime.timedelta(minutes=15))
     reset_link = f"/reset-password?token={reset_token}"
     
     log = ActivityLog(user_id=user.id, action="Password Change", details="Requested password reset link")
@@ -123,13 +123,12 @@ def reset_password(token: str = Form(...), new_password: str = Form(...), db: Se
     if not payload:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
         
-    username = payload.get("sub")
-    user = db.query(User).filter(User.username == username).first()
+    email_sub = payload.get("sub")
+    user = db.query(User).filter((User.email == email_sub) | (User.name == email_sub)).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    user.password_hash = auth.get_password_hash(new_password)
-    user.login_attempts = 0
+    user.password = auth.get_password_hash(new_password)
     
     log = ActivityLog(user_id=user.id, action="Password Change", details="Password reset completed via token")
     db.add(log)
@@ -138,18 +137,14 @@ def reset_password(token: str = Form(...), new_password: str = Form(...), db: Se
 
 @router.get("/google-login-bypass")
 def google_login_bypass(email: str = "google_user@cognitivealarm.com", db: Session = Depends(get_db)):
-    username = email.split("@")[0]
     user = db.query(User).filter(User.email == email).first()
     if not user:
         user = User(
-            full_name="Google User",
-            username=username,
+            name="Google User",
             email=email,
-            password_hash=auth.get_password_hash("GoogleBypassPass123!"),
+            password=auth.get_password_hash("GoogleBypassPass123!"),
             role="user",
-            provider="google",
-            email_verified=True,
-            account_status="active"
+            provider="GOOGLE"
         )
         db.add(user)
         db.commit()
@@ -162,13 +157,12 @@ def google_login_bypass(email: str = "google_user@cognitivealarm.com", db: Sessi
         db.add(log)
         db.commit()
     else:
-        user.last_login = datetime.datetime.utcnow()
         log = ActivityLog(user_id=user.id, action="Login", details="Logged in via Google OAuth")
         db.add(log)
         db.commit()
         
-    access_token = auth.create_access_token(user.username, user.role)
-    refresh_token = auth.create_refresh_token(user.username, user.role)
+    access_token = auth.create_access_token(user.email, user.role)
+    refresh_token = auth.create_refresh_token(user.email, user.role)
     
     target = f"/dashboard/{user.role}"
     redirect = RedirectResponse(url=target, status_code=status.HTTP_303_SEE_OTHER)
