@@ -8,17 +8,19 @@ connect_args = {}
 if Config.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
-try:
-    engine = create_engine(
-        Config.DATABASE_URL,
-        connect_args=connect_args,
-        pool_pre_ping=True
-    )
-except Exception:
-    # Fallback to local sqlite database if Postgres service is offline
-    fallback_url = "sqlite:///./alarm_platform.db"
-    engine = create_engine(fallback_url, connect_args={"check_same_thread": False}, pool_pre_ping=True)
+def create_app_engine():
+    db_url = Config.DATABASE_URL
+    try:
+        eng = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
+        with eng.connect() as conn:
+            pass
+        print(f"Successfully connected to primary database: {db_url.split('@')[-1] if '@' in db_url else db_url}")
+        return eng
+    except Exception as e:
+        print(f"Primary PostgreSQL connection notice ({e}). Using local database engine fallback.")
+        return create_engine("sqlite:///./alarm_platform.db", connect_args={"check_same_thread": False}, pool_pre_ping=True)
 
+engine = create_app_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -32,7 +34,6 @@ class User(Base):
     role = Column(String(30), nullable=False, default="user") # user, coach, administrator
     provider = Column(String(20), default="LOCAL") # LOCAL, GOOGLE
     
-    # Extra columns with defaults to keep app functionalities rich
     phone = Column(String(20), nullable=True)
     profile_image = Column(String(255), nullable=True)
     account_status = Column(String(20), default="active")
@@ -41,7 +42,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
-    # Property Aliases for full application backwards compatibility
+    # Property Aliases for full application compatibility
     @property
     def full_name(self):
         return self.name
@@ -58,7 +59,7 @@ class User(Base):
 
     @username.setter
     def username(self, value):
-        pass # email handles username key
+        pass
 
     @property
     def password_hash(self):
