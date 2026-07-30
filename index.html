@@ -3,553 +3,150 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cognitive Alarm - Dashboard</title>
-  <!-- Modern premium typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <title>Wellspring — Sign in</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
-  <div class="dashboard-wrapper">
-    
-    <!-- Top Header and Brand Area -->
-    <header class="dashboard-header">
-      <div class="brand-logo">
-        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"></circle>
-          <polyline points="12 6 12 12 16 14"></polyline>
-        </svg>
-        <span>Cognitive Alarm</span>
+  <div class="stage">
+    <!-- LEFT: brand / info panel -->
+    <div class="panel">
+      <div class="orb o3"></div>
+      <div class="eyebrow">Wellspring Care Network</div>
+      <h1 id="panelTitle">Welcome<br>back.</h1>
+      <p class="lede" id="panelLede">Sign in to reach your coach, your care team, or your patients — all in one calm, secure place.</p>
+      <div class="orb o1"></div>
+      <div class="orb o2"></div>
+    </div>
+
+    <!-- RIGHT: form -->
+    <div class="form-side">
+      <div class="tabs">
+        <button class="tab-btn active" id="tabSignin" onclick="switchTab('signin')">Sign in</button>
+        <button class="tab-btn" id="tabSignup" onclick="switchTab('signup')">Sign up</button>
       </div>
-      
-      <!-- Upper Navigation Panel (Tabs matching the user reference layout) -->
-      <nav class="role-selector-panel">
-        <button class="role-tab" data-target="user-panel">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+
+      <!-- SIGN IN FORM -->
+      <form id="signinForm" class="active" onsubmit="return handleSignin(event)">
+        <div>
+          <h2 class="form-title">Sign in</h2>
+          <p class="form-sub">Good to see you again. Enter your details below.</p>
+        </div>
+        <div class="field">
+          <label for="si-email">Email</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 4h16v16H4z" opacity="0"/>
+              <path d="M22 6l-10 7L2 6"/>
+              <path d="M2 6h20v12H2z"/>
+            </svg>
+            <input type="email" id="si-email" placeholder="you@example.com" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="si-pass">Password</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="11" width="14" height="9" rx="2"/>
+              <path d="M8 11V7a4 4 0 018 0v4"/>
+            </svg>
+            <input type="password" id="si-pass" placeholder="••••••••" required>
+            <button type="button" class="toggle-visibility" onclick="toggleVis('si-pass', this)">SHOW</button>
+          </div>
+        </div>
+        <div class="row-between">
+          <label class="remember"><input type="checkbox"> Remember me</label>
+          <a class="forgot" href="#">Forgot password?</a>
+        </div>
+        <button type="submit" class="btn-primary">Sign in</button>
+        <div class="divider">or continue with</div>
+        <button type="button" class="btn-google" onclick="handleOAuth('signin')">
+          <svg viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 3.5 24 3.5 12.7 3.5 3.5 12.7 3.5 24S12.7 44.5 24 44.5 44.5 35.3 44.5 24c0-1.2-.1-2.4-.3-3.5z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 3.5 24 3.5c-7.6 0-14.1 4.3-17.7 10.6z"/>
+            <path fill="#4CAF50" d="M24 44.5c5.5 0 10.4-1.9 14-5.1l-6.5-5.4c-2 1.5-4.6 2.5-7.5 2.5-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.8 40.1 16.4 44.5 24 44.5z"/>
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.5 5.4C41.4 35.6 44.5 30.2 44.5 24c0-1.2-.1-2.4-.3-3.5z"/>
           </svg>
-          <span>User</span>
+          Continue with Google
         </button>
-        <button class="role-tab" data-target="coach-panel">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        <p class="switch-line">New to Wellspring? <a onclick="switchTab('signup')">Create an account</a></p>
+      </form>
+
+      <!-- SIGN UP FORM -->
+      <form id="signupForm" onsubmit="return handleSignup(event)">
+        <div>
+          <h2 class="form-title">Create account</h2>
+          <p class="form-sub">Set up your profile to get started.</p>
+        </div>
+        <div class="field">
+          <label for="su-name">Full name</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="4"/>
+              <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/>
+            </svg>
+            <input type="text" id="su-name" placeholder="Jordan Blake" required>
+          </div>
+        </div>
+        <div class="field">
+          <label for="su-email">Email</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 6l-10 7L2 6"/>
+              <path d="M2 6h20v12H2z"/>
+            </svg>
+            <input type="email" id="su-email" placeholder="you@example.com" required oninput="checkEmailUnique()">
+          </div>
+          <span class="hint" id="emailHint">Must be unique — we'll check availability.</span>
+        </div>
+        <div class="field">
+          <label for="su-pass">Password</label>
+          <div class="input-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="11" width="14" height="9" rx="2"/>
+              <path d="M8 11V7a4 4 0 018 0v4"/>
+            </svg>
+            <input type="password" id="su-pass" placeholder="At least 8 characters" required minlength="8" oninput="checkStrength()">
+            <button type="button" class="toggle-visibility" onclick="toggleVis('su-pass', this)">SHOW</button>
+          </div>
+          <span class="hint" id="passHint">Stored as a salted hash (bcrypt) — never in plain text.</span>
+        </div>
+        <div class="field">
+          <label for="su-role">I am signing up as</label>
+          <div class="input-wrap select-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>
+            </svg>
+            <select id="su-role" required>
+              <option value="" disabled selected>Select a role</option>
+              <option value="user">User</option>
+              <option value="wellness_coach">Wellness Coach</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div class="encrypt-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="11" width="14" height="9" rx="2"/>
+            <path d="M8 11V7a4 4 0 018 0v4"/>
           </svg>
-          <span>Wellness Coach</span>
-        </button>
-        <button class="role-tab active" data-target="admin-panel">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          Your password is encrypted before it ever reaches our database.
+        </div>
+        <button type="submit" class="btn-primary">Create account</button>
+        <div class="divider">or sign up with</div>
+        <button type="button" class="btn-google" onclick="handleOAuth('signup')">
+          <svg viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 3.5 24 3.5 12.7 3.5 3.5 12.7 3.5 24S12.7 44.5 24 44.5 44.5 35.3 44.5 24c0-1.2-.1-2.4-.3-3.5z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.5 29.6 3.5 24 3.5c-7.6 0-14.1 4.3-17.7 10.6z"/>
+            <path fill="#4CAF50" d="M24 44.5c5.5 0 10.4-1.9 14-5.1l-6.5-5.4c-2 1.5-4.6 2.5-7.5 2.5-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.8 40.1 16.4 44.5 24 44.5z"/>
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4 5.5l6.5 5.4C41.4 35.6 44.5 30.2 44.5 24c0-1.2-.1-2.4-.3-3.5z"/>
           </svg>
-          <span>Admin</span>
+          Continue with Google
         </button>
-      </nav>
-
-      <button class="btn-logout" onclick="window.location.href='login.html'" style="color: var(--color-danger); border-color: var(--color-danger);">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16 17 21 12 16 7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-        Sign Out
-      </button>
-    </header>
-
-    <!-- Main Viewport for Role Panels -->
-    <main class="dashboard-content">
-      
-      <!-- ==================== 1. USER PANEL ==================== -->
-      <section id="user-panel" class="panel-section">
-        <div class="panel-header-info">
-          <h2>User Dashboard</h2>
-          <p>Track your alarm performance, daily habit compliance, and cognitive sharpness.</p>
-        </div>
-        
-        <div class="dashboard-grid">
-          <!-- Card: Set Morning Alarm -->
-          <div class="dashboard-card alarm-setter-card">
-            <h3>Set Morning Alarm</h3>
-            <form id="alarm-setter-form" class="alarm-form">
-              <div class="alarm-time-picker">
-                <input type="time" id="alarm-time" value="06:30" required>
-              </div>
-              
-              <div class="alarm-setting-group">
-                <label for="alarm-challenge">Cognitive Challenge</label>
-                <select id="alarm-challenge" class="alarm-select">
-                  <option value="math">Math Equations (Hard)</option>
-                  <option value="memory">Memory Matrix (Medium)</option>
-                  <option value="tap">Speed Tap (Reaction)</option>
-                </select>
-              </div>
-
-              <div class="alarm-options-row">
-                <label class="remember-me">
-                  <input type="checkbox" id="alarm-repeat" checked>
-                  <span class="custom-checkbox"></span>
-                  Repeat Daily
-                </label>
-              </div>
-
-              <button type="submit" class="btn-submit btn-alarm-set">
-                <span class="btn-text">SAVE ALARM</span>
-              </button>
-            </form>
-          </div>
-
-          <!-- Card: Wake-up Statistics -->
-          <div class="dashboard-card">
-            <h3>Wake-up Statistics</h3>
-            <div class="stat-radial-container">
-              <div class="radial-progress" style="--percent: 88;">
-                <div class="radial-value">88%</div>
-                <div class="radial-label">Sleep Score</div>
-              </div>
-            </div>
-            <ul class="stats-list">
-              <li>
-                <span class="label">Avg Wakeup Time</span>
-                <span class="value font-semibold">06:45 AM</span>
-              </li>
-              <li>
-                <span class="label">Wakeup Consistency</span>
-                <span class="value font-semibold text-success">Excellent</span>
-              </li>
-              <li>
-                <span class="label">Avg Sleep Duration</span>
-                <span class="value font-semibold">7h 42m</span>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Card: Habit Score -->
-          <div class="dashboard-card">
-            <h3>Habit Score</h3>
-            <div class="habit-score-summary">
-              <div class="progress-bar-container">
-                <div class="progress-label">
-                  <span>Weekly Goal Completion</span>
-                  <span class="font-semibold" id="habit-progress-percent">75%</span>
-                </div>
-                <div class="progress-track">
-                  <div class="progress-fill" id="habit-progress-fill" style="width: 75%;"></div>
-                </div>
-              </div>
-            </div>
-            <div class="habit-checklist">
-              <label class="habit-item" style="cursor: pointer;">
-                <input type="checkbox" class="habit-checkbox" checked>
-                <span class="custom-checkbox"></span>
-                Drink 500ml Water
-              </label>
-              <label class="habit-item" style="cursor: pointer;">
-                <input type="checkbox" class="habit-checkbox" checked>
-                <span class="custom-checkbox"></span>
-                10-Minute Morning Stretch
-              </label>
-              <label class="habit-item" style="cursor: pointer;">
-                <input type="checkbox" class="habit-checkbox" checked>
-                <span class="custom-checkbox"></span>
-                Write Down Today's Goals
-              </label>
-              <label class="habit-item" style="cursor: pointer;">
-                <input type="checkbox" class="habit-checkbox">
-                <span class="custom-checkbox"></span>
-                No Screen for First 30 Mins
-              </label>
-            </div>
-          </div>
-
-          <!-- Card: Challenge Performance -->
-          <div class="dashboard-card">
-            <h3>Challenge Performance</h3>
-            <div class="chart-mock">
-              <!-- Pure CSS/SVG Bar Chart -->
-              <svg viewBox="0 0 100 60" class="bar-chart-svg">
-                <rect x="10" y="20" width="12" height="40" rx="2" fill="var(--color-primary)"></rect>
-                <rect x="32" y="10" width="12" height="50" rx="2" fill="var(--color-primary-dark)"></rect>
-                <rect x="54" y="25" width="12" height="35" rx="2" fill="var(--color-primary)"></rect>
-                <rect x="76" y="15" width="12" height="45" rx="2" fill="var(--color-primary-dark)"></rect>
-                <line x1="0" y1="60" x2="100" y2="60" stroke="var(--color-border)" stroke-width="1"></line>
-              </svg>
-              <div class="chart-labels">
-                <span>Math</span>
-                <span>Memory</span>
-                <span>Logic</span>
-                <span>Speed</span>
-              </div>
-            </div>
-            <p class="chart-footer-text">Average reaction solve time: <strong>14.2s</strong> (improved by 8% this week).</p>
-          </div>
-
-          <!-- Card: Alarm History -->
-          <div class="dashboard-card grid-col-span-2">
-            <h3>Alarm History</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Set Time</th>
-                    <th>Dismiss Time</th>
-                    <th>Delay</th>
-                    <th>Puzzle Solved</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Today, July 25</td>
-                    <td>06:30 AM</td>
-                    <td>06:33 AM</td>
-                    <td>3 mins</td>
-                    <td>Math Challenge (Hard)</td>
-                    <td><span class="badge badge-success">On Time</span></td>
-                  </tr>
-                  <tr>
-                    <td>Yesterday, July 24</td>
-                    <td>06:30 AM</td>
-                    <td>06:32 AM</td>
-                    <td>2 mins</td>
-                    <td>Memory Matrix (Medium)</td>
-                    <td><span class="badge badge-success">On Time</span></td>
-                  </tr>
-                  <tr>
-                    <td>July 23, 2026</td>
-                    <td>06:30 AM</td>
-                    <td>06:41 AM</td>
-                    <td>11 mins</td>
-                    <td>Pattern Matching (Medium)</td>
-                    <td><span class="badge badge-warning">Delayed</span></td>
-                  </tr>
-                  <tr>
-                    <td>July 22, 2026</td>
-                    <td>06:30 AM</td>
-                    <td>06:34 AM</td>
-                    <td>4 mins</td>
-                    <td>Math Challenge (Medium)</td>
-                    <td><span class="badge badge-success">On Time</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <!-- Card: Productivity Insights -->
-          <div class="dashboard-card">
-            <h3>Productivity Insights</h3>
-            <div class="insights-container">
-              <div class="insight-item">
-                <div class="insight-icon text-primary">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                </div>
-                <div class="insight-text">
-                  <strong>Morning Clarity Window:</strong> Your cognitive reaction time peaks roughly 22 minutes after waking.
-                </div>
-              </div>
-              <div class="insight-item">
-                <div class="insight-icon text-success">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
-                </div>
-                <div class="insight-text">
-                  <strong>Habit Synergy:</strong> Completing your stretching routine matches with 15% faster cognitive response scores.
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== 2. WELLNESS COACH PANEL ==================== -->
-      <section id="coach-panel" class="panel-section">
-        <div class="panel-header-info">
-          <h2>Wellness Coach Dashboard</h2>
-          <p>Monitor patient and client wellness analytics, habit scores, and circadian trends.</p>
-        </div>
-
-        <div class="dashboard-grid">
-          <!-- Card: User Behavior Insights -->
-          <div class="dashboard-card">
-            <h3>User Behavior Insights</h3>
-            <div class="stat-box-grid">
-              <div class="stat-box">
-                <span class="num">82.4%</span>
-                <span class="desc">Avg Sleep Quality</span>
-              </div>
-              <div class="stat-box">
-                <span class="num">06:48</span>
-                <span class="desc">Avg Alarm Target</span>
-              </div>
-              <div class="stat-box">
-                <span class="num">91%</span>
-                <span class="desc">Adherence Rate</span>
-              </div>
-              <div class="stat-box">
-                <span class="num">18.6s</span>
-                <span class="desc">Avg Puzzle Resolve</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card: Habit Adherence Analytics -->
-          <div class="dashboard-card">
-            <h3>Habit Adherence Analytics</h3>
-            <div class="habit-chart-list">
-              <div class="habit-progress-row">
-                <span class="habit-label">Hydration Routine</span>
-                <div class="progress-bar-small">
-                  <div class="progress-fill" style="width: 94%;"></div>
-                </div>
-                <span class="habit-percent">94%</span>
-              </div>
-              <div class="habit-progress-row">
-                <span class="habit-label">Morning Physical Activity</span>
-                <div class="progress-bar-small">
-                  <div class="progress-fill" style="width: 78%;"></div>
-                </div>
-                <span class="habit-percent">78%</span>
-              </div>
-              <div class="habit-progress-row">
-                <span class="habit-label">Digital Screen Fast</span>
-                <div class="progress-bar-small">
-                  <div class="progress-fill" style="width: 61%;"></div>
-                </div>
-                <span class="habit-percent">61%</span>
-              </div>
-              <div class="habit-progress-row">
-                <span class="habit-label">Goal-Setting Review</span>
-                <div class="progress-bar-small">
-                  <div class="progress-fill" style="width: 83%;"></div>
-                </div>
-                <span class="habit-percent">83%</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card: Sleep Trend Reports -->
-          <div class="dashboard-card">
-            <h3>Sleep Trend Reports</h3>
-            <div class="chart-mock">
-              <svg viewBox="0 0 100 50" class="line-chart-svg">
-                <path d="M 0 45 L 20 30 L 40 38 L 60 15 L 80 20 L 100 8" fill="none" stroke="var(--color-primary-dark)" stroke-width="2"></path>
-                <path d="M 0 45 L 20 30 L 40 38 L 60 15 L 80 20 L 100 8 L 100 50 L 0 50 Z" fill="url(#chart-grad)" opacity="0.15"></path>
-                <line x1="0" y1="50" x2="100" y2="50" stroke="var(--color-border)" stroke-width="1"></line>
-                <defs>
-                  <linearGradient id="chart-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stop-color="var(--color-primary)"></stop>
-                    <stop offset="100%" stop-color="transparent"></stop>
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div class="chart-labels">
-                <span>Mon</span>
-                <span>Tue</span>
-                <span>Wed</span>
-                <span>Thu</span>
-                <span>Fri</span>
-                <span>Sat</span>
-              </div>
-            </div>
-            <p class="chart-footer-text">Cohort sleep debt decreased by <strong>0.8 hrs</strong> on average.</p>
-          </div>
-
-          <!-- Card: Progress Monitoring -->
-          <div class="dashboard-card grid-col-span-2">
-            <h3>Client Progress Monitoring</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Client Name</th>
-                    <th>Wakeup Goal</th>
-                    <th>Avg Wakeup</th>
-                    <th>Habit Adherence</th>
-                    <th>Cognitive Status</th>
-                    <th>Last Active</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Sarah Jenkins</td>
-                    <td>06:00 AM</td>
-                    <td>06:04 AM</td>
-                    <td class="font-semibold text-success">95%</td>
-                    <td><span class="badge badge-success">Optimal</span></td>
-                    <td>10 mins ago</td>
-                    <td><button class="btn-action">Notify</button></td>
-                  </tr>
-                  <tr>
-                    <td>David Miller</td>
-                    <td>07:00 AM</td>
-                    <td>07:22 AM</td>
-                    <td class="font-semibold text-warning">71%</td>
-                    <td><span class="badge badge-warning">Fatigued</span></td>
-                    <td>1 hour ago</td>
-                    <td><button class="btn-action">Adjust Plan</button></td>
-                  </tr>
-                  <tr>
-                    <td>Emma Rodriguez</td>
-                    <td>06:30 AM</td>
-                    <td>06:33 AM</td>
-                    <td class="font-semibold text-success">88%</td>
-                    <td><span class="badge badge-success">Optimal</span></td>
-                    <td>3 hours ago</td>
-                    <td><button class="btn-action">Notify</button></td>
-                  </tr>
-                  <tr>
-                    <td>James Taylor</td>
-                    <td>05:45 AM</td>
-                    <td>06:02 AM</td>
-                    <td class="font-semibold text-danger">54%</td>
-                    <td><span class="badge badge-danger">High Risk</span></td>
-                    <td>Yesterday</td>
-                    <td><button class="btn-action urgent">Alert</button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ==================== 3. ADMIN PANEL ==================== -->
-      <section id="admin-panel" class="panel-section active">
-        <div class="panel-header-info">
-          <h2>Admin Dashboard</h2>
-          <p>Manage system preferences, monitor algorithmic performance, user logs, and security statuses.</p>
-        </div>
-
-        <div class="dashboard-grid admin-layout">
-          <!-- Card: Platform Analytics -->
-          <div class="dashboard-card platform-analytics">
-            <h3>Platform Analytics</h3>
-            <div class="analytics-grid">
-              <div class="stat-box-blue">
-                <span class="num">12,492</span>
-                <span class="desc">TOTAL USERS</span>
-              </div>
-              <div class="stat-box-blue">
-                <span class="num">9,820</span>
-                <span class="desc">ACTIVE DAILY ALARMS</span>
-              </div>
-              <div class="stat-box-blue">
-                <span class="num">99.98%</span>
-                <span class="desc">API UPTIME</span>
-              </div>
-              <div class="stat-box-blue">
-                <span class="num">0.82s</span>
-                <span class="desc">AVG API LATENCY</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card: System Reports -->
-          <div class="dashboard-card system-reports">
-            <h3>System Reports</h3>
-            <ul class="report-list-modern">
-              <li>
-                <div class="report-info">
-                  <span class="report-title">Database Health Audit</span>
-                  <span class="report-meta">Generated July 25, 2026 - 12MB</span>
-                </div>
-                <button class="btn-download-white">Download</button>
-              </li>
-              <li>
-                <div class="report-info">
-                  <span class="report-title">Monthly Circadian Accuracy</span>
-                  <span class="report-meta">Generated July 01, 2026 - 4.2MB</span>
-                </div>
-                <button class="btn-download-white">Download</button>
-              </li>
-              <li>
-                <div class="report-info">
-                  <span class="report-title">System Error Logs (Weekly)</span>
-                  <span class="report-meta">Generated July 20, 2026 - 850KB</span>
-                </div>
-                <button class="btn-download-white">Download</button>
-              </li>
-            </ul>
-          </div>
-
-          <!-- Card: Recommendation Monitoring -->
-          <div class="dashboard-card recommendation-monitoring">
-            <h3>Recommendation Monitoring</h3>
-            <div class="recommendations-container-modern">
-              <div class="rec-log-item">
-                <span class="timestamp">12:34:55</span>
-                <span class="log-text">Algorithmic recommendation rule applied:<br><strong>Increase puzzle difficulty</strong> for User #9834<br>(Wakeup snooze trend detected).</span>
-              </div>
-              <div class="rec-log-item">
-                <span class="timestamp">11:15:02</span>
-                <span class="log-text">Algorithmic recommendation rule applied:<br><strong>Suggest 10m exercise habit</strong> for User #1204<br>(Consistent early wakeup success).</span>
-              </div>
-              <div class="rec-log-item">
-                <span class="timestamp">09:02:18</span>
-                <span class="log-text">System alert: Circadian drift detected in 12% of<br>Cohort B users. Recommendation pipeline<br>updated.</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Card: User Management -->
-          <div class="dashboard-card user-management full-width">
-            <h3>User Management</h3>
-            <div class="table-responsive">
-              <table class="data-table clean-table">
-                <thead>
-                  <tr>
-                    <th>User ID</th>
-                    <th>User Name</th>
-                    <th>Email</th>
-                    <th>Assigned Role</th>
-                    <th>Account Status</th>
-                    <th>Registration Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>#USR-8932</td>
-                    <td>Sarah Jenkins</td>
-                    <td>sarah.j@example.com</td>
-                    <td><span class="badge-role role-user">User</span></td>
-                    <td><span class="badge badge-success">Active</span></td>
-                    <td>March 12, 2025</td>
-                    <td><button class="btn-table-edit">Edit</button></td>
-                  </tr>
-                  <tr>
-                    <td>#USR-4521</td>
-                    <td>Dr. Richard Foster</td>
-                    <td>r.foster@example.com</td>
-                    <td><span class="badge-role role-coach">Wellness Coach</span></td>
-                    <td><span class="badge badge-success">Active</span></td>
-                    <td>Jan 05, 2025</td>
-                    <td><button class="btn-table-edit">Edit</button></td>
-                  </tr>
-                  <tr>
-                    <td>#USR-2309</td>
-                    <td>Admin Chief</td>
-                    <td>admin.chief@example.com</td>
-                    <td><span class="badge-role role-admin">Admin</span></td>
-                    <td><span class="badge badge-success">Active</span></td>
-                    <td>Nov 20, 2024</td>
-                    <td><button class="btn-table-edit">Edit</button></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </section>
-
-    </main>
-
+        <p class="provider-status" id="providerNote">Provider will be set to <b>LOCAL</b> — pick Google above to use <b>GOOGLE</b> instead.</p>
+        <p class="switch-line">Already have an account? <a onclick="switchTab('signin')">Sign in</a></p>
+      </form>
+    </div>
   </div>
-
-  <script src="dashboard.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
