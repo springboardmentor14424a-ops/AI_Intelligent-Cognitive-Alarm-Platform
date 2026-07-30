@@ -1,74 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-<meta charset="UTF-8">
-
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>User Dashboard</title>
-
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard - Cognitive Alarm</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .switch-tab { display: none; }
+        .switch-tab.active { display: flex; flex-direction: column; gap: 30px; }
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn.active { background: var(--primary); color: #fff; }
+    </style>
 </head>
-
 <body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div style="display: flex; flex-direction: column; gap: 40px;">
+                <!-- Brand -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">A</div>
+                    <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.5px;">CognitiveAlarm</span>
+                </div>
 
-<div class="dashboard">
+                <!-- Profile Card -->
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card);">
+                    <img src="{{ user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                    <div style="overflow: hidden;">
+                        <div style="font-size: 14px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ user.full_name or user.username }}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Standard User</div>
+                    </div>
+                </div>
 
-<div class="sidebar">
+                <!-- Menu Buttons -->
+                <nav style="display: flex; flex-direction: column; gap: 6px;">
+                    <button onclick="setTab('overview-tab', this)" class="nav-btn active">📊 Overview</button>
+                    <button onclick="setTab('alarms-tab', this)" class="nav-btn">⏰ Alarm Centre</button>
+                    <button onclick="setTab('analytics-tab', this)" class="nav-btn">📈 Sleep Analytics</button>
+                    <button onclick="setTab('profile-tab', this)" class="nav-btn">⚙ Profile Settings</button>
+                </nav>
+            </div>
 
-<h2>User</h2>
+            <!-- Sidebar bottom -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="toggleTheme()" class="btn btn-secondary" style="width: 100%;">🌓 Theme Switch</button>
+                <a href="/api/auth/logout" class="btn btn-danger" style="width: 100%;">Log Out</a>
+            </div>
+        </aside>
 
-<a href="{{ url_for('user') }}">Dashboard</a>
-<a href="#">My Alarms</a>
-<a href="#">Progress</a>
-<a href="#">Profile</a>
-<a href="{{ url_for('logout') }}">Logout</a>
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-header">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Platform / User Panel</div>
+                    <h1 id="tab-title" style="font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">Overview</h1>
+                </div>
+                
+                <!-- Notification Bell -->
+                <div style="position: relative;">
+                    <button style="background: var(--bg-secondary); border: 1px solid var(--border-card); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer;">
+                        🔔
+                        {% if unread_count and unread_count > 0 %}
+                            <span style="position: absolute; top: -4px; right: -4px; background: var(--danger); border-radius: 50%; width: 18px; height: 18px; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">{{ unread_count }}</span>
+                        {% endif %}
+                    </button>
+                </div>
+            </header>
 
-</div>
+            <!-- TAB 1: OVERVIEW -->
+            <div id="overview-tab" class="switch-tab active">
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);">
+                    <h2 style="font-size: 22px; margin-bottom: 8px;">Welcome Back, {{ user.full_name or user.username }}!</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px;">Your morning circadian streak is <strong style="color: var(--success);">{{ profile.streak if profile else 0 }} days</strong>. Complete Math puzzles or Shake to wake without snoozing to raise your score.</p>
+                </div>
 
-<div class="content">
+                <!-- KPI Grid -->
+                <div class="grid-kpi">
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px;">
+                        <div style="font-size: 24px; background: rgba(16, 185, 129, 0.1); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--success);">🔥</div>
+                        <div>
+                            <span style="font-size: 12px; color: var(--text-secondary);">Circadian Streak</span>
+                            <h3 style="font-size: 20px; font-weight: bold;">{{ profile.streak if profile else 0 }} days</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px;">
+                        <div style="font-size: 24px; background: rgba(59, 130, 246, 0.1); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--primary);">🏆</div>
+                        <div>
+                            <span style="font-size: 12px; color: var(--text-secondary);">Habit Score</span>
+                            <h3 style="font-size: 20px; font-weight: bold;">{{ profile.habit_score if profile else 50 }}/100</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px;">
+                        <div style="font-size: 24px; background: rgba(139, 92, 246, 0.1); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--accent);">🌙</div>
+                        <div>
+                            <span style="font-size: 12px; color: var(--text-secondary);">Sleep Duration</span>
+                            <h3 style="font-size: 20px; font-weight: bold;">{{ profile.sleep_duration if profile else 8.0 }} hrs</h3>
+                        </div>
+                    </div>
+                </div>
 
-<h1>User Dashboard</h1>
+                <div class="grid-2col">
+                    <!-- Alarms summary -->
+                    <div class="glass-card" style="display: flex; flex-direction: column; gap: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h3>Active Morning Alarms</h3>
+                            <button onclick="setTab('alarms-tab', null)" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 13px;">Manage Alarms →</button>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            {% if not alarms or alarms | length == 0 %}
+                                <p style="color: var(--text-secondary); font-size: 13px;">No alarms created yet.</p>
+                            {% else %}
+                                {% for a in alarms %}
+                                    <div style="display: flex; justify-content: space-between; padding: 12px; border: 1px solid var(--border-card); border-radius: 8px;">
+                                        <div>
+                                            <span style="font-weight: bold; font-size: 16px;">{{ a.alarm_time }}</span>
+                                            <p style="font-size: 11px; color: var(--text-secondary);">{{ a.alarm_name }} ({{ a.repeat_type }})</p>
+                                        </div>
+                                        <span class="badge {{ 'badge-active' if a.alarm_status else 'badge-suspended' }}">
+                                            {{ 'Active' if a.alarm_status else 'Disabled' }}
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                    </div>
 
-<div class="cards">
+                    <!-- Downloads & Coach Recommendations -->
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        <div class="glass-card">
+                            <h3 style="margin-bottom: 12px;">Wellness Reports</h3>
+                            <div style="display: flex; flex-direction: column; gap: 10px;">
+                                <a href="/api/admin/export?format=pdf" class="btn btn-secondary" style="justify-content: flex-start;">📄 Download PDF Report</a>
+                                <a href="/api/admin/export?format=excel" class="btn btn-secondary" style="justify-content: flex-start;">📊 Download Excel Report</a>
+                                <a href="/api/admin/export?format=csv" class="btn btn-secondary" style="justify-content: flex-start;">📝 Download CSV Report</a>
+                            </div>
+                        </div>
 
-<div class="card">
-<h3>Today's Alarm</h3>
-<h2>6:30 AM</h2>
-</div>
+                        <div class="glass-card">
+                            <h3>Sarah's Coach Notes</h3>
+                            <p style="font-size: 13px; color: var(--text-secondary); font-style: italic; margin-top: 10px; line-height: 1.5;">
+                                {% if profile and profile.productivity_goal %}
+                                    {{ profile.productivity_goal }}
+                                {% else %}
+                                    "Establish an optimized waking sequence. Minimize snooze clicks to maximize streak metrics."
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-<div class="card">
-<h3>Habit Score</h3>
-<h2>82%</h2>
-</div>
+            <!-- TAB 2: ALARM CENTRE -->
+            <div id="alarms-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>Active Schedules</h2>
+                    <button onclick="openModal('add-alarm-modal')" class="btn btn-primary">+ Create Alarm</button>
+                </div>
 
-<div class="card">
-<h3>Sleep Hours</h3>
-<h2>7.5 hrs</h2>
-</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                    {% for a in alarms %}
+                        <div class="glass-card" style="display: flex; flex-direction: column; gap: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                                <div>
+                                    <h3 style="font-size: 18px; font-weight: bold;">{{ a.alarm_name }}</h3>
+                                    <span style="font-size: 12px; color: var(--text-secondary);">Repeat: {{ a.repeat_type }}</span>
+                                </div>
+                                <form action="/api/alarm/delete/{{ a.id }}" method="POST">
+                                    <button type="submit" class="btn btn-danger" style="padding: 6px 10px; font-size: 11px;">Delete</button>
+                                </form>
+                            </div>
 
-<div class="card">
-<h3>Challenges Completed</h3>
-<h2>4</h2>
-</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 32px; font-weight: 800;">{{ a.alarm_time }}</span>
+                                <form action="/api/alarm/toggle/{{ a.id }}" method="POST">
+                                    <button type="submit" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+                                        {{ 'Disable' if a.alarm_status else 'Enable' }}
+                                    </button>
+                                </form>
+                            </div>
 
-</div>
+                            <div style="font-size: 12px; display: flex; gap: 8px;">
+                                <span class="badge badge-info">Lock: {{ a.challenge_required }}</span>
+                                {% if a.smart_alarm %}<span class="badge badge-active">Smart Gradient</span>{% endif %}
+                            </div>
 
-<h2>Today's Tasks</h2>
+                            <!-- Simulator Widget -->
+                            <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                                <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px; font-weight: bold;">DEVELOPER WAKE UP SIMULATOR</span>
+                                <form action="/api/alarm/simulate/{{ a.id }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                                    <button type="submit" name="outcome" value="success" class="btn btn-success" style="padding: 6px; font-size: 11px;">Success</button>
+                                    <button type="submit" name="outcome" value="snooze" class="btn btn-warning" style="padding: 6px; font-size: 11px;">Snooze</button>
+                                    <button type="submit" name="outcome" value="missed" class="btn btn-danger" style="padding: 6px; font-size: 11px;">Miss</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
 
-<ul>
-<li>✔ Wake Up Early</li>
-<li>✔ Exercise</li>
-<li>✔ Read 20 Minutes</li>
-<li>✔ Drink Water</li>
-</ul>
+            <!-- TAB 3: SLEEP ANALYTICS -->
+            <div id="analytics-tab" class="switch-tab">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div class="glass-card">
+                        <h3>Sleep Patterns (Last 7 Days)</h3>
+                        <div style="height: 240px; margin-top: 15px;"><canvas id="sleepChart"></canvas></div>
+                    </div>
+                    <div class="glass-card">
+                        <h3>Habit Consistency Scores</h3>
+                        <div style="height: 240px; margin-top: 15px;"><canvas id="habitChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
 
-</div>
+            <!-- TAB 4: PROFILE SETTINGS -->
+            <div id="profile-tab" class="switch-tab">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 20px;">Personal Wellness Metrics</h3>
+                        <form action="/api/user/update" method="POST">
+                            <div class="form-group">
+                                <label>Full Name</label>
+                                <input type="text" name="full_name" required class="form-input" value="{{ user.full_name or '' }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="text" name="phone" class="form-input" value="{{ user.phone or '' }}">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label>Target Wake Up</label>
+                                    <input type="text" name="wake_up_time" class="form-input" value="{{ profile.wake_up_time if profile else '07:00' }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Target Sleep</label>
+                                    <input type="text" name="sleep_time" class="form-input" value="{{ profile.sleep_time if profile else '22:30' }}">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Sleep Duration (hours)</label>
+                                <input type="number" step="0.5" name="sleep_duration" class="form-input" value="{{ profile.sleep_duration if profile else 8.0 }}">
+                            </div>
+                            <div class="form-group">
+                                <label>Preferred Challenge Lock</label>
+                                <select name="challenge_preference" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                                    <option value="Math Puzzle" {{ 'selected' if profile and profile.challenge_preference == 'Math Puzzle' }}>Math Puzzle</option>
+                                    <option value="Shake Phone" {{ 'selected' if profile and profile.challenge_preference == 'Shake Phone' }}>Shake Phone</option>
+                                    <option value="Typo Solver" {{ 'selected' if profile and profile.challenge_preference == 'Typo Solver' }}>Typo Solver</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save Parameters</button>
+                        </form>
+                    </div>
 
-</div>
+                    <div style="display: flex; flex-direction: column; gap: 30px;">
+                        <div class="glass-card" style="text-align: center;">
+                            <img src="{{ user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); margin-bottom: 20px;">
+                            <form action="/api/user/upload-avatar" method="POST" enctype="multipart/form-data" style="display: flex; flex-direction: column; gap: 12px; align-items: center;">
+                                <input type="file" name="file" required style="font-size: 13px;">
+                                <button type="submit" class="btn btn-secondary">Upload Picture</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
+    <!-- Add Alarm Modal -->
+    <div id="add-alarm-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Create Alarm</h3>
+                <button onclick="closeModal('add-alarm-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/alarm/create" method="POST">
+                <div class="form-group">
+                    <label>Alarm Name</label>
+                    <input type="text" name="alarm_name" required class="form-input" value="Morning Alarm">
+                </div>
+                <div class="form-group">
+                    <label>Alarm Time (HH:MM)</label>
+                    <input type="text" name="alarm_time" required class="form-input" placeholder="06:30">
+                </div>
+                <div class="form-group">
+                    <label>Repeat Rule</label>
+                    <select name="repeat_type" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="once">Once</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekdays">Weekdays</option>
+                        <option value="weekends">Weekends</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Challenge Required</label>
+                    <select name="challenge_required" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="Math Puzzle">Math Puzzle</option>
+                        <option value="Shake Phone">Shake Phone</option>
+                        <option value="Typo Solver">Typo Solver</option>
+                        <option value="None">None</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+                        <input type="checkbox" name="smart_alarm" value="true"> Enable Smart Gradient
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);">
+                        <input type="checkbox" name="vibration" value="true" checked> Vibration
+                    </label>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        function setTab(tabId, btn) {
+            document.querySelectorAll('.switch-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (btn) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-title').innerText = btn.innerText.replace(/[^\w\s]/g, '').trim();
+            }
+        }
+
+        function toggleTheme() {
+            const cur = document.documentElement.getAttribute('data-theme');
+            const target = cur === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', target);
+            showToast(`Switched theme to ${target}`);
+        }
+
+        new Chart(document.getElementById('sleepChart'), {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Sleep hours',
+                    data: [7.5, 8.0, 7.8, 6.5, 8.2, 9.0, {{ profile.sleep_duration if profile else 8.0 }}],
+                    borderColor: '#3b82f6',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+
+        new Chart(document.getElementById('habitChart'), {
+            type: 'line',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Habit score',
+                    data: [65, 68, 70, 72, 75, 78, {{ profile.habit_score if profile else 50 }}],
+                    borderColor: '#8b5cf6',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    </script>
 </body>
 </html>

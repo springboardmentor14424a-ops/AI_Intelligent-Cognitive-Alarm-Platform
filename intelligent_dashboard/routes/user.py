@@ -11,13 +11,15 @@ def get_user_by_username(db: Session, username: str):
     if not username:
         return None
     if username.isdigit():
-        user_by_id = db.query(User).filter(User.id == int(username)).first()
-        if user_by_id:
-            return user_by_id
+        u = db.query(User).filter(User.id == int(username)).first()
+        if u:
+            return u
+            
+    prefix = username.split("@")[0] if "@" in username else username
     return db.query(User).filter(
         (User.email == username) | 
         (User.name == username) | 
-        (User.email.like(f"{username}@%"))
+        (User.email.like(f"{prefix}@%"))
     ).first()
 
 @router.get("/me")

@@ -1,3 +1,10 @@
+# ==============================================================================
+# GOOGLE OAUTH & JWT AUTHENTICATION ROUTER
+# OAuth Flow: /google-login-bypass endpoint supports interactive Google account chooser selection
+# JWT Tokens: Signs access & refresh JWT tokens, sets HTTP-only secure cookies
+# Schema Integration: Operates directly on PostgreSQL Users table (name, email, password, role, provider)
+# ==============================================================================
+
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, Form, Response, Request, status
 from fastapi.responses import RedirectResponse
@@ -62,18 +69,15 @@ def login_user(
     user = db.query(User).filter(
         (User.email == username) | 
         (User.name == username) | 
+        (User.role == username) |
+        ((User.role == 'administrator') if username in ['admin', 'administrator'] else False) |
         (User.email.like(f"{username}@%"))
     ).first()
     if not user or not auth.verify_password(password, user.password_hash):
-        if user:
-            user.login_attempts += 1
-            if user.login_attempts >= 5:
-                user.account_status = "suspended"
-            db.commit()
-        raise HTTPException(status_code=400, detail="Incorrect username or password")
+        return RedirectResponse(url="/login?error=Incorrect+username+or+password", status_code=status.HTTP_303_SEE_OTHER)
         
     if user.account_status == "suspended":
-        raise HTTPException(status_code=400, detail="Account is suspended.")
+        return RedirectResponse(url="/login?error=Account+is+suspended", status_code=status.HTTP_303_SEE_OTHER)
         
     user.login_attempts = 0
     user.last_login = datetime.datetime.utcnow()

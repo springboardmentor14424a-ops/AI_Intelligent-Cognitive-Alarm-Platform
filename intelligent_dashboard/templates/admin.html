@@ -1,88 +1,423 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Dashboard</title>
-
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Cognitive Alarm</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .switch-tab { display: none; }
+        .switch-tab.active { display: flex; flex-direction: column; gap: 30px; }
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn.active { background: var(--primary); color: #fff; }
+    </style>
 </head>
-
 <body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div style="display: flex; flex-direction: column; gap: 40px;">
+                <!-- Brand -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">A</div>
+                    <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.5px;">CognitiveAlarm</span>
+                </div>
 
-<div class="dashboard">
+                <!-- Profile -->
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card);">
+                    <img src="{{ user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div style="overflow: hidden;">
+                        <div style="font-size: 14px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ user.full_name or user.username }}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Administrator</div>
+                    </div>
+                </div>
 
-<div class="sidebar">
-<h2>Admin</h2>
+                <!-- Nav Menu -->
+                <nav style="display: flex; flex-direction: column; gap: 6px;">
+                    <button onclick="setTab('overview-tab', this)" class="nav-btn active">🛡 Overview</button>
+                    <button onclick="setTab('users-tab', this)" class="nav-btn">👤 User Directory</button>
+                    <button onclick="setTab('logs-tab', this)" class="nav-btn">📋 System Logs</button>
+                    <button onclick="setTab('settings-tab', this)" class="nav-btn">⚙ Settings</button>
+                </nav>
+            </div>
 
-<a href="{{ url_for('admin') }}">Dashboard</a>
-<a href="#">Users</a>
-<a href="#">Reports</a>
-<a href="#">Settings</a>
-<a href="{{ url_for('logout') }}">Logout</a>
-</div>
+            <!-- Bottom -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <a href="/api/auth/logout" class="btn btn-danger" style="width: 100%;">Log Out</a>
+            </div>
+        </aside>
 
-<div class="content">
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Platform / Administration</div>
+                    <h1 id="tab-title" style="font-size: 26px; font-weight: 800;">Overview</h1>
+                </div>
+            </header>
 
-<h1>Admin Dashboard</h1>
+            <!-- TAB 1: OVERVIEW -->
+            <div id="overview-tab" class="switch-tab active">
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>System Operation Panel</h2>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Monitor morning wake streaks, user actions, and health indexes.</p>
+                    </div>
+                    <button onclick="openModal('broadcast-modal')" class="btn btn-primary">Broadcast Announcement</button>
+                </div>
 
-<div class="cards">
+                <!-- KPI Cards -->
+                <div class="grid-kpi">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Users</span>
+                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px;">{{ stats.total_users }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Active Alarms</span>
+                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px;">{{ stats.active_alarms }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Wellness Coaches</span>
+                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px;">{{ stats.coaches }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">System Health</span>
+                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px; color: var(--success);">99.9%</h3>
+                    </div>
+                </div>
 
-<div class="card">
-<h3>Total Users</h3>
-<h2>250</h2>
-</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                    <div class="glass-card">
+                        <h3>Circadian Platform Growth</h3>
+                        <div style="height: 200px; margin-top: 15px;"><canvas id="growthChart"></canvas></div>
+                    </div>
+                    <div class="glass-card">
+                        <h3>Daily Active Engagements (DAU)</h3>
+                        <div style="height: 200px; margin-top: 15px;"><canvas id="dauChart"></canvas></div>
+                    </div>
+                </div>
+            </div>
 
-<div class="card">
-<h3>Active Users</h3>
-<h2>190</h2>
-</div>
+            <!-- TAB 2: USER DIRECTORY -->
+            <div id="users-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>System Accounts Directory</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="openModal('add-user-modal')" class="btn btn-primary">+ Add User Account</button>
+                        <a href="/api/admin/export?format=pdf" class="btn btn-secondary">Download PDF</a>
+                        <a href="/api/admin/export?format=excel" class="btn btn-secondary">Download Excel</a>
+                    </div>
+                </div>
 
-<div class="card">
-<h3>Today's Alarms</h3>
-<h2>720</h2>
-</div>
+                <div class="table-container">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>User detail</th>
+                                <th>System Role</th>
+                                <th>Provider</th>
+                                <th>Streak / Habit</th>
+                                <th>Coach Assigned</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                                <tr>
+                                    <td>
+                                        <div style="display: flex; gap: 10px; align-items: center;">
+                                            <img src="{{ u.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 32px; height: 32px; border-radius: 50%;">
+                                            <div>
+                                                <strong>{{ u.full_name or u.username }}</strong>
+                                                <p style="font-size: 11px; color: var(--text-secondary);">@{{ u.username }} • {{ u.email }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="text-transform: capitalize;">{{ u.role }}</td>
+                                    <td style="text-transform: capitalize;">{{ u.provider }}</td>
+                                    <td>
+                                        {% if u.role == 'user' and u.profile %}
+                                            {{ u.profile.streak }} days / {{ u.profile.habit_score }} score
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if u.role == 'user' %}
+                                            {% if u.coach_id %}
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <span>Coach ID: {{ u.coach_id }}</span>
+                                                    <form action="/api/admin/users/remove-coach/{{ u.id }}" method="POST">
+                                                        <button type="submit" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 11px;">Remove</button>
+                                                    </form>
+                                                </div>
+                                            {% else %}
+                                                <button onclick="openAssignCoach('{{ u.id }}', '{{ u.full_name or u.username }}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;">Assign Coach</button>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'badge-active' if u.account_status == 'active' else 'badge-suspended' }}">
+                                            {{ u.account_status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button onclick="openEditUser('{{ u.id }}', '{{ u.name or u.email }}', '{{ u.role }}')" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Edit</button>
+                                            <form action="/api/admin/users/toggle-status/{{ u.id }}" method="POST">
+                                                <button type="submit" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Toggle Status</button>
+                                            </form>
+                                            <form action="/api/admin/users/reset-password/{{ u.id }}" method="POST">
+                                                <button type="submit" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;" title="Reset password">Reset Pass</button>
+                                            </form>
+                                            <form action="/api/admin/users/delete/{{ u.id }}" method="POST" onsubmit="return confirm('Permanently delete user?')">
+                                                <button type="submit" class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-<div class="card">
-<h3>System Health</h3>
-<h2>98%</h2>
-</div>
+            <!-- TAB 3: SYSTEM LOGS -->
+            <div id="logs-tab" class="switch-tab">
+                <h2>Audit Event Logs</h2>
+                <div class="table-container">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Triggering User ID</th>
+                                <th>Action Event</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for l in logs %}
+                                <tr>
+                                    <td style="font-size: 12px; color: var(--text-secondary);">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') if l.created_at else '-' }}</td>
+                                    <td><strong>User ID: {{ l.user_id or 'System' }}</strong></td>
+                                    <td><span class="badge badge-info">{{ l.action }}</span></td>
+                                    <td style="color: var(--text-secondary);">{{ l.details }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-</div>
+            <!-- TAB 4: SETTINGS -->
+            <div id="settings-tab" class="switch-tab">
+                <h2>Admin Platform Settings</h2>
+                <div class="glass-card" style="max-width: 600px;">
+                    <h3>System Parameters</h3>
+                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+                        <div class="form-group">
+                            <label>Token Expiration Settings (minutes)</label>
+                            <input type="number" class="form-input" value="1440" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Login Attempt Lockout</label>
+                            <input type="number" class="form-input" value="5" disabled>
+                        </div>
+                        <button onclick="showToast('System settings updated')" class="btn btn-primary">Save Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-<h2>Recent Users</h2>
+    <!-- Broadcast Modal -->
+    <div id="broadcast-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Broadcast Announcement</h3>
+                <button onclick="closeModal('broadcast-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/admin/broadcast" method="POST">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" name="title" required class="form-input" value="Platform Backup Notice">
+                </div>
+                <div class="form-group">
+                    <label>Message Content</label>
+                    <textarea name="message" required class="form-input" rows="3" style="resize: none; background: var(--bg-primary);">The system will undergo standard backup maintenance tonight at 02:00 UTC.</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Pushed to all feeds</button>
+            </form>
+        </div>
+    </div>
 
-<table>
+    <!-- Add User Modal -->
+    <div id="add-user-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Add User Account</h3>
+                <button onclick="closeModal('add-user-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/admin/users/create" method="POST">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="full_name" required class="form-input" placeholder="Sarah Connor">
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required class="form-input" placeholder="sconnor">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" required class="form-input" placeholder="sarah@sky.net">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required class="form-input" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>System Role</label>
+                    <select name="role" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="user">Standard User</option>
+                        <option value="coach">Wellness Coach</option>
+                        <option value="administrator">System Administrator</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+            </form>
+        </div>
+    </div>
 
-<tr>
-<th>Name</th>
-<th>Role</th>
-<th>Status</th>
-</tr>
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Edit User Profile</h3>
+                <button onclick="closeModal('edit-user-modal')" class="modal-close">×</button>
+            </div>
+            <form id="edit-user-form" action="" method="POST">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="edit-full-name" name="full_name" required class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>System Role</label>
+                    <select id="edit-role" name="role" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="user">Standard User</option>
+                        <option value="coach">Wellness Coach</option>
+                        <option value="administrator">System Administrator</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
 
-<tr>
-<td>Rahul</td>
-<td>User</td>
-<td>Active</td>
-</tr>
+    <!-- Assign Coach Modal -->
+    <div id="assign-coach-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 id="assign-coach-title">Assign Coach</h3>
+                <button onclick="closeModal('assign-coach-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/admin/users/assign-coach" method="POST">
+                <input type="hidden" id="assign-user-id" name="user_id">
+                <div class="form-group">
+                    <label>Select Certified Coach</label>
+                    <select name="coach_id" required class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="">-- Choose Coach --</option>
+                        {% for ch in coaches %}
+                            <option value="{{ ch.id }}">{{ ch.full_name }} (@{{ ch.username }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Assignment</button>
+            </form>
+        </div>
+    </div>
 
-<tr>
-<td>Riya</td>
-<td>Coach</td>
-<td>Active</td>
-</tr>
+    <script src="/static/js/app.js"></script>
+    <script>
+        function setTab(tabId, btn) {
+            document.querySelectorAll('.switch-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (btn) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-title').innerText = btn.innerText.substring(2);
+            }
+        }
 
-<tr>
-<td>John</td>
-<td>User</td>
-<td>Inactive</td>
-</tr>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab === 'users') {
+                const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.innerText.includes('Directory'));
+                if (btn) setTab('users-tab', btn);
+            }
+        });
 
-</table>
+        function openEditUser(id, fullName, role) {
+            document.getElementById('edit-user-form').action = `/api/admin/users/edit/${id}`;
+            document.getElementById('edit-full-name').value = fullName;
+            document.getElementById('edit-role').value = role;
+            openModal('edit-user-modal');
+        }
 
-</div>
+        function openAssignCoach(userId, userName) {
+            document.getElementById('assign-user-id').value = userId;
+            document.getElementById('assign-coach-title').innerText = `Assign Coach to: ${userName}`;
+            openModal('assign-coach-modal');
+        }
 
-</div>
+        new Chart(document.getElementById('growthChart'), {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                datasets: [{
+                    label: 'Registrations',
+                    data: [10, 25, 45, 80, 120, 175, {{ stats.total_users }}],
+                    borderColor: '#3b82f6',
+                    fill: false,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
 
+        new Chart(document.getElementById('dauChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                datasets: [{
+                    label: 'Active Users',
+                    data: [15, 22, 18, 30, 24, 12, 28],
+                    backgroundColor: '#8b5cf6'
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    </script>
 </body>
 </html>

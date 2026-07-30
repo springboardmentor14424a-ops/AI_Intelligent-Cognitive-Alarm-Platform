@@ -1,93 +1,246 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Coach Dashboard</title>
-
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coach Dashboard - Cognitive Alarm</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .switch-tab { display: none; }
+        .switch-tab.active { display: flex; flex-direction: column; gap: 30px; }
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn.active { background: var(--primary); color: #fff; }
+        .client-item {
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-card);
+            background: rgba(255,255,255,0.01);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .client-item.active {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.04);
+        }
+    </style>
 </head>
-
 <body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div style="display: flex; flex-direction: column; gap: 40px;">
+                <!-- Brand -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">A</div>
+                    <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.5px;">CognitiveAlarm</span>
+                </div>
 
-<div class="dashboard">
+                <!-- Profile Card -->
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card);">
+                    <img src="{{ user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div style="overflow: hidden;">
+                        <div style="font-size: 14px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ user.full_name or user.username }}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Wellness Coach</div>
+                    </div>
+                </div>
 
-<div class="sidebar">
+                <!-- Menu Buttons -->
+                <nav style="display: flex; flex-direction: column; gap: 6px;">
+                    <button onclick="setTab('overview-tab', this)" class="nav-btn active">📊 Overview</button>
+                    <button onclick="setTab('clients-tab', this)" class="nav-btn">👤 Clients Directory</button>
+                </nav>
+            </div>
 
-<h2>Coach</h2>
+            <!-- Sidebar bottom -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <a href="/api/auth/logout" class="btn btn-danger" style="width: 100%;">Log Out</a>
+            </div>
+        </aside>
 
-<a href="{{ url_for('coach') }}">Dashboard</a>
-<a href="#">Challenges</a>
-<a href="#">Reports</a>
-<a href="#">Profile</a>
-<a href="{{ url_for('logout') }}">Logout</a>
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Circadian Architecture / Coaching</div>
+                    <h1 id="tab-title" style="font-size: 26px; font-weight: 800;">Overview</h1>
+                </div>
+            </header>
 
-</div>
+            <!-- TAB 1: OVERVIEW -->
+            <div id="overview-tab" class="switch-tab active">
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border-color: rgba(16, 185, 129, 0.2);">
+                    <h2> Sarah's Coaching Panel</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-top: 6px;">Monitoring mornings for assigned users. Review habit scores weekly to adjust circadian routines.</p>
+                </div>
 
-<div class="content">
+                <!-- KPIs -->
+                <div class="grid-kpi">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Assigned Clients</span>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px;">{{ clients | length }} Users</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Active Streak Status</span>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px;">Stable</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Average Habit Score</span>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px;">78/100</h3>
+                    </div>
+                </div>
 
-<h1>Coach Dashboard</h1>
+                <!-- Assigned list overview -->
+                <div class="glass-panel" style="padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>Active Client Monitoring</h3>
+                        <button onclick="setTab('clients-tab', null)" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">Detailed Directory →</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Client name</th>
+                                    <th>Email</th>
+                                    <th>Streak</th>
+                                    <th>Habit score</th>
+                                    <th>Account Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in clients %}
+                                    <tr onclick="selectClient('{{ c.id }}', '{{ c.full_name or c.username }}', '{{ c.profile.streak if c.profile else 0 }}', '{{ c.profile.habit_score if c.profile else 50 }}', '{{ c.profile.wake_up_time if (c.profile and c.profile.wake_up_time) else '07:00' }}')" style="cursor: pointer;">
+                                        <td><strong>{{ c.full_name or c.username }}</strong></td>
+                                        <td>{{ c.email }}</td>
+                                        <td>{{ c.profile.streak if c.profile else 0 }} days</td>
+                                        <td>{{ c.profile.habit_score if c.profile else 50 }}/100</td>
+                                        <td><span class="badge badge-active">Active</span></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
 
-<div class="cards">
+            <!-- TAB 2: CLIENTS DIRECTORY -->
+            <div id="clients-tab" class="switch-tab">
+                <div class="grid-2col">
+                    <!-- Left list -->
+                    <div class="glass-panel" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+                        <h3>Wellness Users</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            {% for c in clients %}
+                                <div class="client-item" id="client-card-{{ c.id }}" onclick="selectClient('{{ c.id }}', '{{ c.full_name or c.username }}', '{{ c.profile.streak if c.profile else 0 }}', '{{ c.profile.habit_score if c.profile else 50 }}', '{{ c.profile.wake_up_time if (c.profile and c.profile.wake_up_time) else '07:00' }}')">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <img src="{{ c.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 36px; height: 36px; border-radius: 50%;">
+                                        <div>
+                                            <span style="font-weight: bold; font-size: 14px;">{{ c.full_name or c.username }}</span>
+                                            <p style="font-size: 11px; color: var(--text-secondary);">{{ c.email }}</p>
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span class="badge badge-active">{{ c.profile.habit_score if c.profile else 50 }}/100</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
 
-<div class="card">
-<h3>Assigned Users</h3>
-<h2>45</h2>
-</div>
+                    <!-- Right detail controls -->
+                    <div id="client-detail-panel" style="display: none; flex-direction: column; gap: 30px;">
+                        <div class="glass-card">
+                            <h3 id="client-name-title">Client Details</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; margin-top: 15px;">
+                                <div style="padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Target Wake</span>
+                                    <p id="client-wake-p" style="font-size: 18px; font-weight: bold; margin-top: 4px;">07:00</p>
+                                </div>
+                                <div style="padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Streak</span>
+                                    <p id="client-streak-p" style="font-size: 18px; font-weight: bold; margin-top: 4px;">0 days</p>
+                                </div>
+                            </div>
+                        </div>
 
-<div class="card">
-<h3>Completed Challenges</h3>
-<h2>34</h2>
-</div>
+                        <!-- Notes recommendations form -->
+                        <div class="glass-card">
+                            <h3>Habit Recommendations</h3>
+                            <form id="coach-notes-form" action="" method="POST" style="margin-top: 12px;">
+                                <div class="form-group">
+                                    <textarea name="notes" required class="form-input" rows="3" placeholder="Sarah notes: Increase morning sun exposure. Limit snoozes to 2 times..." style="width: 100%; resize: none; background: var(--bg-primary);"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Notes</button>
+                            </form>
+                        </div>
 
-<div class="card">
-<h3>Habit Score</h3>
-<h2>88%</h2>
-</div>
+                        <!-- Message Form -->
+                        <div class="glass-card">
+                            <h3>Send Motivation Message</h3>
+                            <form id="coach-msg-form" action="" method="POST" style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+                                <textarea name="message" required class="form-input" rows="2" placeholder="Send a push note to their morning feed..." style="width: 100%; resize: none; background: var(--bg-primary);"></textarea>
+                                <button type="submit" class="btn btn-success" style="width: 100%;">Send Message</button>
+                            </form>
+                        </div>
+                    </div>
 
-<div class="card">
-<h3>Pending Reports</h3>
-<h2>7</h2>
-</div>
+                    <div id="client-empty-panel" class="glass-panel" style="display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); text-align: center;">
+                        Select a client from the directory to review analytics and edit recommendations.
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-</div>
+    <script src="/static/js/app.js"></script>
+    <script>
+        function setTab(tabId, btn) {
+            document.querySelectorAll('.switch-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (btn) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-title').innerText = btn.innerText.substring(2);
+            }
+        }
 
-<h2>User Progress</h2>
+        function selectClient(id, name, streak, score, wake) {
+            setTab('clients-tab', null);
+            document.querySelectorAll('.client-item').forEach(c => c.classList.remove('active'));
+            const card = document.getElementById(`client-card-${id}`);
+            if (card) card.classList.add('active');
 
-<table>
+            document.getElementById('client-empty-panel').style.display = 'none';
+            const panel = document.getElementById('client-detail-panel');
+            panel.style.display = 'flex';
 
-<tr>
-<th>User</th>
-<th>Habit Score</th>
-<th>Status</th>
-</tr>
+            document.getElementById('client-name-title').innerText = `Client: ${name}`;
+            document.getElementById('client-wake-p').innerText = wake;
+            document.getElementById('client-streak-p').innerText = `${streak} days`;
 
-<tr>
-<td>Alice</td>
-<td>90%</td>
-<td>Excellent</td>
-</tr>
-
-<tr>
-<td>Bob</td>
-<td>80%</td>
-<td>Good</td>
-</tr>
-
-<tr>
-<td>Chris</td>
-<td>70%</td>
-<td>Needs Improvement</td>
-</tr>
-
-</table>
-
-</div>
-
-</div>
-
+            document.getElementById('coach-notes-form').action = `/api/coach/notes/${id}`;
+            document.getElementById('coach-msg-form').action = `/api/coach/message/${id}`;
+        }
+    </script>
 </body>
 </html>

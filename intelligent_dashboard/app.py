@@ -24,7 +24,21 @@ Base.metadata.create_all(bind=engine)
 def initial_seed_check():
     db = SessionLocal()
     try:
-        if db.query(User).count() == 0:
+        # Guarantee admin user
+        admin = db.query(User).filter(User.role == "administrator").first()
+        if not admin:
+            admin = User(
+                name="admin", email="admin@cognitivealarm.com",
+                password=auth.get_password_hash("admin123"), role="administrator", provider="LOCAL"
+            )
+            db.add(admin)
+            db.commit()
+            db.refresh(admin)
+            db.add(UserProfile(user_id=admin.id))
+            db.commit()
+            print("Auto-seeded admin user successfully.")
+
+        if db.query(User).count() <= 1:
             print("Auto-seeding default records...")
             # Admin (admin123)
             admin_user = User(
