@@ -27,19 +27,16 @@ def admin_create_user(
     if not current_admin or current_admin.role != 'administrator':
         raise HTTPException(status_code=403, detail="Forbidden")
         
-    user_exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
+    user_exists = db.query(User).filter((User.email == email) | (User.name == full_name)).first()
     if user_exists:
-        raise HTTPException(status_code=400, detail="Username or email already exists")
+        raise HTTPException(status_code=400, detail="User or email already exists")
         
     user = User(
-        full_name=full_name,
-        username=username,
+        name=full_name,
         email=email,
-        password_hash=auth.get_password_hash(password),
+        password=auth.get_password_hash(password),
         role=role,
-        provider="local",
-        email_verified=True,
-        account_status="active"
+        provider="LOCAL"
     )
     db.add(user)
     db.commit()

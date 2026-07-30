@@ -18,19 +18,16 @@ def register_user(
     db: Session = Depends(get_db)
 ):
     # Check exists
-    user_exists = db.query(User).filter((User.username == username) | (User.email == email)).first()
+    user_exists = db.query(User).filter((User.email == email) | (User.name == full_name)).first()
     if user_exists:
-        raise HTTPException(status_code=400, detail="Username or email already exists")
+        raise HTTPException(status_code=400, detail="User or email already exists")
         
     db_user = User(
-        full_name=full_name,
-        username=username,
+        name=full_name,
         email=email,
-        password_hash=auth.get_password_hash(password),
+        password=auth.get_password_hash(password),
         role=role,
-        provider="local",
-        email_verified=False,
-        account_status="active"
+        provider="LOCAL"
     )
     db.add(db_user)
     db.commit()
@@ -45,8 +42,8 @@ def register_user(
     db.commit()
     
     # Login by setting cookies
-    access_token = auth.create_access_token(db_user.username, db_user.role)
-    refresh_token = auth.create_refresh_token(db_user.username, db_user.role)
+    access_token = auth.create_access_token(db_user.email, db_user.role)
+    refresh_token = auth.create_refresh_token(db_user.email, db_user.role)
     
     # Redirect to corresponding dashboard
     target = f"/dashboard/{db_user.role}" if db_user.role in ['administrator', 'coach'] else "/dashboard/user"
@@ -62,7 +59,11 @@ def login_user(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(User.username == username).first()
+    user = db.query(User).filter(
+        (User.email == username) | 
+        (User.name == username) | 
+        (User.email.like(f"{username}@%"))
+    ).first()
     if not user or not auth.verify_password(password, user.password_hash):
         if user:
             user.login_attempts += 1

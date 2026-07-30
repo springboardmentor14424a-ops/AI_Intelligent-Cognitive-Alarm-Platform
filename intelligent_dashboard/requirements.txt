@@ -1,1 +1,12 @@
-Flask==3.0.3
+fastapi
+uvicorn
+jinja2
+sqlalchemy
+psycopg2-binary
+python-jose
+passlib
+bcrypt
+pandas
+openpyxl
+reportlab
+pydantic-settings

@@ -28,17 +28,15 @@ def initial_seed_check():
             print("Auto-seeding default records...")
             # Admin (admin123)
             admin_user = User(
-                full_name="Platform Administrator", username="admin", email="admin@cognitivealarm.com",
-                password_hash=auth.get_password_hash("admin123"), role="administrator", provider="local",
-                email_verified=True, account_status="active"
+                name="Platform Administrator", email="admin@cognitivealarm.com",
+                password=auth.get_password_hash("admin123"), role="administrator", provider="LOCAL"
             )
             db.add(admin_user)
             
             # Coach (coach123)
             coach_user = User(
-                full_name="Sarah Jenkins (Wellness Coach)", username="coach", email="coach@cognitivealarm.com",
-                password_hash=auth.get_password_hash("coach123"), role="coach", provider="local",
-                email_verified=True, account_status="active"
+                name="Sarah Jenkins (Wellness Coach)", email="coach@cognitivealarm.com",
+                password=auth.get_password_hash("coach123"), role="coach", provider="LOCAL"
             )
             db.add(coach_user)
             db.commit()
@@ -46,14 +44,12 @@ def initial_seed_check():
             
             # Users (user123)
             user1 = User(
-                full_name="Alex Rivera", username="user", email="user@cognitivealarm.com",
-                password_hash=auth.get_password_hash("user123"), role="user", provider="local",
-                email_verified=True, account_status="active", coach_id=coach_user.id
+                name="Alex Rivera", email="user@cognitivealarm.com",
+                password=auth.get_password_hash("user123"), role="user", provider="LOCAL", coach_id=coach_user.id
             )
             user2 = User(
-                full_name="Emma Watson", username="emma", email="emma@cognitivealarm.com",
-                password_hash=auth.get_password_hash("user123"), role="user", provider="local",
-                email_verified=False, account_status="active"
+                name="Emma Watson", email="emma@cognitivealarm.com",
+                password=auth.get_password_hash("user123"), role="user", provider="LOCAL"
             )
             db.add(user1)
             db.add(user2)
