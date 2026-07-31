@@ -123,6 +123,5 @@ async function handleSignup(e) {
 
 // ── Google OAuth ──────────────────────────────────────────────
 function handleOAuth(mode) {
-  // TODO: redirect to your real Google OAuth flow
-  alert("Redirecting to Google OAuth for " + mode + "...\n(Connect this to your Google Client ID.)");
+    window.location.href = 'http://localhost:8000/auth/google';
 }

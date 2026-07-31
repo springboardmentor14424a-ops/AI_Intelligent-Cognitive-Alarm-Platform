@@ -310,9 +310,6 @@ form.active { display: flex; }
 .btn-google:hover { border-color: var(--blue-bright); background: var(--ice); }
 .btn-google svg { width: 17px; height: 17px; }
 
-.provider-status { text-align: center; font-size: 11px; color: var(--muted); margin-top: -4px; }
-.provider-status b { color: var(--ink); }
-
 .switch-line {
   text-align: center;
   font-size: 13px;

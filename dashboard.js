@@ -1,8 +1,22 @@
+// ── Read token from URL if coming from Google OAuth ──────────
+const urlParams = new URLSearchParams(window.location.search);
+const urlToken  = urlParams.get('token');
+const urlName   = urlParams.get('name');
+const urlRole   = urlParams.get('role');
+
+if (urlToken) {
+    localStorage.setItem('token', urlToken);
+    localStorage.setItem('user', JSON.stringify({
+        full_name: decodeURIComponent(urlName || ''),
+        role: urlRole || 'user'
+    }));
+    // Clean the token out of the URL
+    window.history.replaceState({}, document.title, 'dashboard.html');
+}
+
 // ── Step 1: Check login on every dashboard page load ─────────
 const user = JSON.parse(localStorage.getItem('user'));
-const token = localStorage.getItem('token');
-
-if (!token || !user) {
+const token = localStorage.getItem('token');if (!token || !user) {
     window.location.href = 'index.html';
 }
 
