@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WakeWise AI - Intelligent Morning & Habit Platform</title>
+    <!-- Meta tags for SEO -->
+    <meta name="description" content="WakeWise AI helps you wake up mindful, build daily habits, and engage with wellness coaches using cognitive waking challenges.">
+    
+    <!-- CSS Dependencies -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="dark">
+    <!-- Loader Mask -->
+    <div id="loader-mask" class="loader-mask">
+        <div class="spinner"></div>
+        <p>OPTIMIZING NEURAL WAKEUP...</p>
+    </div>
+
+    <!-- Navigation Header -->
+    <nav class="landing-nav">
+        <div class="logo">
+            <i class="fas fa-brain"></i>
+            <span>WakeWise <span class="grad-text">AI</span></span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#benefits">Benefits</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#role-selection">Roles</a></li>
+            <li><a href="#testimonials">Testimonials</a></li>
+            <li><a href="#contact">Contact</a></li>
+        </ul>
+        <div class="nav-actions">
+            <button class="nav-toggle-theme" title="Toggle Theme" aria-label="Toggle Theme">
+                <i class="fas fa-sun"></i>
+            </button>
+            <a href="login.html" class="btn btn-secondary" style="padding: 8px 18px; font-size: 0.9rem;">Login</a>
+            <a href="login.html?mode=register" class="btn btn-primary" style="padding: 8px 18px; font-size: 0.9rem;">Get Started</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main>
+        <!-- Hero Section -->
+        <section class="hero-sec" id="hero">
+            <div class="hero-glow-1"></div>
+            <div class="hero-glow-2"></div>
+            <div class="hero-container">
+                <div class="hero-content">
+                    <h1>Wake Up Your <br><span class="grad-text">Cognitive Potential</span></h1>
+                    <p>Ditch the groggy mornings. Our intelligent platform pairs customizable alarm triggers with cognitive fitness challenges, sleep pattern analysis, and wellness coach monitoring to ensure you rise refreshed, alert, and ready to dominate your day.</p>
+                    <div class="hero-cta">
+                        <a href="login.html?mode=register" class="btn btn-primary">Get Started <i class="fas fa-arrow-right"></i></a>
+                        <a href="#features" class="btn btn-secondary">Learn More</a>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="hero-mockup">
+                        <div class="hero-mockup-inner">
+                            <i class="fas fa-clock alarm-icon"></i>
+                            <div class="hero-clock">07:30 <span style="font-size: 1rem; vertical-align: middle;">AM</span></div>
+                            <div class="hero-status">Active Challenge Mode</div>
+                        </div>
+                    </div>
+                    <!-- Floating Glass Cards -->
+                    <div class="floating-card fc-1">
+                        <i class="fas fa-heartbeat" style="color: var(--color-danger); font-size: 1.2rem;"></i>
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.85rem;">Sleep Score</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">94% optimal</div>
+                        </div>
+                    </div>
+                    <div class="floating-card fc-2">
+                        <i class="fas fa-puzzle-piece" style="color: var(--color-warning); font-size: 1.2rem;"></i>
+                        <div>
+                            <div style="font-weight: 700; font-size: 0.85rem;">Puzzle Locked</div>
+                            <div style="font-size: 0.75rem; color: var(--text-secondary);">Solve to Snooze</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="sec-padding" id="features">
+            <div class="section-header">
+                <h2>Engaging <span class="grad-text">Core Features</span></h2>
+                <p>Designed with clinical neuroscience patterns to combat sleep inertia and track circadian health metrics in real-time.</p>
+            </div>
+            <div class="features-grid">
+                <div class="glass-card primary-hover feat-card">
+                    <i class="fas fa-puzzle-piece" style="color: #8b5cf6;"></i>
+                    <h3>Cognitive Obstacles</h3>
+                    <p>Solve arithmetic formulas, pattern recall matching, or rapid tap targets to silence your alarm and boot your prefrontal cortex.</p>
+                </div>
+                <div class="glass-card secondary-hover feat-card">
+                    <i class="fas fa-tasks" style="color: #3b82f6;"></i>
+                    <h3>Habit Integration</h3>
+                    <p>Synchronize your morning wake times directly with custom goal trackers like hydration, stretching, and mindful breathing drills.</p>
+                </div>
+                <div class="glass-card accent-hover feat-card">
+                    <i class="fas fa-user-md" style="color: #ec4899;"></i>
+                    <h3>Coaching Interventions</h3>
+                    <p>Allow certified wellness professionals to view aggregated sleep metrics, track habits, and issue personalized recommendations.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Platform Benefits Section -->
+        <section class="sec-padding" id="benefits" style="background: rgba(18, 19, 45, 0.2);">
+            <div class="section-header">
+                <h2>Why Choose <span class="grad-text">WakeWise AI?</span></h2>
+                <p>Improve mental stamina, maintain a healthy sleep-wake schedule, and experience data-driven personal development.</p>
+            </div>
+            <div class="benefits-container">
+                <div class="benefit-img">
+                    <div class="benefit-svg-container">
+                        <!-- High Quality Custom SVG Graphic representing CogAlarm Dashboard Overview -->
+                        <svg viewBox="0 0 400 300" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                            <rect width="100%" height="100%" fill="none"/>
+                            <!-- Background Panel -->
+                            <rect x="20" y="20" width="360" height="260" rx="15" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.05)" stroke-width="2"/>
+                            <!-- Inner Stats Card -->
+                            <rect x="40" y="40" width="140" height="80" rx="10" fill="rgba(99, 102, 241, 0.08)" stroke="rgba(99, 102, 241, 0.2)"/>
+                            <text x="55" y="70" fill="#f3f4f6" font-family="'Outfit', sans-serif" font-weight="700" font-size="14">Wakeup Streak</text>
+                            <text x="55" y="100" fill="#a855f7" font-family="'Outfit', sans-serif" font-weight="700" font-size="22">14 Days</text>
+                            
+                            <!-- Graph Outline -->
+                            <path d="M210 200 L240 160 L270 180 L300 130 L330 150 L360 90" fill="none" stroke="#06b6d4" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M210 200 L240 160 L270 180 L300 130 L330 150 L360 90 L360 220 L210 220 Z" fill="rgba(6, 182, 212, 0.1)" stroke="none"/>
+                            <line x1="210" y1="220" x2="360" y2="220" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+                            <text x="210" y="240" fill="#9ca3af" font-family="'Plus Jakarta Sans', sans-serif" font-size="10">MON</text>
+                            <text x="280" y="240" fill="#9ca3af" font-family="'Plus Jakarta Sans', sans-serif" font-size="10">THU</text>
+                            <text x="340" y="240" fill="#9ca3af" font-family="'Plus Jakarta Sans', sans-serif" font-size="10">SUN</text>
+
+                            <!-- Circular Progress Ring -->
+                            <circle cx="110" cy="205" r="40" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="8"/>
+                            <circle cx="110" cy="205" r="40" fill="none" stroke="url(#circleGrad)" stroke-width="8" stroke-dasharray="251" stroke-dashoffset="62" stroke-linecap="round"/>
+                            <text x="110" y="210" text-anchor="middle" fill="#f3f4f6" font-family="'Outfit', sans-serif" font-weight="700" font-size="16">78%</text>
+                            
+                            <!-- Definitions -->
+                            <defs>
+                                <linearGradient id="circleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#6366f1"/>
+                                    <stop offset="100%" stop-color="#ec4899"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+                <div class="benefits-info">
+                    <div class="benefit-item">
+                        <div class="benefit-icon"><i class="fas fa-bolt"></i></div>
+                        <div class="benefit-text">
+                            <h3>Instant Inertia Reduction</h3>
+                            <p>Forcing brain processing immediately on waking triggers cortisol release, minimizing sleep hangovers and boosting mood.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon"><i class="fas fa-shield-alt"></i></div>
+                        <div class="benefit-text">
+                            <h3>Protected Personal Privacy</h3>
+                            <p>Your biometric metrics and diagnostic profiles are stored secure and only shared with selected mentors/coaches.</p>
+                        </div>
+                    </div>
+                    <div class="benefit-item">
+                        <div class="benefit-icon"><i class="fas fa-heart"></i></div>
+                        <div class="benefit-text">
+                            <h3>Collaborative Recovery</h3>
+                            <p>Get professional wellness support structure tailored automatically by active coaches tracking your habits.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works Flow Section -->
+        <section class="sec-padding" id="how-it-works">
+            <div class="section-header">
+                <h2>Simple <span class="grad-text">Four Step Flow</span></h2>
+                <p>Getting started on your transition to a sharper sleep cycle takes less than three minutes.</p>
+            </div>
+            <div class="how-container">
+                <div class="how-step">
+                    <div class="how-step-num">1</div>
+                    <h3>Setup Account</h3>
+                    <p>Register as a regular user, wellness coach, or administrator.</p>
+                </div>
+                <div class="how-step">
+                    <div class="how-step-num">2</div>
+                    <h3>Configure Alarms</h3>
+                    <p>Choose times and lock cognitive puzzles (Math, memory matrices).</p>
+                </div>
+                <div class="how-step">
+                    <div class="how-step-num">3</div>
+                    <h3>Perform Challenges</h3>
+                    <p>Solve prompt puzzles to shut off the ringing alarm sound.</p>
+                </div>
+                <div class="how-step">
+                    <div class="how-step-num">4</div>
+                    <h3>Track Habits</h3>
+                    <p>View analytics and receive customized reports from your coach.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Role Selection Section -->
+        <section class="sec-padding" id="role-selection" style="background: rgba(18, 19, 45, 0.2);">
+            <div class="section-header">
+                <h2>Dedicated <span class="grad-text">Portal Login Roles</span></h2>
+                <p>Select your operational dashboard access point below to explore individual portal features.</p>
+            </div>
+            <div class="role-grid">
+                <div class="glass-card success-hover role-card">
+                    <i class="fas fa-user-graduate role-logo" style="color: var(--color-success);"></i>
+                    <h3>User / Student Portal</h3>
+                    <p>Log wake actions, create cognitive custom triggers, track habits, view daily progress stats, and unlock cognitive challenges.</p>
+                    <a href="login.html?role=user" class="btn btn-secondary">Enter User Portal</a>
+                </div>
+                <div class="glass-card secondary-hover role-card">
+                    <i class="fas fa-user-md role-logo" style="color: var(--color-secondary);"></i>
+                    <h3>Wellness Coach</h3>
+                    <p>Evaluate health profiles, monitor user habit metrics, send recommendations, and review sleep trend visualizations.</p>
+                    <a href="login.html?role=coach" class="btn btn-secondary">Enter Coach Portal</a>
+                </div>
+                <div class="glass-card primary-hover role-card">
+                    <i class="fas fa-shield-alt role-logo" style="color: var(--color-primary);"></i>
+                    <h3>System Administrator</h3>
+                    <p>Audit registrations, execute analytics updates, maintain platform security parameters, and export logs. <em>(Pre-built Access Only)</em></p>
+                    <a href="login.html?role=admin" class="btn btn-secondary">Enter Admin Portal</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Testimonials Section -->
+        <section class="sec-padding" id="testimonials">
+            <div class="section-header">
+                <h2>What Our <span class="grad-text">Users Say</span></h2>
+                <p>Read about the sleep transitions experienced by early adopters of our cognitive technology.</p>
+            </div>
+            <div class="testimonials-container">
+                <div class="glass-card primary-hover testimonial-card">
+                    <i class="fas fa-quote-left quote-icon"></i>
+                    <p>"The math challenges make sure my brain is firing on all cylinders before I even leave the bed. My morning grogginess is gone, and my productivity score has doubled."</p>
+                    <div class="testimonial-avatar">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200" alt="Sarah Connor">
+                    </div>
+                    <div class="testimonial-meta">
+                        <h4>Sarah Connor</h4>
+                        <span>Product Lead, TechCorp</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section class="sec-padding" id="contact" style="background: rgba(18, 19, 45, 0.2);">
+            <div class="section-header">
+                <h2>Get In <span class="grad-text">Touch</span></h2>
+                <p>Have questions about features or coaching agreements? Drop us a line.</p>
+            </div>
+            <div class="contact-container glass-card">
+                <form class="contact-form" id="landing-contact-form" onsubmit="event.preventDefault(); Toast.show('Message Sent!', 'We will reach back to you shortly.', 'success'); this.reset();">
+                    <div class="form-group">
+                        <label for="c-name">Full Name</label>
+                        <input type="text" id="c-name" class="form-control" placeholder="Enter your name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="c-email">Email Address</label>
+                        <input type="email" id="c-email" class="form-control" placeholder="Enter your email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="c-msg">Message</label>
+                        <textarea id="c-msg" class="form-control" rows="4" placeholder="How can we help you?" required style="resize: vertical;"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 10px;">Send Message</button>
+                </form>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer Area -->
+    <footer class="landing-footer">
+        <div class="footer-content">
+            <div class="logo">
+                <i class="fas fa-brain"></i>
+                <span>WakeWise <span class="grad-text">AI</span></span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#benefits">Benefits</a></li>
+                <li><a href="#role-selection">Roles</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 WakeWise AI Platform. Crafted for optimized mornings.</p>
+        </div>
+    </footer>
+
+    <!-- Script Sources -->
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

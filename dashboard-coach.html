@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wellness Coach Dashboard - WakeWise AI</title>
+    <!-- CSS Dependencies -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-theme="dark">
+    <!-- Loader Mask -->
+    <div id="loader-mask" class="loader-mask">
+        <div class="spinner"></div>
+        <p>GATHERING PATIENT SLEEP METRICS...</p>
+    </div>
+
+    <div class="db-wrapper">
+        <!-- Sidebar Drawer Navigation -->
+        <aside class="db-sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>WakeWise Coach</span>
+                </div>
+                <button id="sidebar-toggle" class="sidebar-toggle-btn" title="Toggle Sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+            
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item active" data-tab="tab-dashboard">
+                    <a href="#"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a>
+                </li>
+                <li class="sidebar-menu-item" data-tab="tab-reports">
+                    <a href="#"><i class="fas fa-file-invoice"></i> <span>User Reports</span></a>
+                </li>
+                <li class="sidebar-menu-item" data-tab="tab-trends">
+                    <a href="#"><i class="fas fa-moon"></i> <span>Sleep Trends</span></a>
+                </li>
+                <li class="sidebar-menu-item" data-tab="tab-analytics">
+                    <a href="#"><i class="fas fa-heartbeat"></i> <span>Habit Analytics</span></a>
+                </li>
+                <li class="sidebar-menu-item" data-tab="tab-recommendations">
+                    <a href="#"><i class="fas fa-comment-medical"></i> <span>Recommendations</span></a>
+                </li>
+                <li class="sidebar-menu-item" data-tab="tab-messages">
+                    <a href="#"><i class="fas fa-envelope"></i> <span>Messages Log</span></a>
+                </li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="btn btn-danger" style="width: 100%; padding: 10px;">
+                    <i class="fas fa-sign-out-alt"></i> <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <div class="db-main">
+            <!-- Navbar -->
+            <header class="db-navbar">
+                <div class="db-nav-left">
+                    <button id="mobile-nav-toggle" class="mobile-nav-toggle"><i class="fas fa-bars"></i></button>
+                    <div class="db-breadcrumb">
+                        <a href="#">Portal</a>
+                        <span class="separator">/</span>
+                        <a href="#">Coach</a>
+                        <span class="separator">/</span>
+                        <span class="active-crumb" id="breadcrumb-current">Dashboard</span>
+                    </div>
+                </div>
+                <div class="db-nav-right">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search patients...">
+                    </div>
+                    <button class="nav-toggle-theme" title="Toggle Theme" aria-label="Toggle Theme">
+                        <i class="fas fa-sun"></i>
+                    </button>
+                    <!-- Profile dropdown -->
+                    <div class="profile-dropdown-wrapper">
+                        <div class="profile-trigger" id="profile-trigger">
+                            <img src="https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=100" alt="Coach Avatar">
+                            <span id="nav-username">Dr. Jenkins</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="dropdown-menu" id="profile-dropdown">
+                            <div class="dropdown-item" onclick="switchTab('tab-dashboard')"><i class="fas fa-user"></i> Dashboard</div>
+                            <div class="dropdown-item" onclick="switchTab('tab-messages')"><i class="fas fa-envelope"></i> Messages Log</div>
+                            <div class="dropdown-item logout-trigger" style="color: var(--color-danger); border-top: 1px solid var(--glass-border);"><i class="fas fa-sign-out-alt"></i> Sign Out</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard Content Container -->
+            <div class="db-content">
+                <!-- Greeting Header summary -->
+                <div class="db-header-summary">
+                    <div class="db-greeting">
+                        <h1 id="greeting-text">Welcome, <span class="grad-text">Dr. Jenkins</span></h1>
+                        <p>You have 3 patient reports requiring critical review today.</p>
+                    </div>
+                    <div class="db-time-widget">
+                        <div class="time">--:--:-- --</div>
+                        <div class="date">Loading Today...</div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB: DASHBOARD (MAIN) ================= -->
+                <div id="tab-dashboard" class="tab-content-section active">
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="glass-card primary-hover stat-card">
+                            <div class="stat-icon primary"><i class="fas fa-users"></i></div>
+                            <div class="stat-details">
+                                <h3 id="stat-active-users">124</h3>
+                                <p>Active Users</p>
+                            </div>
+                        </div>
+                        <div class="glass-card success-hover stat-card">
+                            <div class="stat-icon success"><i class="fas fa-star"></i></div>
+                            <div class="stat-details">
+                                <h3>82%</h3>
+                                <p>Avg Habit Score</p>
+                            </div>
+                        </div>
+                        <div class="glass-card secondary-hover stat-card">
+                            <div class="stat-icon secondary"><i class="fas fa-bed"></i></div>
+                            <div class="stat-details">
+                                <h3>7.4 Hrs</h3>
+                                <p>Sleep Quality</p>
+                            </div>
+                        </div>
+                        <div class="glass-card accent-hover stat-card">
+                            <div class="stat-icon accent"><i class="fas fa-chart-line"></i></div>
+                            <div class="stat-details">
+                                <h3>+12%</h3>
+                                <p>Weekly Impr.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Grid: Charts and Tables -->
+                    <div class="dashboard-grid">
+                        <!-- Chart section -->
+                        <div class="glass-card primary-hover">
+                            <div class="chart-header">
+                                <h3>Weekly Patient Metric Progress</h3>
+                                <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;" onclick="simulateCoachReport()">Generate System Report</button>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="coachProgressChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Recommendations Panel quick trigger -->
+                        <div class="glass-card accent-hover">
+                            <h3 style="margin-bottom: 20px; font-size: 1.15rem;">Action Console</h3>
+                            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px;">
+                                Issue personalized wellness advice to patients immediately.
+                            </p>
+                            <button class="btn btn-primary" onclick="Modal.open('recommendation-modal')" style="width: 100%; margin-bottom: 12px;">
+                                <i class="fas fa-comment-medical"></i> Send Recommendation
+                            </button>
+                            <button class="btn btn-secondary" onclick="simulateCoachReport()" style="width: 100%;">
+                                <i class="fas fa-file-excel"></i> Export Analytics Sheet
+                            </button>
+                        </div>
+
+                        <!-- Top Performing Users Table -->
+                        <div class="glass-card success-hover">
+                            <h3 style="margin-bottom: 20px; font-size: 1.15rem;">Optimal Performing Patients</h3>
+                            <div class="table-responsive">
+                                <table class="custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient Name</th>
+                                            <th>Habit Score</th>
+                                            <th>Sleep Consistency</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><strong>Alex Mercer</strong></td>
+                                            <td><span class="badge badge-success">88%</span></td>
+                                            <td>94% optimal</td>
+                                            <td><span class="badge badge-success">Consistent</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Clara Oswald</strong></td>
+                                            <td><span class="badge badge-success">95%</span></td>
+                                            <td>91% optimal</td>
+                                            <td><span class="badge badge-success">Optimal</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Bruce Banner</strong></td>
+                                            <td><span class="badge badge-success">84%</span></td>
+                                            <td>87% optimal</td>
+                                            <td><span class="badge badge-success">Consistent</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Users Needing Help Table -->
+                        <div class="glass-card danger-hover">
+                            <h3 style="margin-bottom: 20px; font-size: 1.15rem; color: var(--color-danger);"><i class="fas fa-exclamation-triangle"></i> Patients Requiring Review</h3>
+                            <div class="table-responsive">
+                                <table class="custom-table" id="help-table-body">
+                                    <thead>
+                                        <tr>
+                                            <th>Patient</th>
+                                            <th>Habit Drop</th>
+                                            <th>Sleep Avg</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Will populate dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB: USER REPORTS ================= -->
+                <div id="tab-reports" class="tab-content-section">
+                    <div class="glass-card primary-hover" style="margin-bottom: 30px;">
+                        <h3>Patient Case Review</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">Review sleep metrics and cognitive wake performance logs for active patients.</p>
+                        <div class="table-responsive">
+                            <table class="custom-table" id="all-reports-table">
+                                <thead>
+                                    <tr>
+                                        <th>Patient ID</th>
+                                        <th>Name</th>
+                                        <th>Sleep Target</th>
+                                        <th>Wake Inertia</th>
+                                        <th>Status</th>
+                                        <th>Recommendation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB: SLEEP TRENDS ================= -->
+                <div id="tab-trends" class="tab-content-section">
+                    <div class="glass-card secondary-hover" style="margin-bottom: 30px;">
+                        <div class="chart-header">
+                            <h3>Aggregated Sleep Efficiency Trends</h3>
+                        </div>
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="coachTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB: HABIT ANALYTICS ================= -->
+                <div id="tab-analytics" class="tab-content-section">
+                    <div class="glass-card accent-hover" style="margin-bottom: 30px;">
+                        <div class="chart-header">
+                            <h3>Habit Challenge Success Rates</h3>
+                        </div>
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="coachHabitsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB: RECOMMENDATIONS ================= -->
+                <div id="tab-recommendations" class="tab-content-section">
+                    <div class="glass-card primary-hover" style="max-width: 600px; margin: 0 auto;">
+                        <h3 style="margin-bottom: 20px;">Issue Patient Wellness Advice</h3>
+                        <form id="recommendation-form-direct">
+                            <div class="form-group" style="margin-bottom: 16px;">
+                                <label for="rec-patient">Choose Patient</label>
+                                <select id="rec-patient" class="form-control form-select" required>
+                                    <option value="" disabled selected>Select user...</option>
+                                    <option value="Alex Mercer">Alex Mercer</option>
+                                    <option value="Tony Stark">Tony Stark</option>
+                                    <option value="Steve Rogers">Steve Rogers</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 20px;">
+                                <label for="rec-text">Recommendation Notes</label>
+                                <textarea id="rec-text" class="form-control" rows="5" placeholder="Type recommendation notes, workout advice, or sleep prep instructions..." required style="resize: vertical;"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Dispatch Advice</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ================= TAB: MESSAGES LOG ================= -->
+                <div id="tab-messages" class="tab-content-section">
+                    <div class="glass-card accent-hover" style="margin-bottom: 30px;">
+                        <h3>Recommendations Dispatch Log</h3>
+                        <div class="table-responsive" style="margin-top: 20px;">
+                            <table class="custom-table" id="messages-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Recipient</th>
+                                        <th>Recommendation Details</th>
+                                        <th>Delivery Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: SEND RECOMMENDATION -->
+    <div id="recommendation-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3>Send Patient Recommendation</h3>
+                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="recommendation-form-modal">
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="modal-rec-patient">Choose Patient</label>
+                        <select id="modal-rec-patient" class="form-control form-select" required>
+                            <option value="" disabled selected>Select patient...</option>
+                            <option value="Alex Mercer">Alex Mercer</option>
+                            <option value="Tony Stark">Tony Stark</option>
+                            <option value="Steve Rogers">Steve Rogers</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="modal-rec-text">Advisor Notes</label>
+                        <textarea id="modal-rec-text" class="form-control" rows="4" placeholder="Enter physical exercise guidelines or bedtime schedule..." required style="resize: vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Dispatch</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Sources -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Protect wellness coach page
+        protectPage('coach');
+    </script>
+    <script src="js/coach.js"></script>
+</body>
+</html>
