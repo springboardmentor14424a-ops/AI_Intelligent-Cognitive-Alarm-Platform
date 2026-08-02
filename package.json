@@ -1,0 +1,13 @@
+{
+  "name": "ai-intelligent-cognitive-alarm-platform",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pg": "^8.22.0"
+  }
+}

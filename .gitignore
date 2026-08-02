@@ -1,0 +1,5 @@
+node_modules/
+.env
+*.log
+.tmp/
+tmp_db_check.js
