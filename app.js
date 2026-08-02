@@ -1,129 +1,273 @@
-// Get DOM elements
-const pageLogin = document.getElementById("page-login");
+const pageAuth = document.getElementById("page-auth");
 const pageApp = document.getElementById("page-app");
 const loginForm = document.getElementById("login-form");
-const roleSelect = document.getElementById("role-select");
-const nameInput = document.getElementById("name-input");
-const emailInput = document.getElementById("email-input");
-const passwordInput = document.getElementById("password-input");
-const errorMessage = document.getElementById("error-message");
+const registerForm = document.getElementById("register-form");
+const profileForm = document.getElementById("profile-form");
+const authMessage = document.getElementById("auth-message");
+const profileMessage = document.getElementById("profile-message");
 const userTag = document.getElementById("user-tag");
-
+const showLoginBtn = document.getElementById("show-login-btn");
+const showRegisterBtn = document.getElementById("show-register-btn");
+const googleBtn = document.getElementById("google-btn");
 const viewUser = document.getElementById("view-user");
 const viewCoach = document.getElementById("view-coach");
 const viewAdmin = document.getElementById("view-admin");
+const profileNameInput = document.getElementById("profile-name");
+const profileEmailInput = document.getElementById("profile-email");
 
-// Clear input fields when selected role changes
-roleSelect.addEventListener("change", function () {
-  nameInput.value = "";
-  emailInput.value = "";
-  passwordInput.value = "";
-  errorMessage.textContent = "";
-});
+let currentUser = null;
+let currentToken = null;
 
-// Function to validate email format
+function showMessage(element, message, type = "info") {
+  element.textContent = message;
+  element.className = `message ${type}`;
+}
+
 function isValidEmail(email) {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-// Function to validate password rules
-function isValidPassword(password) {
-  if (password.length <= 7) {
-    return "Password length must be greater than 7 characters.";
-  }
-  if (!/[A-Z]/.test(password)) {
-    return "Password must contain at least 1 uppercase letter (A-Z).";
-  }
-  if (!/[a-z]/.test(password)) {
-    return "Password must contain at least 1 lowercase letter (a-z).";
-  }
-  if (!/[0-9]/.test(password)) {
-    return "Password must contain at least 1 number (0-9).";
-  }
-  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
-    return "Password must contain at least 1 special character (e.g. @, #, $, %).";
-  }
-  return true;
+function showAuthView() {
+  pageAuth.style.display = "flex";
+  pageApp.style.display = "none";
 }
 
-// Handle Login Form Submission
-loginForm.addEventListener("submit", function (event) {
-  event.preventDefault(); // Stop page reload
-  errorMessage.textContent = ""; // Clear previous error
-
-  const role = roleSelect.value;
-  const userName = nameInput.value.trim();
-  const userEmail = emailInput.value.trim();
-  const userPassword = passwordInput.value;
-
-  // 1. Validate Full Name
-  if (userName === "") {
-    errorMessage.textContent = "Please enter your full name.";
-    return;
-  }
-
-  // 2. Validate Email
-  if (!isValidEmail(userEmail)) {
-    errorMessage.textContent = "Please enter a valid email address.";
-    return;
-  }
-
-  // 3. Validate Password
-  const passwordResult = isValidPassword(userPassword);
-  if (passwordResult !== true) {
-    errorMessage.textContent = passwordResult;
-    return;
-  }
-
-  // If all validation passes: Hide Login Page and Show App Page
-  pageLogin.style.display = "none";
+function showAppView() {
+  pageAuth.style.display = "none";
   pageApp.style.display = "block";
+}
 
-  // Hide all 3 dashboard views first
-  viewUser.style.display = "none";
-  viewCoach.style.display = "none";
-  viewAdmin.style.display = "none";
+function finalizeGoogleAuth(token) {
+  if (!token) {
+    showMessage(authMessage, "Google sign-in was cancelled or failed.", "error");
+    return;
+  }
 
-  // Show only the selected role's dashboard and display entered user name
-  if (role === "User") {
-    viewUser.style.display = "block";
-    userTag.textContent = "Logged in as: User (" + userName + ")";
-  } else if (role === "Wellness Coach") {
-    viewCoach.style.display = "block";
-    userTag.textContent = "Logged in as: Wellness Coach (" + userName + ")";
-  } else if (role === "Administrator") {
-    viewAdmin.style.display = "block";
-    userTag.textContent = "Logged in as: Administrator (" + userName + ")";
+  currentToken = token;
+  const payload = JSON.parse(atob(token.split('.')[1]));
+  currentUser = {
+    id: payload.id,
+    name: payload.name || payload.email.split('@')[0],
+    email: payload.email,
+    role: payload.role || 'USER',
+    provider: 'GOOGLE'
+  };
+  localStorage.setItem("authToken", token);
+  renderDashboard();
+  showAppView();
+  showMessage(authMessage, "Google sign-in successful.", "success");
+}
+
+function setActiveTab(activeTab) {
+  const loginSection = document.getElementById("login-section");
+  const registerSection = document.getElementById("register-section");
+
+  showLoginBtn.classList.toggle("active", activeTab === "login");
+  showRegisterBtn.classList.toggle("active", activeTab === "register");
+  loginSection.classList.toggle("hidden", activeTab !== "login");
+  registerSection.classList.toggle("hidden", activeTab !== "register");
+}
+
+function renderDashboard() {
+  const roleLabel = currentUser.role === "WELLNESS_COACH"
+    ? "Wellness Coach"
+    : currentUser.role === "ADMIN"
+      ? "Administrator"
+      : "User";
+
+  userTag.textContent = `Logged in as ${roleLabel} (${currentUser.name})`;
+  profileNameInput.value = currentUser.name;
+  profileEmailInput.value = currentUser.email;
+
+  viewUser.style.display = currentUser.role === "USER" ? "block" : "none";
+  viewCoach.style.display = currentUser.role === "WELLNESS_COACH" ? "block" : "none";
+  viewAdmin.style.display = currentUser.role === "ADMIN" ? "block" : "none";
+}
+
+async function requestJson(path, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+
+  const response = await fetch(path, { ...options, headers });
+  const text = await response.text();
+  let payload = {};
+
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch (error) {
+    payload = {};
+  }
+
+  if (!response.ok) {
+    throw new Error(payload.error || text || "Request failed");
+  }
+
+  return payload;
+}
+
+async function restoreSession() {
+  const token = localStorage.getItem("authToken");
+  if (!token) {
+    showAuthView();
+    return;
+  }
+
+  try {
+    const data = await requestJson("/api/auth/profile", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    currentToken = token;
+    currentUser = data.user;
+    renderDashboard();
+    showAppView();
+  } catch (error) {
+    localStorage.removeItem("authToken");
+    showAuthView();
+    showMessage(authMessage, error.message, "error");
+  }
+}
+
+loginForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+
+  if (!isValidEmail(email)) {
+    showMessage(authMessage, "Please enter a valid email address.", "error");
+    return;
+  }
+
+  try {
+    const data = await requestJson("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password })
+    });
+
+    currentToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem("authToken", data.token);
+    renderDashboard();
+    showAppView();
+    showMessage(authMessage, "Login successful.", "success");
+  } catch (error) {
+    showMessage(authMessage, error.message, "error");
   }
 });
 
-// Handle Logout Button Click
-function logout() {
-  nameInput.value = "";
-  emailInput.value = "";
-  passwordInput.value = "";
-  errorMessage.textContent = "";
+registerForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = document.getElementById("register-name").value.trim();
+  const email = document.getElementById("register-email").value.trim();
+  const password = document.getElementById("register-password").value;
+  const role = document.getElementById("register-role").value;
 
-  pageApp.style.display = "none";
-  pageLogin.style.display = "flex";
-}
+  if (!isValidEmail(email)) {
+    showMessage(authMessage, "Please enter a valid email address.", "error");
+    return;
+  }
 
-// Function to send coach guidance
+  try {
+    const data = await requestJson("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password, role })
+    });
+
+    currentToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem("authToken", data.token);
+    renderDashboard();
+    showAppView();
+    showMessage(authMessage, "Registration successful. Welcome aboard.", "success");
+  } catch (error) {
+    showMessage(authMessage, error.message, "error");
+  }
+});
+
+profileForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!currentToken) {
+    showMessage(profileMessage, "Please sign in first.", "error");
+    return;
+  }
+
+  try {
+    const data = await requestJson("/api/auth/profile", {
+      method: "PUT",
+      body: JSON.stringify({
+        name: profileNameInput.value.trim(),
+        email: profileEmailInput.value.trim()
+      }),
+      headers: {
+        Authorization: `Bearer ${currentToken}`
+      }
+    });
+
+    currentUser = data.user;
+    renderDashboard();
+    showMessage(profileMessage, "Profile updated successfully.", "success");
+  } catch (error) {
+    showMessage(profileMessage, error.message, "error");
+  }
+});
+
+googleBtn.addEventListener("click", async () => {
+  try {
+    const data = await requestJson("/api/auth/google/start");
+    if (!data.authUrl) {
+      throw new Error("Google OAuth did not return an authorization URL.");
+    }
+    window.location.href = data.authUrl;
+  } catch (error) {
+    showMessage(authMessage, error.message, "error");
+  }
+});
+
+showLoginBtn.addEventListener("click", () => setActiveTab("login"));
+showRegisterBtn.addEventListener("click", () => setActiveTab("register"));
+
+window.logout = function () {
+  currentToken = null;
+  currentUser = null;
+  localStorage.removeItem("authToken");
+  loginForm.reset();
+  registerForm.reset();
+  profileForm.reset();
+  showMessage(authMessage, "You have been logged out.", "info");
+  showAuthView();
+};
+
 function sendGuidance() {
   const input = document.getElementById("guidance-input");
   const msg = document.getElementById("guidance-msg");
 
   if (input.value.trim() !== "") {
-    msg.textContent = "Guidance note sent successfully to Marcus Vance!";
+    msg.textContent = "Guidance note sent successfully to Marcus Vance.";
     input.value = "";
   } else {
     msg.textContent = "Please type a guidance note before sending.";
   }
 }
 
-// Function to simulate exporting reports
 function exportReport(reportName) {
   const msg = document.getElementById("report-msg");
-  msg.textContent = "Exporting " + reportName + "... Download complete.";
+  msg.textContent = `Exporting ${reportName}... Download complete.`;
+}
+
+setActiveTab("login");
+const urlParams = new URLSearchParams(window.location.search);
+const googleStatus = urlParams.get("google");
+const googleToken = urlParams.get("token");
+const googleError = urlParams.get("error");
+
+if (googleStatus === "success" && googleToken) {
+  finalizeGoogleAuth(googleToken);
+  window.history.replaceState({}, document.title, window.location.pathname);
+} else if (googleStatus === "cancelled" || googleStatus === "error" || googleStatus === "invalid") {
+  const errorDetails = googleError ? ` (${decodeURIComponent(googleError)})` : '';
+  showMessage(authMessage, `Google sign-in was cancelled or failed${errorDetails}.`, "error");
+  window.history.replaceState({}, document.title, window.location.pathname);
+} else {
+  restoreSession();
 }
