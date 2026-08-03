@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body data-theme="dark">
     <!-- Loader Mask -->
     <div id="loader-mask" class="loader-mask">
@@ -27,7 +29,7 @@
                     <i class="fas fa-bars"></i>
                 </button>
             </div>
-            
+
             <ul class="sidebar-menu">
                 <li class="sidebar-menu-item active" data-tab="tab-dashboard">
                     <a href="#"><i class="fas fa-th-large"></i> <span>Dashboard</span></a>
@@ -84,14 +86,18 @@
                     <!-- Profile dropdown -->
                     <div class="profile-dropdown-wrapper">
                         <div class="profile-trigger" id="profile-trigger">
-                            <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=100" alt="Avatar">
-                            <span id="nav-username">Alex Mercer</span>
+                            <div id="nav-avatar-slot" style="display: flex; align-items: center;"></div>
+                            <span id="nav-username">User</span>
                             <i class="fas fa-chevron-down"></i>
                         </div>
                         <div class="dropdown-menu" id="profile-dropdown">
-                            <div class="dropdown-item" onclick="switchTab('tab-profile')"><i class="fas fa-user"></i> My Profile</div>
-                            <div class="dropdown-item" onclick="switchTab('tab-notifications')"><i class="fas fa-bell"></i> Notifications</div>
-                            <div class="dropdown-item logout-trigger" style="color: var(--color-danger); border-top: 1px solid var(--glass-border);"><i class="fas fa-sign-out-alt"></i> Sign Out</div>
+                            <div class="dropdown-item" onclick="switchTab('tab-profile')"><i class="fas fa-user"></i> My
+                                Profile</div>
+                            <div class="dropdown-item" onclick="switchTab('tab-notifications')"><i
+                                    class="fas fa-bell"></i> Notifications</div>
+                            <div class="dropdown-item logout-trigger"
+                                style="color: var(--color-danger); border-top: 1px solid var(--glass-border);"><i
+                                    class="fas fa-sign-out-alt"></i> Sign Out</div>
                         </div>
                     </div>
                 </div>
@@ -121,7 +127,8 @@
                         <div class="progress-bar-fill" id="goal-bar"></div>
                     </div>
                     <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
-                        Complete morning routine tasks (Log sleep hours, challenge prefrontal cortex, update habits checklist) to reach 100%!
+                        Complete morning routine tasks (Log sleep hours, challenge prefrontal cortex, update habits
+                        checklist) to reach 100%!
                     </p>
                 </div>
 
@@ -180,8 +187,10 @@
                             <div class="chart-header">
                                 <h3>Sleep Hours & Cognitive Performance</h3>
                                 <div style="display: flex; gap: 8px;">
-                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">7 Days</button>
-                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">30 Days</button>
+                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">7
+                                        Days</button>
+                                    <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.75rem;">30
+                                        Days</button>
                                 </div>
                             </div>
                             <div class="chart-container">
@@ -198,21 +207,24 @@
                                         <h4>Add New Alarm</h4>
                                         <p>Create a custom wake trigger</p>
                                     </div>
-                                    <button class="btn btn-primary" style="padding: 8px 12px; font-size: 0.8rem;"><i class="fas fa-plus"></i></button>
+                                    <button class="btn btn-primary" style="padding: 8px 12px; font-size: 0.8rem;"><i
+                                            class="fas fa-plus"></i></button>
                                 </div>
                                 <div class="action-card" onclick="triggerChallenge()">
                                     <div class="action-info">
                                         <h4>Cognitive Wakeup Drill</h4>
                                         <p>Activate prefrontal cortex matrix</p>
                                     </div>
-                                    <button class="btn btn-accent" style="padding: 8px 12px; font-size: 0.8rem;"><i class="fas fa-puzzle-piece"></i></button>
+                                    <button class="btn btn-accent" style="padding: 8px 12px; font-size: 0.8rem;"><i
+                                            class="fas fa-puzzle-piece"></i></button>
                                 </div>
                                 <div class="action-card" onclick="simulateReportDownload()">
                                     <div class="action-info">
                                         <h4>Download Sleep Report</h4>
                                         <p>Export wellness trend PDF</p>
                                     </div>
-                                    <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;"><i class="fas fa-file-download"></i></button>
+                                    <button class="btn btn-secondary" style="padding: 8px 12px; font-size: 0.8rem;"><i
+                                            class="fas fa-file-download"></i></button>
                                 </div>
                             </div>
                         </div>
@@ -252,17 +264,20 @@
                                     </thead>
                                     <tbody>
                                         <tr>
-                                            <td><i class="fas fa-calculator text-muted" style="margin-right:8px;"></i> Mental Arithmetic</td>
+                                            <td><i class="fas fa-calculator text-muted" style="margin-right:8px;"></i>
+                                                Mental Arithmetic</td>
                                             <td><span class="badge badge-success">100% (Pass)</span></td>
                                             <td>Today, 07:34 AM</td>
                                         </tr>
                                         <tr>
-                                            <td><i class="fas fa-shapes text-muted" style="margin-right:8px;"></i> Memory Grid Puzzle</td>
+                                            <td><i class="fas fa-shapes text-muted" style="margin-right:8px;"></i>
+                                                Memory Grid Puzzle</td>
                                             <td><span class="badge badge-success">90% (Pass)</span></td>
                                             <td>Yesterday, 07:32 AM</td>
                                         </tr>
                                         <tr>
-                                            <td><i class="fas fa-calculator text-muted" style="margin-right:8px;"></i> Mental Arithmetic</td>
+                                            <td><i class="fas fa-calculator text-muted" style="margin-right:8px;"></i>
+                                                Mental Arithmetic</td>
                                             <td><span class="badge badge-warning">80% (Pass)</span></td>
                                             <td>26 Jul, 07:35 AM</td>
                                         </tr>
@@ -276,7 +291,8 @@
                 <!-- ================= TAB: MY ALARMS ================= -->
                 <div id="tab-alarms" class="tab-content-section">
                     <div class="glass-card primary-hover" style="margin-bottom: 30px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3>Alarm Management Panel</h3>
                             <button class="btn btn-primary" onclick="Modal.open('add-alarm-modal')">
                                 <i class="fas fa-plus"></i> Set New Alarm
@@ -307,7 +323,8 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;" class="dashboard-grid">
                         <div class="glass-card primary-hover">
                             <h3 style="margin-bottom: 15px;">Prefrontal Cortex Drills</h3>
-                            <p style="color: var(--text-secondary); margin-bottom: 25px;">Activate your cognitive awareness by training daily before bed or directly during morning wakeup cycles.</p>
+                            <p style="color: var(--text-secondary); margin-bottom: 25px;">Activate your cognitive
+                                awareness by training daily before bed or directly during morning wakeup cycles.</p>
                             <div class="action-panel-list">
                                 <div class="action-card">
                                     <div class="action-info">
@@ -321,7 +338,8 @@
                                         <h4>Memory Grid Spark</h4>
                                         <p>Visual card matching speed test</p>
                                     </div>
-                                    <button class="btn btn-accent" onclick="Toast.show('Matrix Memory Locked', 'This memory expansion pack unlocks in the next premium release.', 'info')">Unlock</button>
+                                    <button class="btn btn-accent"
+                                        onclick="Toast.show('Matrix Memory Locked', 'This memory expansion pack unlocks in the next premium release.', 'info')">Unlock</button>
                                 </div>
                             </div>
                         </div>
@@ -338,8 +356,9 @@
                 <div id="tab-habits" class="tab-content-section">
                     <div class="glass-card success-hover" style="margin-bottom: 30px;">
                         <h3 style="margin-bottom: 15px;">Healthy Morning Routine Checklist</h3>
-                        <p style="color: var(--text-secondary); margin-bottom: 20px;">Complete your custom habits each morning to boost your Habit Score and wake quality index.</p>
-                        
+                        <p style="color: var(--text-secondary); margin-bottom: 20px;">Complete your custom habits each
+                            morning to boost your Habit Score and wake quality index.</p>
+
                         <div class="action-panel-list" id="habits-list-container">
                             <!-- Populated dynamically via JS -->
                         </div>
@@ -359,7 +378,8 @@
                 <!-- ================= TAB: NOTIFICATIONS ================= -->
                 <div id="tab-notifications" class="tab-content-section">
                     <div class="glass-card accent-hover" style="margin-bottom: 30px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h3>Platform Notifications</h3>
                             <button class="btn btn-secondary" onclick="clearNotifications()">Clear All</button>
                         </div>
@@ -372,7 +392,34 @@
                 <!-- ================= TAB: PROFILE ================= -->
                 <div id="tab-profile" class="tab-content-section">
                     <div class="glass-card primary-hover" style="max-width: 600px; margin: 0 auto;">
-                        <h3 style="margin-bottom: 20px;">My Profile Settings</h3>
+                        <h3 style="margin-bottom: 20px; text-align: center;">My Profile Settings</h3>
+
+                        <!-- PROFILE PICTURE UPLOADER -->
+                        <div style="text-align: center; margin-bottom: 24px;">
+                            <div style="position: relative; width: 90px; height: 90px; margin: 0 auto 14px;">
+                                <div id="profile-avatar-preview-container"
+                                    style="width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; margin: 0 auto;">
+                                    <!-- Rendered dynamically by updateHeaderUserInfo -->
+                                </div>
+                                <label for="profile-pic-input"
+                                    style="position: absolute; bottom: 0; right: 0; width: 32px; height: 32px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff; font-size: 0.85rem; border: 2px solid #1a1e2e; box-shadow: 0 4px 10px rgba(0,0,0,0.5);"
+                                    title="Upload Profile Picture">
+                                    <i class="fas fa-camera"></i>
+                                </label>
+                                <input type="file" id="profile-pic-input" accept="image/*" style="display: none;">
+                            </div>
+                            <div style="display: flex; gap: 10px; justify-content: center;">
+                                <button type="button" id="change-avatar-btn" class="btn btn-secondary"
+                                    style="padding: 6px 14px; font-size: 0.8rem;">
+                                    <i class="fas fa-upload"></i> Upload Image
+                                </button>
+                                <button type="button" id="remove-avatar-btn" class="btn btn-secondary"
+                                    style="padding: 6px 14px; font-size: 0.8rem; color: #f87171; border-color: rgba(248,113,113,0.3);">
+                                    <i class="fas fa-undo"></i> Remove Image
+                                </button>
+                            </div>
+                        </div>
+
                         <form id="profile-settings-form">
                             <div class="form-group" style="margin-bottom: 16px;">
                                 <label for="profile-name">Full Name</label>
@@ -380,7 +427,8 @@
                             </div>
                             <div class="form-group" style="margin-bottom: 16px;">
                                 <label for="profile-email">Email Address</label>
-                                <input type="email" id="profile-email" class="form-control" value="user@alarm.com" required>
+                                <input type="email" id="profile-email" class="form-control" value="user@alarm.com"
+                                    required>
                             </div>
                             <div class="form-group" style="margin-bottom: 16px;">
                                 <label for="profile-wake-target">Target Wakeup Time</label>
@@ -388,7 +436,8 @@
                             </div>
                             <div class="form-group" style="margin-bottom: 20px;">
                                 <label for="profile-coach-code">Associated Coach Code</label>
-                                <input type="text" id="profile-coach-code" class="form-control" value="COACH-SARAH-99" placeholder="Enter coach credentials code">
+                                <input type="text" id="profile-coach-code" class="form-control" value="COACH-SARAH-99"
+                                    placeholder="Enter coach credentials code">
                             </div>
                             <button type="submit" class="btn btn-primary" style="width: 100%;">Save Settings</button>
                         </form>
@@ -427,13 +476,27 @@
                     <div class="form-group">
                         <label>Repeat Days</label>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" checked value="Mon"> Mon</label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" checked value="Tue"> Tue</label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" checked value="Wed"> Wed</label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" checked value="Thu"> Thu</label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" checked value="Fri"> Fri</label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Sat"> Sat</label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Sun"> Sun</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" checked value="Mon"> Mon</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" checked value="Tue"> Tue</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" checked value="Wed"> Wed</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" checked value="Thu"> Thu</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" checked value="Fri"> Fri</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" value="Sat"> Sat</label>
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
+                                    type="checkbox" value="Sun"> Sun</label>
                         </div>
                     </div>
                 </div>
@@ -458,12 +521,14 @@
                 </p>
                 <div class="challenge-math-question" id="challenge-question">8 x 7 + 12</div>
                 <div class="form-group">
-                    <input type="number" id="challenge-answer" class="form-control" placeholder="Enter answer here..." required style="text-align: center; font-size: 1.2rem;">
+                    <input type="number" id="challenge-answer" class="form-control" placeholder="Enter answer here..."
+                        required style="text-align: center; font-size: 1.2rem;">
                 </div>
                 <div class="challenge-feedback" id="challenge-feedback"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">Verify Formula</button>
+                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">Verify
+                    Formula</button>
             </div>
         </div>
     </div>
@@ -478,4 +543,5 @@
     </script>
     <script src="js/user.js"></script>
 </body>
+
 </html>

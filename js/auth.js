@@ -5,11 +5,9 @@
 // Determine API Base URL dynamically
 const getApiBaseUrl = () => {
     if (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin.startsWith('http')) {
-        // If served from FastAPI on port 8000, use relative same-origin calls
         if (window.location.port === '8000') {
             return '';
         }
-        // If served from static dev port (e.g. 5500 or Live Server), use explicit localhost:8000
         return 'http://localhost:8000';
     }
     return 'http://localhost:8000';
@@ -68,7 +66,12 @@ async function attemptLoginAsync(email, password) {
             })
         });
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { detail: `Server error (${response.status} ${response.statusText})` };
+        }
 
         if (!response.ok) {
             return { 
@@ -85,6 +88,7 @@ async function attemptLoginAsync(email, password) {
             name: user.name,
             role: user.role.toLowerCase(),
             accessToken: data.access_token,
+            provider: user.provider || 'LOCAL',
             loggedInAt: new Date().toISOString()
         }));
 
@@ -130,7 +134,12 @@ async function registerUserAsync(name, email, password, role = 'USER', provider 
             })
         });
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { detail: `Server error (${response.status} ${response.statusText})` };
+        }
 
         if (!response.ok) {
             return { 
@@ -154,6 +163,63 @@ async function registerUserAsync(name, email, password, role = 'USER', provider 
 }
 
 /**
+ * Login/Register User via Google OAuth API
+ * Endpoint: POST /api/auth/google
+ * @param {object} googleData { token?: string, email?: string, name?: string, role?: string }
+ * @returns {Promise<{success: boolean, user?: object, token?: string, message: string}>}
+ */
+async function loginWithGoogleAsync(googleData) {
+    try {
+        const endpoint = `${API_BASE_URL}/api/auth/google`;
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(googleData)
+        });
+
+        let data;
+        try {
+            data = await response.json();
+        } catch (e) {
+            data = { detail: `Server endpoint error (${response.status} ${response.statusText}). Please restart uvicorn server.` };
+        }
+
+        if (!response.ok) {
+            return { 
+                success: false, 
+                message: data.detail || 'Google OAuth authentication failed.' 
+            };
+        }
+
+        const user = data.user;
+        localStorage.setItem('sessionUser', JSON.stringify({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role.toLowerCase(),
+            accessToken: data.access_token,
+            provider: 'GOOGLE',
+            loggedInAt: new Date().toISOString()
+        }));
+
+        return { 
+            success: true, 
+            user: user, 
+            token: data.access_token,
+            message: `Authenticated with Google as ${user.name}!` 
+        };
+    } catch (error) {
+        console.error('Google OAuth API Error:', error);
+        return { 
+            success: false, 
+            message: `Could not connect to Google OAuth backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/google). Verify backend server is running.` 
+        };
+    }
+}
+
+/**
  * Trigger logout and clean session data
  */
 function logout() {
@@ -161,8 +227,144 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// Bind Logout modal & action trigger on DOM ready
+/**
+ * Helper to compute name initials for WhatsApp DP avatar
+ */
+function getInitials(name) {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2 && parts[0] && parts[1]) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+}
+
+/**
+ * Generates avatar HTML: Uploaded Custom Image OR WhatsApp DP Style Initials Avatar
+ */
+function renderAvatarHTML(name, avatarUrl, isLarge = false) {
+    if (avatarUrl) {
+        return `<img src="${avatarUrl}" alt="Avatar" style="${isLarge ? 'width: 90px; height: 90px; border-radius: 50%; object-fit: cover;' : 'width: 32px; height: 32px; border-radius: 50%; object-fit: cover;'}">`;
+    }
+    const initials = getInitials(name);
+    return `<div class="${isLarge ? 'whatsapp-dp-avatar-large' : 'whatsapp-dp-avatar'}">${initials}</div>`;
+}
+
+/**
+ * Synchronizes the logged-in user's avatar, name & email across navbar and dashboard greetings
+ */
+function updateHeaderUserInfo() {
+    const sessionUser = JSON.parse(localStorage.getItem('sessionUser') || '{}');
+    const name = sessionUser.name || (sessionUser.email ? sessionUser.email.split('@')[0] : 'User');
+    const customAvatar = sessionUser.avatar || localStorage.getItem('user_avatar_' + (sessionUser.email || 'guest'));
+
+    // 1. Navbar Avatar Slot
+    const avatarSlot = document.getElementById('nav-avatar-slot');
+    if (avatarSlot) {
+        avatarSlot.innerHTML = renderAvatarHTML(name, customAvatar, false);
+    }
+
+    // 2. Profile Preview Avatar (if present in Profile tab)
+    const profileAvatarContainer = document.getElementById('profile-avatar-preview-container');
+    if (profileAvatarContainer) {
+        profileAvatarContainer.innerHTML = renderAvatarHTML(name, customAvatar, true);
+    }
+
+    // 3. Navbar Username
+    const navUsername = document.getElementById('nav-username');
+    if (navUsername) {
+        navUsername.textContent = name;
+    }
+
+    // 4. Greeting Header
+    const greetingText = document.getElementById('greeting-text');
+    if (greetingText) {
+        const hour = new Date().getHours();
+        const timeGreeting = hour < 12 ? 'Good Morning' : (hour < 18 ? 'Good Afternoon' : 'Good Evening');
+        const role = (sessionUser.role || '').toLowerCase();
+        
+        if (role === 'admin') {
+            greetingText.innerHTML = `System Cockpit, <span class="grad-text">${name}</span>`;
+        } else if (role === 'coach') {
+            greetingText.innerHTML = `Welcome, <span class="grad-text">${name}</span>`;
+        } else {
+            greetingText.innerHTML = `${timeGreeting}, <span class="grad-text">${name}</span>!`;
+        }
+    }
+
+    // 5. User Profile Form inputs (if present)
+    const profileNameInput = document.getElementById('profile-name');
+    if (profileNameInput && !profileNameInput.value) {
+        profileNameInput.value = name;
+    }
+    
+    const profileEmailInput = document.getElementById('profile-email');
+    if (profileEmailInput && sessionUser.email && !profileEmailInput.value) {
+        profileEmailInput.value = sessionUser.email;
+    }
+}
+
+/**
+ * Binds Profile Picture Uploader File Input and Action Listeners
+ */
+function bindAvatarUploadListeners() {
+    const picInput = document.getElementById('profile-pic-input');
+    const changeBtn = document.getElementById('change-avatar-btn');
+    const removeBtn = document.getElementById('remove-avatar-btn');
+
+    if (changeBtn && picInput) {
+        changeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            picInput.click();
+        });
+    }
+
+    if (picInput) {
+        picInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 4 * 1024 * 1024) {
+                if (typeof Toast !== 'undefined') Toast.show('File Too Large', 'Please select an image smaller than 4MB.', 'warning');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                const base64Url = event.target.result;
+                const sessionUser = JSON.parse(localStorage.getItem('sessionUser') || '{}');
+                sessionUser.avatar = base64Url;
+                localStorage.setItem('sessionUser', JSON.stringify(sessionUser));
+                if (sessionUser.email) {
+                    localStorage.setItem('user_avatar_' + sessionUser.email, base64Url);
+                }
+                updateHeaderUserInfo();
+                if (typeof Toast !== 'undefined') Toast.show('Profile Picture Updated', 'Your custom profile picture has been saved.', 'success');
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    if (removeBtn) {
+        removeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const sessionUser = JSON.parse(localStorage.getItem('sessionUser') || '{}');
+            delete sessionUser.avatar;
+            localStorage.setItem('sessionUser', JSON.stringify(sessionUser));
+            if (sessionUser.email) {
+                localStorage.removeItem('user_avatar_' + sessionUser.email);
+            }
+            updateHeaderUserInfo();
+            if (typeof Toast !== 'undefined') Toast.show('Avatar Reset', 'Reverted to WhatsApp DP style initials avatar.', 'info');
+        });
+    }
+}
+
+// Bind Logout modal, user info, and avatar listeners on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    updateHeaderUserInfo();
+    bindAvatarUploadListeners();
+
     const addLogoutModal = () => {
         if (document.getElementById('logout-modal')) return;
         

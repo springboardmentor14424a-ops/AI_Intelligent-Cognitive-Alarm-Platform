@@ -357,6 +357,7 @@ END OF FILE BACKUP.`;
 
 // 7. Initial startup
 async function initAdminPanel() {
+    if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
     await renderUsers();
     renderLogs();
     initCharts();

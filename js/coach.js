@@ -341,6 +341,7 @@ Report generated automatically by WakeWise Coach analytics.`;
 
 // 7. Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
     initCharts();
     renderHelpList();
     renderPatientReports();

@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WakeWise AI</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <!-- Official Google Identity Services SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
+
 <body data-theme="dark" class="login-body">
     <!-- Loader Mask -->
     <div id="loader-mask" class="loader-mask">
@@ -41,7 +45,8 @@
 
         <!-- LOGIN FORM CONTAINER -->
         <div id="login-container" class="glass-card primary-hover">
-            <h2 class="grad-text" id="login-title" style="text-align: center; margin-bottom: 20px; font-size: 1.5rem;">User / Student Sign In</h2>
+            <h2 class="grad-text" id="login-title" style="text-align: center; margin-bottom: 20px; font-size: 1.5rem;">
+                User / Student Sign In</h2>
 
             <form id="login-form" autocomplete="off">
                 <!-- Hidden role input driven by role tabs -->
@@ -49,17 +54,32 @@
 
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label for="login-email">Email Address</label>
-                    <input type="email" id="login-email" class="form-control" placeholder="e.g., user@alarm.com" autocomplete="off" value="" required>
+                    <input type="email" id="login-email" class="form-control" placeholder="e.g., user@alarm.com"
+                        autocomplete="off" value="" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label for="login-password">Password</label>
-                    <input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="new-password" value="" required>
+                    <input type="password" id="login-password" class="form-control" placeholder="••••••••"
+                        autocomplete="new-password" value="" required>
                 </div>
-                
+
                 <button type="submit" class="btn btn-primary" style="width: 100%;">
                     Access Portal <i class="fas fa-sign-in-alt"></i>
                 </button>
             </form>
+
+            <!-- Google OAuth Section (Hidden for Administrators) -->
+            <div id="google-oauth-wrapper">
+                <div style="margin: 16px 0; text-align: center; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <span style="height: 1px; flex: 1; background: rgba(255,255,255,0.1);"></span>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;">Or Continue With</span>
+                    <span style="height: 1px; flex: 1; background: rgba(255,255,255,0.1);"></span>
+                </div>
+
+                <!-- Official Google Identity Services Render Container -->
+                <div id="google-button-container" style="width: 100%; display: flex; justify-content: center; margin-bottom: 16px; min-height: 44px;">
+                </div>
+            </div>
 
             <div class="form-toggle-prompt" id="register-prompt-wrapper">
                 Don't have an account? <a href="#" id="to-register-btn">Create one now</a>
@@ -68,48 +88,133 @@
 
         <!-- REGISTRATION FORM CONTAINER (HIDDEN BY DEFAULT) -->
         <div id="register-container" class="glass-card secondary-hover" style="display: none;">
-            <h2 class="grad-text-secondary" style="text-align: center; margin-bottom: 20px; font-size: 1.5rem;">Register Account</h2>
+            <h2 class="grad-text-secondary" style="text-align: center; margin-bottom: 20px; font-size: 1.5rem;">Register
+                Account</h2>
             <form id="register-form" autocomplete="off">
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label for="reg-name">Full Name</label>
-                    <input type="text" id="reg-name" class="form-control" placeholder="e.g., Alex Mercer" autocomplete="off" value="" required>
+                    <input type="text" id="reg-name" class="form-control" placeholder="e.g., Alex Mercer"
+                        autocomplete="off" value="" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label for="reg-email">Email Address</label>
-                    <input type="email" id="reg-email" class="form-control" placeholder="e.g., user@alarm.com" autocomplete="off" value="" required>
+                    <input type="email" id="reg-email" class="form-control" placeholder="e.g., user@alarm.com"
+                        autocomplete="off" value="" required>
                 </div>
                 <div class="form-group" style="margin-bottom: 20px;">
                     <label for="reg-password">Password</label>
-                    <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters" minlength="6" autocomplete="new-password" value="" required>
+                    <input type="password" id="reg-password" class="form-control" placeholder="Minimum 6 characters"
+                        minlength="6" autocomplete="new-password" value="" required>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account <i class="fas fa-user-plus"></i></button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account <i
+                        class="fas fa-user-plus"></i></button>
             </form>
             <div class="form-toggle-prompt">
                 Already registered? <a href="#" id="to-login-btn">Sign in here</a>
             </div>
         </div>
-        
+
         <div style="text-align: center; margin-top: 20px;">
-            <a href="index.html" style="font-size: 0.85rem; color: var(--text-muted);"><i class="fas fa-arrow-left"></i> Back to Landing Page</a>
+            <a href="index.html" style="font-size: 0.85rem; color: var(--text-muted);"><i class="fas fa-arrow-left"></i>
+                Back to Landing Page</a>
         </div>
     </div>
 
     <!-- Script Sources -->
     <script src="js/utils.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="js/auth.js?v=1.0.2"></script>
     <script>
+        // Google OAuth Configuration
+        window.GOOGLE_CLIENT_ID = "1057786367809-mb9h4k6bjvcld420dpijgl6a038pcdjc.apps.googleusercontent.com";
+
+        // 1. Official Google Identity Services (GSI) Callback
+        window.handleGoogleCredentialResponse = async function (response) {
+            if (!response || !response.credential) return;
+
+            let googleEmail = '';
+            let googleName = '';
+            try {
+                const base64Url = response.credential.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+                const payload = JSON.parse(jsonPayload);
+                googleEmail = payload.email;
+                googleName = payload.name || payload.given_name;
+            } catch (e) {
+                console.warn('Google JWT parse warning:', e);
+            }
+
+            const roleInput = document.getElementById('login-role');
+            const role = roleInput ? roleInput.value : 'user';
+
+            Toast.show('Google Account Verified', 'Connecting to database...', 'info');
+
+            const result = await loginWithGoogleAsync({
+                token: response.credential,
+                email: googleEmail,
+                name: googleName,
+                role: role
+            });
+
+            if (result.success) {
+                Toast.show('Google Sign-In Successful', result.message, 'success');
+
+                const loader = document.getElementById('loader-mask');
+                if (loader) {
+                    loader.classList.remove('hide');
+                    loader.querySelector('p').textContent = 'AUTHENTICATING GOOGLE ACCOUNT...';
+                }
+
+                const targetRole = result.user ? result.user.role.toLowerCase() : 'user';
+                setTimeout(() => {
+                    if (targetRole === 'coach') {
+                        window.location.href = 'dashboard-coach.html';
+                    } else if (targetRole === 'admin') {
+                        window.location.href = 'dashboard-admin.html';
+                    } else {
+                        window.location.href = 'dashboard-user.html';
+                    }
+                }, 1000);
+            } else {
+                Toast.show('Google Sign-In Failed', result.message, 'danger');
+            }
+        };
+
+        // 2. Initialize Google Identity Button & One-Tap Prompt
+        window.addEventListener('load', () => {
+            if (window.google && google.accounts && google.accounts.id) {
+                google.accounts.id.initialize({
+                    client_id: window.GOOGLE_CLIENT_ID,
+                    callback: handleGoogleCredentialResponse,
+                    auto_select: false
+                });
+
+                const container = document.getElementById("google-button-container");
+                if (container) {
+                    google.accounts.id.renderButton(container, {
+                        theme: "filled_blue",
+                        size: "large",
+                        width: "320",
+                        type: "standard",
+                        shape: "pill",
+                        text: "continue_with"
+                    });
+                }
+            }
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             const loginForm = document.getElementById('login-form');
             const registerForm = document.getElementById('register-form');
-            
+
             const loginContainer = document.getElementById('login-container');
             const registerContainer = document.getElementById('register-container');
-            
+
             const toRegisterBtn = document.getElementById('to-register-btn');
             const toLoginBtn = document.getElementById('to-login-btn');
-            
+
             const roleHiddenInput = document.getElementById('login-role');
-            
+
             const roleTabs = document.querySelectorAll('.role-tab-btn');
             const loginTitle = document.getElementById('login-title');
             const registerPromptWrapper = document.getElementById('register-prompt-wrapper');
@@ -140,24 +245,29 @@
                 });
 
                 roleHiddenInput.value = role;
-                
+
                 // Clear input fields so nothing is prefilled when changing tabs
                 emailInput.value = '';
                 passwordInput.value = '';
 
                 // Adjust title and placeholder hints based on selected role
+                const googleWrapper = document.getElementById('google-oauth-wrapper');
+
                 if (role === 'user') {
                     loginTitle.textContent = 'User / Student Sign In';
                     emailInput.placeholder = 'e.g., user@alarm.com';
                     registerPromptWrapper.style.display = 'block';
+                    if (googleWrapper) googleWrapper.style.display = 'block';
                 } else if (role === 'coach') {
                     loginTitle.textContent = 'Wellness Coach Sign In';
                     emailInput.placeholder = 'e.g., coach@alarm.com';
                     registerPromptWrapper.style.display = 'block';
+                    if (googleWrapper) googleWrapper.style.display = 'block';
                 } else if (role === 'admin') {
                     loginTitle.textContent = 'Administrator Portal Sign In';
                     emailInput.placeholder = 'e.g., admin@alarm.com';
                     registerPromptWrapper.style.display = 'none'; // Hide self-registration prompt for Admin
+                    if (googleWrapper) googleWrapper.style.display = 'none'; // Hide Google OAuth for Admin
                 }
             }
 
@@ -224,7 +334,7 @@
 
                 if (result.success) {
                     Toast.show('Welcome Back', result.message, 'success');
-                    
+
                     const loader = document.getElementById('loader-mask');
                     if (loader) {
                         loader.classList.remove('hide');
@@ -261,7 +371,7 @@
                     loginForm.reset();
                     emailInput.value = '';
                     passwordInput.value = '';
-                    
+
                     setTimeout(() => {
                         registerContainer.style.display = 'none';
                         loginContainer.style.display = 'block';
@@ -274,4 +384,5 @@
         });
     </script>
 </body>
+
 </html>

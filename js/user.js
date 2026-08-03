@@ -576,14 +576,7 @@ if (profileForm) {
         localStorage.setItem('sessionUser', JSON.stringify(session));
 
         // Update navbar visual elements
-        document.getElementById('nav-username').textContent = nameVal;
-        
-        const greetingText = document.getElementById('greeting-text');
-        if (greetingText) {
-            const hour = new Date().getHours();
-            const greeting = hour < 12 ? 'Good Morning' : (hour < 18 ? 'Good Afternoon' : 'Good Evening');
-            greetingText.innerHTML = `${greeting}, <span class="grad-text">${nameVal}</span>!`;
-        }
+        if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
 
         Toast.show('Profile Settings Saved', 'Your workspace details were compiled successfully.', 'success', 2500);
     });
@@ -622,6 +615,7 @@ Report generated dynamically by WakeWise AI Platform.`;
 
 // 12. Run setup on load
 document.addEventListener('DOMContentLoaded', () => {
+    if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
     initCharts();
     renderAlarms();
     renderHabits();

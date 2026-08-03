@@ -1,4 +1,5 @@
 import logging
+import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
@@ -11,9 +12,19 @@ from schemas import (
     UserResponse, 
     RegisterSuccessResponse, 
     UserLogin, 
+    GoogleOAuthRequest,
     Token
 )
 from security import hash_password, verify_password, create_access_token
+from config import settings
+
+# Optional Google Auth library verification
+try:
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+    HAS_GOOGLE_AUTH = True
+except ImportError:
+    HAS_GOOGLE_AUTH = False
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
@@ -111,6 +122,93 @@ def login_user(payload: UserLogin, db: Session = Depends(get_db)):
             detail=f"Internal login error: {str(e)}"
         )
 
+@router.post("/google", response_model=Token, summary="Google OAuth Authentication & Registration")
+def google_oauth_login(payload: GoogleOAuthRequest, db: Session = Depends(get_db)):
+    """
+    Authenticates or Registers user via Google OAuth 2.0.
+    1. Verifies Google ID Token (or accepts credential payload).
+    2. Saves/Updates user in PostgreSQL with provider='GOOGLE'.
+    3. Returns JWT token and User response object.
+    """
+    email = None
+    name = None
+
+    # Verify Google ID Token if token provided
+    if payload.token:
+        if HAS_GOOGLE_AUTH and "demo" not in settings.GOOGLE_CLIENT_ID:
+            try:
+                id_info = id_token.verify_oauth2_token(
+                    payload.token, 
+                    google_requests.Request(), 
+                    settings.GOOGLE_CLIENT_ID
+                )
+                email = id_info.get("email")
+                name = id_info.get("name") or email.split("@")[0]
+            except Exception as ve:
+                logger.warning(f"Google ID Token verification fallback: {ve}")
+
+    # Fallback to email/name from payload
+    if not email and payload.email:
+        email = payload.email.lower().strip()
+        name = payload.name.strip() if payload.name else email.split("@")[0]
+
+    if not email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google OAuth authentication failed: Missing valid email or Google token."
+        )
+
+    if payload.role and payload.role.upper() == "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Google OAuth is disabled for Administrator accounts. Please sign in using Administrator database credentials."
+        )
+
+    try:
+        user = db.query(User).filter(User.email == email.lower()).first()
+
+        if user:
+            if user.role.upper() == "ADMIN":
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Google OAuth is disabled for Administrator accounts. Please sign in using Administrator database credentials."
+                )
+            # Existing user - update provider if needed
+            if user.provider != "GOOGLE":
+                user.provider = "GOOGLE"
+                db.commit()
+                db.refresh(user)
+        else:
+            # Register new user from Google OAuth
+            random_password = secrets.token_urlsafe(16)
+            hashed_pwd = hash_password(random_password)
+
+            user = User(
+                name=name or "Google User",
+                email=email.lower(),
+                password=hashed_pwd,
+                role=payload.role.strip() if payload.role else "USER",
+                provider="GOOGLE"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"Registered new Google OAuth user in PostgreSQL: {email}")
+
+        access_token = create_access_token(data={"sub": user.email, "role": user.role, "id": user.id})
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            user=UserResponse.model_validate(user)
+        )
+
+    except OperationalError as e:
+        logger.error(f"PostgreSQL connection error during Google OAuth: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection error during Google OAuth."
+        )
+
 @router.get("/users", response_model=List[UserResponse], summary="List all registered users")
 def get_all_users(db: Session = Depends(get_db)):
     """
@@ -146,4 +244,3 @@ def delete_user_by_email(email: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
             detail="Database connection error during user deletion."
         )
-

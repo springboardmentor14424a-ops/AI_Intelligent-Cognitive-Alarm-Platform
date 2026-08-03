@@ -1161,10 +1161,43 @@ body.sidebar-collapsed .db-sidebar .sidebar-menu-item a i {
 }
 
 .profile-trigger img {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     object-fit: cover;
+}
+
+.whatsapp-dp-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #075e54, #128c7e);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    text-transform: uppercase;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.whatsapp-dp-avatar-large {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #075e54, #128c7e);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 2.2rem;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    text-transform: uppercase;
+    border: 2px solid rgba(255, 255, 255, 0.25);
 }
 
 .profile-trigger span {

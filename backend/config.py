@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 Hours
     
+    # Google OAuth Settings
+    GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "1234567890-demo.apps.googleusercontent.com")
+    
     ALLOWED_ORIGINS: str = "*"
 
     class Config:

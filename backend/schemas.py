@@ -15,8 +15,8 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
     provider: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -29,6 +29,12 @@ class RegisterSuccessResponse(BaseModel):
 class UserLogin(BaseModel):
     email: EmailStr = Field(..., example="john@gmail.com")
     password: str = Field(..., example="Password@123")
+
+class GoogleOAuthRequest(BaseModel):
+    token: Optional[str] = Field(None, description="Google OAuth ID Token or Credential String")
+    email: Optional[EmailStr] = Field(None, description="Google Account Email")
+    name: Optional[str] = Field(None, description="Google Account Full Name")
+    role: Optional[str] = Field(default="USER", description="User Role")
 
 class Token(BaseModel):
     access_token: str
