@@ -318,3 +318,20 @@ function acReset() {
   });
   document.getElementById('ac-never').classList.remove('active');
 }
+
+// ── Kebab menu ────────────────────────────────────────────────
+function toggleKebab(btn) {
+  const menu = btn.nextElementSibling;
+  const isOpen = menu.classList.contains('open');
+  closeKebab(); // close any other open menus
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closeKebab() {
+  document.querySelectorAll('.kebab-menu.open').forEach(m => m.classList.remove('open'));
+}
+
+// Close kebab when clicking outside
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.kebab-cell')) closeKebab();
+});
