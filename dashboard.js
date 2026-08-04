@@ -335,3 +335,81 @@ function closeKebab() {
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.kebab-cell')) closeKebab();
 });
+
+// ── Alarm Calendar ────────────────────────────────────────────
+const MONTHS = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun',
+                      'Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let acCalDate    = new Date();   // currently viewed month
+let acSelectedDate = new Date(); // selected date (default today)
+
+// Init date label on load
+(function() {
+  const d = new Date();
+  const label = d.getDate() + ' ' + SHORT_MONTHS[d.getMonth()];
+  const el = document.getElementById('ac-date-label');
+  if (el) el.textContent = label;
+  const hidden = document.getElementById('alarm-date');
+  if (hidden) hidden.value = d.toISOString().split('T')[0];
+})();
+
+function acToggleCalendar() {
+  const cal = document.getElementById('ac-calendar');
+  if (!cal) return;
+  const isOpen = cal.style.display !== 'none';
+  cal.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) acRenderCalendar();
+}
+
+function acCalNav(delta) {
+  acCalDate.setMonth(acCalDate.getMonth() + delta);
+  acRenderCalendar();
+}
+
+function acRenderCalendar() {
+  const grid  = document.getElementById('ac-cal-grid');
+  const title = document.getElementById('ac-cal-title');
+  if (!grid || !title) return;
+
+  const yr  = acCalDate.getFullYear();
+  const mo  = acCalDate.getMonth();
+  title.textContent = MONTHS[mo] + ' ' + yr;
+
+  const today     = new Date();
+  const firstDay  = new Date(yr, mo, 1).getDay(); // 0=Sun
+  const daysInMo  = new Date(yr, mo + 1, 0).getDate();
+
+  let html = '';
+  // Day name headers
+  ['S','M','T','W','T','F','S'].forEach(d => {
+    html += `<span class="ac-cal-day-name">${d}</span>`;
+  });
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    html += `<button class="ac-cal-day empty" disabled></button>`;
+  }
+  // Day cells
+  for (let d = 1; d <= daysInMo; d++) {
+    const isToday    = d === today.getDate() && mo === today.getMonth() && yr === today.getFullYear();
+    const isSelected = d === acSelectedDate.getDate() && mo === acSelectedDate.getMonth() && yr === acSelectedDate.getFullYear();
+    const cls = `ac-cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}`;
+    html += `<button type="button" class="${cls}" onclick="acSelectDate(${yr},${mo},${d})">${d}</button>`;
+  }
+  grid.innerHTML = html;
+}
+
+function acSelectDate(yr, mo, d) {
+  acSelectedDate = new Date(yr, mo, d);
+  // Update label
+  const label = d + ' ' + SHORT_MONTHS[mo];
+  document.getElementById('ac-date-label').textContent = label;
+  // Update hidden input
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('alarm-date').value = `${yr}-${pad(mo+1)}-${pad(d)}`;
+  // Close calendar
+  document.getElementById('ac-calendar').style.display = 'none';
+  // Re-render to show selected state
+  acCalDate = new Date(yr, mo, 1);
+}

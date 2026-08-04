@@ -79,6 +79,30 @@
 
             <form id="alarm-setter-form" class="alarm-form">
 
+              <!-- ⓪ Date picker row -->
+              <div class="ac-date-row">
+                <span class="ac-date-display" id="ac-date-label">4 Aug</span>
+                <button type="button" class="ac-cal-btn" onclick="acToggleCalendar()" title="Pick date">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                    <rect x="8" y="14" width="4" height="4" rx="1" fill="currentColor" stroke="none"/>
+                  </svg>
+                </button>
+              </div>
+              <!-- Inline mini calendar -->
+              <div class="ac-calendar" id="ac-calendar" style="display:none;">
+                <div class="ac-cal-header">
+                  <button type="button" onclick="acCalNav(-1)">&#8249;</button>
+                  <span id="ac-cal-title"></span>
+                  <button type="button" onclick="acCalNav(1)">&#8250;</button>
+                </div>
+                <div class="ac-cal-grid" id="ac-cal-grid"></div>
+              </div>
+              <input type="hidden" id="alarm-date" value="">
+
               <!-- ① Circular time picker -->
               <div class="ac-time-picker">
                 <div class="ac-time-display">

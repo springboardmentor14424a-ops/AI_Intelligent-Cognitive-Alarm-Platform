@@ -1118,3 +1118,116 @@ body {
 .kebab-menu button.kebab-danger { color: var(--danger); }
 .kebab-menu button.kebab-danger svg { stroke: var(--danger); }
 .kebab-menu button.kebab-danger:hover { background: #fef2f2; }
+
+/* ── ALARM CALENDAR ───────────────────────────────────────── */
+.ac-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 16px;
+}
+
+.ac-date-display {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.ac-cal-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+.ac-cal-btn:hover { background: var(--primary-dark); }
+.ac-cal-btn svg { width: 18px; height: 18px; stroke: #fff; }
+
+.ac-calendar {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.ac-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.ac-cal-header span {
+  font-family: var(--font-heading);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.ac-cal-header button {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  color: var(--primary);
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.ac-cal-header button:hover { background: var(--bg); }
+
+.ac-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.ac-cal-grid .ac-cal-day-name {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 2px 0 6px;
+}
+
+.ac-cal-grid .ac-cal-day {
+  padding: 6px 2px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-family: var(--font-body);
+  color: var(--ink);
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: background 0.15s;
+}
+
+.ac-cal-grid .ac-cal-day:hover { background: var(--bg); }
+
+.ac-cal-grid .ac-cal-day.today {
+  background: rgba(30,136,229,0.12);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.ac-cal-grid .ac-cal-day.selected {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+}
+
+.ac-cal-grid .ac-cal-day.empty { cursor: default; }
