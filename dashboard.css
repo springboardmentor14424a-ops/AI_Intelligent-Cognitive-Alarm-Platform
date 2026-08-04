@@ -1123,18 +1123,16 @@ body {
 .ac-date-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--bg);
-  border: 1.5px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 16px;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 2px;
 }
 
 .ac-date-display {
-  font-family: var(--font-heading);
-  font-size: 1.1rem;
+  font-family: var(--font-body);
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--ink);
+  color: var(--muted);
 }
 
 .ac-cal-btn {
