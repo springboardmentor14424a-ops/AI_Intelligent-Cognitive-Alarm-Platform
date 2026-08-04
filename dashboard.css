@@ -775,3 +775,269 @@ body {
   .dashboard-grid { grid-template-columns: 1fr; }
   .grid-col-span-2, .dashboard-card.full-width { grid-column: span 1; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   ALARM CREATOR — redesigned component
+   Uses project design tokens: --primary, --ink, --muted,
+   --border, --bg, --card-bg, --shadow, --font-body/heading
+   ══════════════════════════════════════════════════════════ */
+
+/* ── Time picker ───────────────────────────────────────────── */
+.ac-time-picker {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 4px;
+}
+
+.ac-time-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 20px;
+}
+
+.ac-time-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: default;
+  padding: 0;
+}
+
+.ac-time-up,
+.ac-time-dn {
+  font-size: 1rem;
+  color: var(--primary);
+  cursor: pointer;
+  line-height: 1;
+  user-select: none;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.ac-time-up:hover,
+.ac-time-dn:hover {
+  background: rgba(30,136,229,0.1);
+}
+
+.ac-time-val {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  line-height: 1;
+  min-width: 52px;
+  text-align: center;
+}
+
+.ac-colon {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin: 0 2px;
+  padding-bottom: 6px;
+}
+
+.ac-ampm {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.ac-ampm-btn {
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  background: var(--card-bg);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ac-ampm-btn.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ── Shared section wrapper ────────────────────────────────── */
+.ac-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ac-section.ac-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ac-label {
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Day chips ──────────────────────────────────────────────── */
+.ac-day-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ac-day {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--card-bg);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ac-day.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.ac-day.ac-never {
+  width: auto;
+  border-radius: 20px;
+  padding: 0 12px;
+  font-size: 0.75rem;
+}
+
+.ac-day.ac-never.active {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+/* ── Text / select input ────────────────────────────────────── */
+.ac-input {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.2s;
+  appearance: none;
+}
+
+.ac-input:focus {
+  border-color: var(--primary);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgba(30,136,229,0.1);
+}
+
+/* ── Snooze toggle ──────────────────────────────────────────── */
+.ac-toggle { position: relative; display: inline-block; width: 42px; height: 24px; }
+
+.ac-toggle input { opacity: 0; width: 0; height: 0; }
+
+.ac-toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.ac-toggle-track::before {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.ac-toggle input:checked + .ac-toggle-track {
+  background: var(--primary);
+}
+
+.ac-toggle input:checked + .ac-toggle-track::before {
+  transform: translateX(18px);
+}
+
+/* ── Action buttons ─────────────────────────────────────────── */
+.ac-btns {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.ac-btn-cancel {
+  padding: 11px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--card-bg);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ac-btn-cancel:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.ac-btn-save {
+  padding: 11px;
+  border-radius: 10px;
+  border: none;
+  background: var(--primary);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  box-shadow: var(--shadow);
+}
+
+.ac-btn-save:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .ac-time-val { font-size: 1.8rem; min-width: 42px; }
+  .ac-colon    { font-size: 1.8rem; }
+  .ac-day      { width: 30px; height: 30px; font-size: 0.75rem; }
+}

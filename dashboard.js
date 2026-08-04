@@ -110,41 +110,62 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. ALARM SETTER FORM SUBMISSION
+  // 4. ALARM SETTER FORM SUBMISSION — wired to backend
   const alarmForm = document.getElementById('alarm-setter-form');
   if (alarmForm) {
-    alarmForm.addEventListener('submit', (e) => {
+    alarmForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const timeVal = document.getElementById('alarm-time').value;
+      const timeVal      = document.getElementById('alarm-time').value;
+      const challengeVal = document.getElementById('alarm-challenge').value;
+      const repeatVal    = [...document.querySelectorAll('.ac-day:not(.ac-never).active')].length > 0;
       const challengeText = document.getElementById('alarm-challenge').options[document.getElementById('alarm-challenge').selectedIndex].text;
-      
+
       const saveBtn = alarmForm.querySelector('.btn-alarm-set');
       const btnText = saveBtn.querySelector('.btn-text');
-      
-      btnText.textContent = 'SAVED!';
-      saveBtn.style.background = 'linear-gradient(90deg, #22c55e, #15803d)';
-      saveBtn.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.2)';
-      
-      setTimeout(() => {
-        btnText.textContent = 'SAVE ALARM';
-        saveBtn.style.background = '';
-        saveBtn.style.boxShadow = '';
-      }, 2000);
 
-      // Add a mock entry to the alarm history table!
-      const historyTable = document.querySelector('.data-table tbody');
-      if (historyTable) {
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-          <td>Tomorrow (Scheduled)</td>
-          <td>${formatTime(timeVal)}</td>
-          <td>--</td>
-          <td>--</td>
-          <td>${challengeText}</td>
-          <td><span class="badge" style="background-color: #e0f2fe; color: #0369a1; font-weight: 500;">Active</span></td>
-        `;
-        // Insert as the first row
-        historyTable.insertBefore(newRow, historyTable.firstChild);
+      try {
+        const res = await fetch('http://localhost:8000/alarms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id:      user.id || 1,
+            alarm_time:   timeVal + ':00',
+            challenge:    challengeVal,
+            repeat_daily: repeatVal
+          })
+        });
+        const alarm = await res.json();
+
+        btnText.textContent = 'SAVED!';
+        saveBtn.style.background = 'linear-gradient(90deg, #22c55e, #15803d)';
+        setTimeout(() => {
+          btnText.textContent = 'SAVE ALARM';
+          saveBtn.style.background = '';
+        }, 2000);
+
+        // Add row to alarm history table
+        const historyTable = document.querySelector('.data-table tbody');
+        if (historyTable && alarm.id) {
+          const newRow = document.createElement('tr');
+          newRow.setAttribute('data-alarm-id', alarm.id);
+          newRow.innerHTML = `
+            <td>Scheduled</td>
+            <td>${timeVal}</td>
+            <td>--</td>
+            <td>--</td>
+            <td>${challengeText}</td>
+            <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">Active</span></td>
+            <td>
+              <button class="btn-table-edit" onclick="editAlarm(${alarm.id}, '${timeVal}', '${challengeVal}', ${repeatVal})">Edit</button>
+              <button class="btn-table-edit" style="color:#EF4444;margin-left:6px" onclick="toggleAlarm(${alarm.id}, this)">Disable</button>
+              <button class="btn-table-edit" style="color:#EF4444;margin-left:6px" onclick="deleteAlarm(${alarm.id}, this)">Delete</button>
+            </td>
+          `;
+          historyTable.insertBefore(newRow, historyTable.firstChild);
+        }
+
+      } catch (err) {
+        alert('Cannot connect to server. Make sure the backend is running.');
       }
     });
   }
@@ -180,3 +201,120 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ── Alarm CRUD functions ──────────────────────────────────────
+
+async function editAlarm(alarmId, currentTime, currentChallenge, currentRepeat) {
+  const newTime      = prompt('New alarm time (HH:MM):', currentTime);
+  if (!newTime) return;
+  const newChallenge = prompt('Challenge (math/memory/tap/pattern):', currentChallenge);
+  if (!newChallenge) return;
+
+  try {
+    const res = await fetch(`http://localhost:8000/alarms/${alarmId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        alarm_time:   newTime + ':00',
+        challenge:    newChallenge,
+        repeat_daily: currentRepeat
+      })
+    });
+    if (res.ok) {
+      alert(`Alarm updated to ${newTime} — ${newChallenge}`);
+    }
+  } catch (err) {
+    alert('Cannot connect to server.');
+  }
+}
+
+async function toggleAlarm(alarmId, btn) {
+  try {
+    const res  = await fetch(`http://localhost:8000/alarms/${alarmId}/toggle`, { method: 'PATCH' });
+    const data = await res.json();
+    if (res.ok) {
+      btn.textContent = data.is_active ? 'Disable' : 'Enable';
+      btn.style.color = data.is_active ? '#EF4444' : '#22C55E';
+    }
+  } catch (err) {
+    alert('Cannot connect to server.');
+  }
+}
+
+async function deleteAlarm(alarmId, btn) {
+  if (!confirm('Delete this alarm?')) return;
+  try {
+    const res = await fetch(`http://localhost:8000/alarms/${alarmId}`, { method: 'DELETE' });
+    if (res.ok) {
+      // Remove the row from the table
+      btn.closest('tr').remove();
+    }
+  } catch (err) {
+    alert('Cannot connect to server.');
+  }
+}
+
+// ── Alarm Creator — time picker & day chips ───────────────────
+
+let acHour = 6, acMin = 30, acAMPM = 'AM';
+
+function acPad(n) { return String(n).padStart(2, '0'); }
+
+function acSyncHidden() {
+  // Convert to 24h for the backend
+  let h24 = acHour % 12;
+  if (acAMPM === 'PM') h24 += 12;
+  document.getElementById('alarm-time').value = `${acPad(h24)}:${acPad(acMin)}`;
+}
+
+function acAdjust(part, delta) {
+  if (part === 'hour') {
+    acHour = ((acHour - 1 + delta + 12) % 12) + 1;
+    document.getElementById('ac-hour').textContent = acPad(acHour);
+  } else {
+    acMin = (acMin + delta + 60) % 60;
+    document.getElementById('ac-min').textContent = acPad(acMin);
+  }
+  acSyncHidden();
+}
+
+function acSetAMPM(val) {
+  acAMPM = val;
+  document.getElementById('ac-am').classList.toggle('active', val === 'AM');
+  document.getElementById('ac-pm').classList.toggle('active', val === 'PM');
+  acSyncHidden();
+}
+
+function acToggleNever() {
+  const neverBtn = document.getElementById('ac-never');
+  const isNever  = neverBtn.classList.toggle('active');
+  // When Never is active, deactivate all day chips
+  document.querySelectorAll('.ac-day:not(.ac-never)').forEach(d => {
+    d.classList.toggle('active', !isNever);
+  });
+}
+
+// Day chip toggle
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.ac-day:not(.ac-never)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+      // If any day is selected, Never should be inactive
+      const anyActive = [...document.querySelectorAll('.ac-day:not(.ac-never)')].some(d => d.classList.contains('active'));
+      document.getElementById('ac-never').classList.toggle('active', !anyActive);
+    });
+  });
+});
+
+function acReset() {
+  acHour = 6; acMin = 30; acAMPM = 'AM';
+  document.getElementById('ac-hour').textContent = '06';
+  document.getElementById('ac-min').textContent  = '30';
+  acSetAMPM('AM');
+  document.getElementById('alarm-label').value = '';
+  document.getElementById('alarm-snooze').checked = true;
+  document.querySelectorAll('.ac-day:not(.ac-never)').forEach((d, i) => {
+    d.classList.toggle('active', i >= 1 && i <= 5); // Mon–Fri default
+  });
+  document.getElementById('ac-never').classList.remove('active');
+}

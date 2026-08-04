@@ -73,34 +73,84 @@
         </div>
         
         <div class="dashboard-grid">
-          <!-- Card: Set Morning Alarm -->
+          <!-- Card: Set Morning Alarm — Redesigned -->
           <div class="dashboard-card alarm-setter-card">
             <h3>Set Morning Alarm</h3>
+
             <form id="alarm-setter-form" class="alarm-form">
-              <div class="alarm-time-picker">
-                <input type="time" id="alarm-time" value="06:30" required>
+
+              <!-- ① Circular time picker -->
+              <div class="ac-time-picker">
+                <div class="ac-time-display">
+                  <button type="button" class="ac-time-col" id="ac-hour-btn">
+                    <span class="ac-time-up" onclick="acAdjust('hour',1)">&#8963;</span>
+                    <span class="ac-time-val" id="ac-hour">06</span>
+                    <span class="ac-time-dn" onclick="acAdjust('hour',-1)">&#8964;</span>
+                  </button>
+                  <span class="ac-colon">:</span>
+                  <button type="button" class="ac-time-col" id="ac-min-btn">
+                    <span class="ac-time-up" onclick="acAdjust('min',1)">&#8963;</span>
+                    <span class="ac-time-val" id="ac-min">30</span>
+                    <span class="ac-time-dn" onclick="acAdjust('min',-1)">&#8964;</span>
+                  </button>
+                  <div class="ac-ampm">
+                    <button type="button" class="ac-ampm-btn active" id="ac-am" onclick="acSetAMPM('AM')">AM</button>
+                    <button type="button" class="ac-ampm-btn" id="ac-pm" onclick="acSetAMPM('PM')">PM</button>
+                  </div>
+                </div>
+                <!-- Hidden native input carries the real value -->
+                <input type="hidden" id="alarm-time" value="06:30">
               </div>
-              
-              <div class="alarm-setting-group">
-                <label for="alarm-challenge">Cognitive Challenge</label>
-                <select id="alarm-challenge" class="alarm-select">
-                  <option value="math">Math Equations (Hard)</option>
-                  <option value="memory">Memory Matrix (Medium)</option>
-                  <option value="tap">Speed Tap (Reaction)</option>
+
+              <!-- ② Repeat days -->
+              <div class="ac-section">
+                <label class="ac-label">Repeat</label>
+                <div class="ac-day-chips">
+                  <button type="button" class="ac-day" data-day="0">S</button>
+                  <button type="button" class="ac-day active" data-day="1">M</button>
+                  <button type="button" class="ac-day active" data-day="2">T</button>
+                  <button type="button" class="ac-day active" data-day="3">W</button>
+                  <button type="button" class="ac-day active" data-day="4">T</button>
+                  <button type="button" class="ac-day active" data-day="5">F</button>
+                  <button type="button" class="ac-day" data-day="6">S</button>
+                  <button type="button" class="ac-day ac-never" id="ac-never" onclick="acToggleNever()">Never</button>
+                </div>
+              </div>
+
+              <!-- ③ Label -->
+              <div class="ac-section">
+                <label class="ac-label" for="alarm-label">Label</label>
+                <input type="text" id="alarm-label" class="ac-input" placeholder="Morning routine">
+              </div>
+
+              <!-- ④ Challenge type -->
+              <div class="ac-section">
+                <label class="ac-label" for="alarm-challenge">Cognitive Challenge</label>
+                <select id="alarm-challenge" class="ac-input">
+                  <option value="math">Math Equations</option>
+                  <option value="memory">Memory Matrix</option>
+                  <option value="tap">Speed Tap</option>
+                  <option value="pattern">Pattern Match</option>
                 </select>
               </div>
 
-              <div class="alarm-options-row">
-                <label class="remember-me">
-                  <input type="checkbox" id="alarm-repeat" checked>
-                  <span class="custom-checkbox"></span>
-                  Repeat Daily
+              <!-- ⑤ Snooze toggle -->
+              <div class="ac-section ac-row">
+                <label class="ac-label" for="alarm-snooze">Snooze (5 min)</label>
+                <label class="ac-toggle">
+                  <input type="checkbox" id="alarm-snooze" checked>
+                  <span class="ac-toggle-track"></span>
                 </label>
               </div>
 
-              <button type="submit" class="btn-submit btn-alarm-set">
-                <span class="btn-text">SAVE ALARM</span>
-              </button>
+              <!-- ⑥ Buttons -->
+              <div class="ac-btns">
+                <button type="button" class="ac-btn-cancel" onclick="acReset()">Cancel</button>
+                <button type="submit" class="ac-btn-save btn-alarm-set">
+                  <span class="btn-text">Save Alarm</span>
+                </button>
+              </div>
+
             </form>
           </div>
 
