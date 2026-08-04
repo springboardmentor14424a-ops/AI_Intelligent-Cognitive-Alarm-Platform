@@ -1,0 +1,33 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore local SQLite DB (use PostgreSQL in production)
+*.db
+*.sqlite3
+
+# Ignore environment files with secrets
+.env
+.env.*
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Firebase credentials (never commit!)
+firebase_credentials.json
+serviceAccountKey.json

@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session
 from config import Config
 from database import get_db
 
-# We need to import our database models later
-# We'll write models in a schema SQL / Models file. Let's make sure we import User properly.
+
 
 def get_password_hash(password: str) -> str:
     salt = bcrypt.gensalt()
@@ -22,7 +21,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def create_access_token(subject: Union[str, Any], role: str, expires_delta: datetime.timedelta = None) -> str:
     if expires_delta:
-        expire = datetime.datetime.utcnow() + expires_delta
+        expire = datetime.datetime.now(datetime.UTC) + expires_delta
     else:
         expire = datetime.datetime.utcnow() + datetime.timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {"exp": expire, "sub": str(subject), "role": role, "type": "access"}

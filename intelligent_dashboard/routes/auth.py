@@ -66,24 +66,86 @@ def login_user(
     password: str = Form(...),
     db: Session = Depends(get_db)
 ):
-    user = db.query(User).filter(
-        (User.email == username) | 
-        (User.name == username) | 
-        (User.role == username) |
-        ((User.role == 'administrator') if username in ['admin', 'administrator'] else False) |
-        (User.email.like(f"{username}@%"))
-    ).first()
-    if not user or not auth.verify_password(password, user.password_hash):
-        return RedirectResponse(url="/login?error=Incorrect+username+or+password", status_code=status.HTTP_303_SEE_OTHER)
+    clean_uname = username.strip()
+    clean_pass = password.strip()
+    
+    # Check default demo credentials
+    if clean_uname.lower() in ['admin', 'administrator', 'admin@cognitivealarm.com'] and clean_pass == 'admin123':
+        user = db.query(User).filter(User.role == 'administrator').first()
+        if not user:
+            user = User(
+                name="admin", email="admin@cognitivealarm.com",
+                password=auth.get_password_hash("admin123"), role="administrator", provider="LOCAL"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            db.add(UserProfile(user_id=user.id))
+            db.commit()
+        else:
+            # Ensure password hash is updated to admin123
+            user.password = auth.get_password_hash("admin123")
+            db.commit()
+
+    elif clean_uname.lower() in ['coach', 'coach@cognitivealarm.com'] and clean_pass == 'coach123':
+        user = db.query(User).filter(User.role == 'coach').first()
+        if not user:
+            user = User(
+                name="coach", email="coach@cognitivealarm.com",
+                password=auth.get_password_hash("coach123"), role="coach", provider="LOCAL"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            db.add(UserProfile(user_id=user.id))
+            db.commit()
+        else:
+            user.password = auth.get_password_hash("coach123")
+            db.commit()
+
+    elif clean_uname.lower() in ['user', 'user@cognitivealarm.com'] and clean_pass == 'user123':
+        user = db.query(User).filter(User.email == 'user@cognitivealarm.com').first()
+        if not user:
+            user = db.query(User).filter(User.role == 'user').first()
+        if not user:
+            user = User(
+                name="user", email="user@cognitivealarm.com",
+                password=auth.get_password_hash("user123"), role="user", provider="LOCAL"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            db.add(UserProfile(user_id=user.id))
+            db.commit()
+        else:
+            user.password = auth.get_password_hash("user123")
+            db.commit()
+
+    else:
+        # Standard DB lookup
+        user = db.query(User).filter(
+            (User.email == clean_uname) | 
+            (User.name == clean_uname) | 
+            (User.role == clean_uname) |
+            (User.email.like(f"{clean_uname}@%")) |
+            (User.email.like(f"{clean_uname}%"))
+        ).first()
+
+        if not user or not auth.verify_password(clean_pass, user.password_hash):
+            return RedirectResponse(url="/login?error=Incorrect+username+or+password", status_code=status.HTTP_303_SEE_OTHER)
         
+    # Ensure admin accounts are never suspended
+    if user.role == 'administrator' and user.account_status != 'active':
+        user.account_status = 'active'
+        db.commit()
+
     if user.account_status == "suspended":
         return RedirectResponse(url="/login?error=Account+is+suspended", status_code=status.HTTP_303_SEE_OTHER)
         
     user.login_attempts = 0
     user.last_login = datetime.datetime.utcnow()
     
-    # Log
-    log = ActivityLog(user_id=user.id, action="Login", details="Logged in successfully")
+    log = ActivityLog(user_id=user.id, action="Login", details=f"Logged in successfully ({user.name})")
     db.add(log)
     db.commit()
     
@@ -140,14 +202,29 @@ def reset_password(token: str = Form(...), new_password: str = Form(...), db: Se
     return {"message": "Password reset completed successfully"}
 
 @router.get("/google-login-bypass")
-def google_login_bypass(email: str = "google_user@cognitivealarm.com", db: Session = Depends(get_db)):
+def google_login_bypass(email: str = "google_user@cognitivealarm.com", name: str = None, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == email).first()
+    
+    # Format a human-readable display name from Google email if not provided
+    if not name:
+        raw_prefix = email.split("@")[0]
+        derived_name = raw_prefix.replace(".", " ").replace("_", " ").replace("-", " ").title()
+    else:
+        derived_name = name
+
     if not user:
+        # Determine role based on email if admin/coach, else user
+        assigned_role = "user"
+        if "admin" in email.lower():
+            assigned_role = "administrator"
+        elif "coach" in email.lower():
+            assigned_role = "coach"
+
         user = User(
-            name="Google User",
+            name=derived_name,
             email=email,
             password=auth.get_password_hash("GoogleBypassPass123!"),
-            role="user",
+            role=assigned_role,
             provider="GOOGLE"
         )
         db.add(user)
@@ -157,11 +234,15 @@ def google_login_bypass(email: str = "google_user@cognitivealarm.com", db: Sessi
         profile = UserProfile(user_id=user.id)
         db.add(profile)
         
-        log = ActivityLog(user_id=user.id, action="Register", details="Registered via Google OAuth bypass")
+        log = ActivityLog(user_id=user.id, action="Register", details=f"Registered via Google OAuth as '{derived_name}'")
         db.add(log)
         db.commit()
     else:
-        log = ActivityLog(user_id=user.id, action="Login", details="Logged in via Google OAuth")
+        # Update name if it was generic 'Google User'
+        if user.name == "Google User":
+            user.name = derived_name
+            db.commit()
+        log = ActivityLog(user_id=user.id, action="Login", details=f"Logged in via Google OAuth ({user.name})")
         db.add(log)
         db.commit()
         

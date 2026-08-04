@@ -45,6 +45,7 @@ class User(Base):
     profile_image = Column(String(255), nullable=True)
     account_status = Column(String(20), default="active")
     email_verified = Column(Boolean, default=True)
+    fcm_token = Column(String(255), nullable=True)  # Firebase Cloud Messaging device token
     
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -104,14 +105,37 @@ class Alarm(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    alarm_name = Column(String(100), nullable=False)
+    alarm_name = Column(String(100), nullable=False, default="Morning Alarm")
     alarm_time = Column(String(5), nullable=False)
+    alarm_type = Column(String(30), default="Daily") # Daily, Weekday, Weekend, One-Time, Smart Adaptive
     repeat_type = Column(String(20), default="daily")
+    repeat_days = Column(String(100), default="Mon,Tue,Wed,Thu,Fri,Sat,Sun")
     alarm_status = Column(Boolean, default=True)
     smart_alarm = Column(Boolean, default=False)
     challenge_required = Column(String(50), default="Math Puzzle")
+    difficulty_level = Column(String(20), default="Medium") # Easy, Medium, Hard
+    sound = Column(String(50), default="Chimes")
     vibration = Column(Boolean, default=True)
+    snooze_count = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    # Property Aliases for Alarm Schema Compatibility
+    @property
+    def title(self):
+        return self.alarm_name
+
+    @title.setter
+    def title(self, value):
+        self.alarm_name = value if value else "Morning Alarm"
+
+    @property
+    def is_active(self):
+        return self.alarm_status
+
+    @is_active.setter
+    def is_active(self, value):
+        self.alarm_status = bool(value)
 
     user = relationship("User", back_populates="alarms")
 

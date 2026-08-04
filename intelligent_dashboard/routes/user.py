@@ -113,3 +113,61 @@ def upload_avatar(
     db.commit()
     
     return {"message": "Avatar uploaded successfully", "profile_image": current_user.profile_image}
+
+
+# =====================================================================
+# NOTIFICATIONS — Live polling endpoint for browser notification system
+# =====================================================================
+
+from database import Notification
+from fastapi.responses import JSONResponse
+
+@router.get("/notifications", response_class=JSONResponse)
+def get_notifications(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """GET /api/user/notifications — Called every 30s by browser to check for new alarm notifications."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    notifications = (
+        db.query(Notification)
+        .filter(Notification.user_id == current_user.id)
+        .order_by(Notification.created_at.desc())
+        .limit(20)
+        .all()
+    )
+    unread_count = sum(1 for n in notifications if not n.read_status)
+    
+    return {
+        "unread_count": unread_count,
+        "notifications": [
+            {
+                "id": n.id,
+                "title": n.title,
+                "message": n.message,
+                "read_status": n.read_status,
+                "created_at": n.created_at.isoformat() if n.created_at else None
+            }
+            for n in notifications
+        ]
+    }
+
+
+@router.post("/notifications/mark-read", response_class=JSONResponse)
+def mark_all_read(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """POST /api/user/notifications/mark-read — Mark all notifications as read."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    db.query(Notification).filter(
+        Notification.user_id == current_user.id,
+        Notification.read_status == False
+    ).update({"read_status": True})
+    db.commit()
+    return {"message": "All notifications marked as read"}
+

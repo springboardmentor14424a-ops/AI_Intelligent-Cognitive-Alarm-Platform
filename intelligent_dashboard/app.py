@@ -1,7 +1,8 @@
 import os
 import datetime
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Request, HTTPException, status, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -11,128 +12,120 @@ from config import Config
 from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report
 from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes
 import auth
+from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
-# Initialize upload static paths
 os.makedirs("static/css", exist_ok=True)
 os.makedirs("static/js", exist_ok=True)
 os.makedirs("static/images", exist_ok=True)
 
-# Build tables
+
 Base.metadata.create_all(bind=engine)
 
-# Auto seed database on startup if database is empty
+
 def initial_seed_check():
     db = SessionLocal()
     try:
-        # Guarantee admin user
-        admin = db.query(User).filter(User.role == "administrator").first()
-        if not admin:
-            admin = User(
+        # 1. Admin
+        admin_user = db.query(User).filter(User.email == "admin@cognitivealarm.com").first()
+        if not admin_user:
+            admin_user = User(
                 name="admin", email="admin@cognitivealarm.com",
                 password=auth.get_password_hash("admin123"), role="administrator", provider="LOCAL"
             )
-            db.add(admin)
-            db.commit()
-            db.refresh(admin)
-            db.add(UserProfile(user_id=admin.id))
-            db.commit()
-            print("Auto-seeded admin user successfully.")
-
-        if db.query(User).count() <= 1:
-            print("Auto-seeding default records...")
-            # Admin (admin123)
-            admin_user = User(
-                name="Platform Administrator", email="admin@cognitivealarm.com",
-                password=auth.get_password_hash("admin123"), role="administrator", provider="LOCAL"
-            )
             db.add(admin_user)
-            
-            # Coach (coach123)
+            db.commit()
+            db.refresh(admin_user)
+            db.add(UserProfile(user_id=admin_user.id))
+            db.commit()
+
+        # 2. Coach
+        coach_user = db.query(User).filter(User.email == "coach@cognitivealarm.com").first()
+        if not coach_user:
             coach_user = User(
-                name="Sarah Jenkins (Wellness Coach)", email="coach@cognitivealarm.com",
+                name="coach", email="coach@cognitivealarm.com",
                 password=auth.get_password_hash("coach123"), role="coach", provider="LOCAL"
             )
             db.add(coach_user)
             db.commit()
             db.refresh(coach_user)
-            
-            # Users (user123)
+            db.add(UserProfile(user_id=coach_user.id))
+            db.commit()
+
+        # 3. Standard Users
+        user1 = db.query(User).filter(User.email == "user@cognitivealarm.com").first()
+        if not user1:
             user1 = User(
-                name="Alex Rivera", email="user@cognitivealarm.com",
+                name="user", email="user@cognitivealarm.com",
                 password=auth.get_password_hash("user123"), role="user", provider="LOCAL", coach_id=coach_user.id
             )
+            db.add(user1)
+            db.commit()
+            db.refresh(user1)
+            db.add(UserProfile(user_id=user1.id, wake_up_time="06:30", streak=5, habit_score=78))
+            db.commit()
+
+        user2 = db.query(User).filter(User.email == "emma@cognitivealarm.com").first()
+        if not user2:
             user2 = User(
                 name="Emma Watson", email="emma@cognitivealarm.com",
                 password=auth.get_password_hash("user123"), role="user", provider="LOCAL"
             )
-            db.add(user1)
             db.add(user2)
             db.commit()
-            db.refresh(user1)
             db.refresh(user2)
-            
-            # Profiles
-            db.add_all([
-                UserProfile(user_id=admin_user.id),
-                UserProfile(user_id=coach_user.id),
-                UserProfile(user_id=user1.id, wake_up_time="06:30", streak=5, habit_score=78),
-                UserProfile(user_id=user2.id, wake_up_time="05:45", streak=14, habit_score=92)
-            ])
-            
-            # Alarms
-            db.add_all([
-                Alarm(user_id=user1.id, alarm_name="Morning Run", alarm_time="06:30", repeat_type="weekdays", smart_alarm=True, challenge_required="Math Puzzle"),
-                Alarm(user_id=user2.id, alarm_name="Workout Call", alarm_time="05:45", repeat_type="daily", smart_alarm=True, challenge_required="Shake Phone")
-            ])
-            
-            # Notifications
-            db.add_all([
-                Notification(user_id=user1.id, title="Welcome to platform", message="Your cognitive alarm profile is active! Solve morning puzzles.", type="system", read_status=True),
-                Notification(user_id=user1.id, title="Coach Sarah assigned", message="Coach Sarah has been assigned to help you optimize sleep.", type="system", read_status=False),
-                Notification(user_id=user2.id, title="14-Day Streak Unlocked!", message="Phenomenal morning consistency!", type="achievement", read_status=False)
-            ])
-            
-            # Logs
-            today = datetime.datetime.utcnow()
-            db.add_all([
-                ActivityLog(user_id=admin_user.id, action="Login", details="Admin login success", created_at=today),
-                ActivityLog(user_id=user1.id, action="Register", details="Account registered", created_at=today - datetime.timedelta(days=2)),
-                ActivityLog(user_id=user1.id, action="Login", details="Login success", created_at=today),
-                ActivityLog(user_id=user1.id, action="Challenge Solved", details="Solved Math Puzzle", created_at=today)
-            ])
-            
+            db.add(UserProfile(user_id=user2.id, wake_up_time="05:45", streak=14, habit_score=92))
             db.commit()
-            print("Auto-seeding successfully finished.")
+
+        print("Auto-seeding default records finished successfully.")
+    except Exception as e:
+        db.rollback()
+        print(f"Auto-seed notice: {e}")
     finally:
         db.close()
 
 initial_seed_check()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan: start APScheduler on boot, stop on shutdown."""
+    start_scheduler()
+    print("APScheduler started — alarm background jobs running.")
+    yield
+    stop_scheduler()
+    print("APScheduler stopped gracefully.")
+
+
 app = FastAPI(
     title=Config.PROJECT_NAME,
-    description="Intelligent Circadian System Panel"
+    description="Intelligent Circadian System Panel",
+    lifespan=lifespan
 )
 
-# Static and Templates
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Mount API Routers
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth APIs"])
 app.include_router(user_routes.router, prefix="/api/user", tags=["User Profile APIs"])
 app.include_router(admin_routes.router, prefix="/api/admin", tags=["Admin Control APIs"])
 app.include_router(coach_routes.router, prefix="/api/coach", tags=["Coach Operations APIs"])
 app.include_router(alarm_routes.router, prefix="/api/alarm", tags=["Alarms APIs"])
+app.include_router(alarm_routes.router, prefix="/alarms", tags=["Alarms Alias APIs"])
 
-# HTML Page Views
+
+@app.get("/scheduler/status", response_class=JSONResponse, tags=["Scheduler"])
+def scheduler_status():
+    """GET /scheduler/status — Check APScheduler running state and job list."""
+    return get_scheduler_status()
+
+
 @app.get("/", response_class=HTMLResponse)
 def get_landing(request: Request, current_user: User = Depends(auth.get_current_user)):
     return templates.TemplateResponse("landing.html", {"request": request, "user": current_user})
 
 @app.get("/login", response_class=HTMLResponse)
-def get_login(request: Request, current_user: User = Depends(auth.get_current_user)):
-    if current_user:
-        return RedirectResponse(url="/dashboard")
+def get_login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.get("/register", response_class=HTMLResponse)
@@ -165,7 +158,7 @@ def get_admin_dashboard(request: Request, db: Session = Depends(get_db), current
     coaches = db.query(User).filter(User.role == "coach").all()
     logs = db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).limit(30).all()
     
-    # Stats
+   
     total_users = db.query(User).count()
     active_alarms = db.query(Alarm).filter(Alarm.alarm_status == True).count()
     coaches_count = len(coaches)
