@@ -782,95 +782,99 @@ body {
    --border, --bg, --card-bg, --shadow, --font-body/heading
    ══════════════════════════════════════════════════════════ */
 
-/* ── Time picker ───────────────────────────────────────────── */
+/* ── Time picker — drum/scroll style ──────────────────────── */
 .ac-time-picker {
   display: flex;
   justify-content: center;
   padding: 8px 0 4px;
 }
 
-.ac-time-display {
+.ac-drum-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   background: var(--bg);
   border: 1.5px solid var(--border);
   border-radius: 16px;
-  padding: 12px 20px;
+  padding: 14px 20px;
 }
 
-.ac-time-col {
+.ac-drum-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ac-drum-label {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 36px;
+  text-align: center;
+}
+
+.ac-drum {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  background: none;
-  border: none;
-  cursor: default;
-  padding: 0;
+  min-width: 40px;
 }
 
-.ac-time-up,
-.ac-time-dn {
+.ac-drum-prev,
+.ac-drum-next {
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--muted);
+  opacity: 0.45;
+  line-height: 1.3;
+  text-align: center;
+  min-width: 40px;
+}
+
+.ac-drum-cur {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+  line-height: 1.1;
+  text-align: center;
+  min-width: 52px;
+}
+
+.ac-ampm-col .ac-drum-prev,
+.ac-ampm-col .ac-drum-next { min-width: 36px; }
+
+.ac-ampm-col .ac-drum-cur {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 52px;
+}
+
+.ac-drum-arrows {
+  display: flex;
+  gap: 4px;
+}
+
+.ac-drum-arrows button {
+  background: none;
+  border: none;
   font-size: 1rem;
   color: var(--primary);
   cursor: pointer;
-  line-height: 1;
-  user-select: none;
   padding: 2px 8px;
   border-radius: 6px;
+  line-height: 1;
   transition: background 0.15s;
 }
 
-.ac-time-up:hover,
-.ac-time-dn:hover {
-  background: rgba(30,136,229,0.1);
-}
-
-.ac-time-val {
-  font-family: var(--font-heading);
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-  line-height: 1;
-  min-width: 52px;
-  text-align: center;
-}
-
-.ac-colon {
-  font-family: var(--font-heading);
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: var(--primary-dark);
-  margin: 0 2px;
-  padding-bottom: 6px;
-}
-
-.ac-ampm {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-left: 8px;
-}
-
-.ac-ampm-btn {
-  padding: 4px 10px;
-  border-radius: 8px;
-  border: 1.5px solid var(--border);
-  background: var(--card-bg);
-  font-family: var(--font-body);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--muted);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.ac-ampm-btn.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-}
+.ac-drum-arrows button:hover { background: rgba(30,136,229,0.1); }
 
 /* ── Shared section wrapper ────────────────────────────────── */
 .ac-section {

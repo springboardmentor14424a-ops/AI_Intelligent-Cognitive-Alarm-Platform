@@ -261,28 +261,42 @@ let acHour = 6, acMin = 30, acAMPM = 'AM';
 function acPad(n) { return String(n).padStart(2, '0'); }
 
 function acSyncHidden() {
-  // Convert to 24h for the backend
   let h24 = acHour % 12;
   if (acAMPM === 'PM') h24 += 12;
   document.getElementById('alarm-time').value = `${acPad(h24)}:${acPad(acMin)}`;
 }
 
+function acSyncDrum() {
+  // Hour
+  const hPrev = ((acHour - 2 + 12) % 12) + 1;
+  const hNext = (acHour % 12) + 1;
+  document.getElementById('ac-hour').textContent      = acPad(acHour);
+  document.getElementById('ac-hour-prev').textContent = acPad(hPrev);
+  document.getElementById('ac-hour-next').textContent = acPad(hNext);
+  // Min
+  const mPrev = (acMin - 1 + 60) % 60;
+  const mNext = (acMin + 1) % 60;
+  document.getElementById('ac-min').textContent      = acPad(acMin);
+  document.getElementById('ac-min-prev').textContent = acPad(mPrev);
+  document.getElementById('ac-min-next').textContent = acPad(mNext);
+  // AM/PM
+  document.getElementById('ac-ampm-cur').textContent   = acAMPM;
+  document.getElementById('ac-ampm-other').textContent = acAMPM === 'AM' ? 'PM' : 'AM';
+  acSyncHidden();
+}
+
 function acAdjust(part, delta) {
   if (part === 'hour') {
     acHour = ((acHour - 1 + delta + 12) % 12) + 1;
-    document.getElementById('ac-hour').textContent = acPad(acHour);
   } else {
     acMin = (acMin + delta + 60) % 60;
-    document.getElementById('ac-min').textContent = acPad(acMin);
   }
-  acSyncHidden();
+  acSyncDrum();
 }
 
 function acSetAMPM(val) {
   acAMPM = val;
-  document.getElementById('ac-am').classList.toggle('active', val === 'AM');
-  document.getElementById('ac-pm').classList.toggle('active', val === 'PM');
-  acSyncHidden();
+  acSyncDrum();
 }
 
 function acToggleNever() {
@@ -308,9 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function acReset() {
   acHour = 6; acMin = 30; acAMPM = 'AM';
-  document.getElementById('ac-hour').textContent = '06';
-  document.getElementById('ac-min').textContent  = '30';
-  acSetAMPM('AM');
+  acSyncDrum();
   document.getElementById('alarm-label').value = '';
   document.getElementById('alarm-snooze').checked = true;
   document.querySelectorAll('.ac-day:not(.ac-never)').forEach((d, i) => {

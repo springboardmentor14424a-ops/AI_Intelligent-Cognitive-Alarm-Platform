@@ -76,7 +76,7 @@
           <!-- Card: Set Morning Alarm — Redesigned -->
           <div class="dashboard-card alarm-setter-card">
             <h3 style="display:flex;align-items:center;justify-content:space-between;">
-              Set Morning Alarm
+              Set Alarm
               <span style="display:flex;align-items:center;gap:8px;">
                 <button type="button" class="ac-cal-btn" onclick="acToggleCalendar()" title="Pick date">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -106,27 +106,54 @@
               </div>
               <input type="hidden" id="alarm-date" value="">
 
-              <!-- ① Circular time picker -->
+              <!-- ① Scroll-style time picker -->
               <div class="ac-time-picker">
-                <div class="ac-time-display">
-                  <button type="button" class="ac-time-col" id="ac-hour-btn">
-                    <span class="ac-time-up" onclick="acAdjust('hour',1)">&#8963;</span>
-                    <span class="ac-time-val" id="ac-hour">06</span>
-                    <span class="ac-time-dn" onclick="acAdjust('hour',-1)">&#8964;</span>
-                  </button>
+                <div class="ac-drum-wrap">
+                  <!-- Hour column -->
+                  <div class="ac-drum-col">
+                    <span class="ac-drum-label">Hou</span>
+                    <div class="ac-drum">
+                      <span class="ac-drum-prev" id="ac-hour-prev">05</span>
+                      <span class="ac-drum-cur"  id="ac-hour">06</span>
+                      <span class="ac-drum-next" id="ac-hour-next">07</span>
+                    </div>
+                    <div class="ac-drum-arrows">
+                      <button type="button" onclick="acAdjust('hour',-1)">&#8963;</button>
+                      <button type="button" onclick="acAdjust('hour',1)">&#8964;</button>
+                    </div>
+                  </div>
+
                   <span class="ac-colon">:</span>
-                  <button type="button" class="ac-time-col" id="ac-min-btn">
-                    <span class="ac-time-up" onclick="acAdjust('min',1)">&#8963;</span>
-                    <span class="ac-time-val" id="ac-min">30</span>
-                    <span class="ac-time-dn" onclick="acAdjust('min',-1)">&#8964;</span>
-                  </button>
-                  <div class="ac-ampm">
-                    <button type="button" class="ac-ampm-btn active" id="ac-am" onclick="acSetAMPM('AM')">AM</button>
-                    <button type="button" class="ac-ampm-btn" id="ac-pm" onclick="acSetAMPM('PM')">PM</button>
+
+                  <!-- Minute column -->
+                  <div class="ac-drum-col">
+                    <span class="ac-drum-label">Min</span>
+                    <div class="ac-drum">
+                      <span class="ac-drum-prev" id="ac-min-prev">24</span>
+                      <span class="ac-drum-cur"  id="ac-min">25</span>
+                      <span class="ac-drum-next" id="ac-min-next">26</span>
+                    </div>
+                    <div class="ac-drum-arrows">
+                      <button type="button" onclick="acAdjust('min',-1)">&#8963;</button>
+                      <button type="button" onclick="acAdjust('min',1)">&#8964;</button>
+                    </div>
+                  </div>
+
+                  <!-- AM/PM column -->
+                  <div class="ac-drum-col ac-ampm-col">
+                    <span class="ac-drum-label">&nbsp;</span>
+                    <div class="ac-drum ac-drum-ampm">
+                      <span class="ac-drum-prev" id="ac-ampm-other">PM</span>
+                      <span class="ac-drum-cur ac-ampm-active" id="ac-ampm-cur">AM</span>
+                      <span class="ac-drum-next">&nbsp;</span>
+                    </div>
+                    <div class="ac-drum-arrows">
+                      <button type="button" onclick="acSetAMPM('AM')">&#8963;</button>
+                      <button type="button" onclick="acSetAMPM('PM')">&#8964;</button>
+                    </div>
                   </div>
                 </div>
-                <!-- Hidden native input carries the real value -->
-                <input type="hidden" id="alarm-time" value="06:30">
+                <input type="hidden" id="alarm-time" value="06:25">
               </div>
 
               <!-- ② Repeat days -->
