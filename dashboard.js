@@ -200,9 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
         btnText.textContent = 'SAVED!';
         saveBtn.style.background = 'linear-gradient(90deg, #22c55e, #15803d)';
         setTimeout(() => {
-          btnText.textContent = 'SAVE ALARM';
+          btnText.textContent = 'Save Alarm';
           saveBtn.style.background = '';
-        }, 2000);
+          acReset(); // clear form after save
+        }, 1500);
 
         // Add row to alarm history table
         const historyTable = document.querySelector('.data-table tbody');
@@ -401,11 +402,19 @@ document.addEventListener('DOMContentLoaded', () => {
 function acReset() {
   acHour = 6; acMin = 30; acAMPM = 'AM';
   acSyncDrum();
-  document.getElementById('alarm-label').value = '';
-  document.getElementById('alarm-snooze').checked = true;
-  document.querySelectorAll('.ac-day:not(.ac-never)').forEach((d, i) => {
-    d.classList.toggle('active', i >= 1 && i <= 5); // Mon–Fri default
-  });
+  // Clear label
+  const label = document.getElementById('alarm-label');
+  if (label) label.value = '';
+  // Reset dropdowns to placeholder
+  const challenge = document.getElementById('alarm-challenge');
+  if (challenge) challenge.value = '';
+  const difficulty = document.getElementById('alarm-difficulty');
+  if (difficulty) difficulty.value = '';
+  // Reset snooze
+  const snooze = document.getElementById('alarm-snooze');
+  if (snooze) snooze.checked = true;
+  // Deselect all day chips
+  document.querySelectorAll('.ac-day:not(.ac-never)').forEach(d => d.classList.remove('active'));
   document.getElementById('ac-never').classList.remove('active');
 }
 
