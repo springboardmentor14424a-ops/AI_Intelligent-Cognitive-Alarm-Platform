@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
           row.innerHTML = `
             <td>${dateStr}</td>
             <td>${formattedTime}</td>
-            <td>--</td>
-            <td>--</td>
+            <td>${alarm.title}</td>
+            <td>${alarm.alarm_type}</td>
             <td>${challengeDisplay} · ${alarm.difficulty_level}</td>
             <td><span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
               ${alarm.is_active ? 'Active' : 'Disabled'}
@@ -224,8 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
           newRow.innerHTML = `
             <td>${today}</td>
             <td>${displayTime}</td>
-            <td>--</td>
-            <td>--</td>
+            <td>${document.getElementById('alarm-label')?.value || 'My Alarm'}</td>
+            <td>${document.getElementById('alarm-type')?.value || 'daily'}</td>
             <td>${challengeText} · ${diffVal}</td>
             <td><span class="badge badge-success">Active</span></td>
             <td class="kebab-cell">
@@ -291,24 +291,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Alarm CRUD functions ──────────────────────────────────────
 
-async function editAlarm(alarmId, currentTime, currentChallenge, currentRepeat) {
-  const newTime      = prompt('New alarm time (HH:MM):', currentTime);
+async function editAlarm(alarmId, currentTime, currentLabel, currentRepeat) {
+  const newTime  = prompt('New alarm time (HH:MM):', currentTime);
   if (!newTime) return;
-  const newChallenge = prompt('Challenge (math/memory/tap/pattern):', currentChallenge);
-  if (!newChallenge) return;
+  const newLabel = prompt('New label:', currentLabel);
+  if (newLabel === null) return;
 
   try {
     const res = await fetch(`http://localhost:8000/alarms/${alarmId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        alarm_time:   newTime + ':00',
-        challenge:    newChallenge,
-        repeat_daily: currentRepeat
+        title:            newLabel,
+        alarm_time:       newTime + ':00',
+        alarm_type:       'daily',
+        repeat_days:      'Mon-Fri',
+        difficulty_level: 'medium',
+        sound:            'default',
+        vibration:        true,
+        snooze_enabled:   true
       })
     });
     if (res.ok) {
-      alert(`Alarm updated to ${newTime} — ${newChallenge}`);
+      // Update the row in the table
+      const row = document.querySelector(`tr[data-alarm-id="${alarmId}"]`);
+      if (row) {
+        const cells = row.querySelectorAll('td');
+        const [nh, nm] = newTime.split(':');
+        const nhr = parseInt(nh);
+        const nampm = nhr >= 12 ? 'PM' : 'AM';
+        const nhr12 = nhr % 12 || 12;
+        cells[1].textContent = `${String(nhr12).padStart(2,'0')}:${nm} ${nampm}`;
+        cells[2].textContent = newLabel;
+      }
     }
   } catch (err) {
     alert('Cannot connect to server.');
