@@ -160,10 +160,24 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>--</td>
             <td>${challengeText}</td>
             <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">Active</span></td>
-            <td>
-              <button class="btn-table-edit" onclick="editAlarm(${alarm.id}, '${timeVal}', '${challengeVal}', ${repeatVal})">Edit</button>
-              <button class="btn-table-edit" style="color:#EF4444;margin-left:6px" onclick="toggleAlarm(${alarm.id}, this)">Disable</button>
-              <button class="btn-table-edit" style="color:#EF4444;margin-left:6px" onclick="deleteAlarm(${alarm.id}, this)">Delete</button>
+            <td class="kebab-cell">
+              <button class="kebab-btn" onclick="toggleKebab(this)">
+                <span></span><span></span><span></span>
+              </button>
+              <div class="kebab-menu">
+                <button onclick="editAlarm(${alarm.id},'${timeVal}','${document.getElementById('alarm-challenge').value}',true);closeKebab()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit
+                </button>
+                <button onclick="toggleAlarm(${alarm.id},this);closeKebab()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  Disable
+                </button>
+                <button class="kebab-danger" onclick="deleteAlarm(${alarm.id},this);closeKebab()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  Remove
+                </button>
+              </div>
             </td>
           `;
           historyTable.insertBefore(newRow, historyTable.firstChild);
