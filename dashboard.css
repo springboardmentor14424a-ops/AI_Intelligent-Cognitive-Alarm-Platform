@@ -1168,12 +1168,27 @@ body {
   margin-bottom: 10px;
 }
 
-.ac-cal-header span {
-  font-family: var(--font-heading);
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--ink);
+.ac-cal-selects {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
+
+.ac-cal-select {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 4px 6px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.ac-cal-select:focus { border-color: var(--primary); }
 
 .ac-cal-header button {
   background: none;

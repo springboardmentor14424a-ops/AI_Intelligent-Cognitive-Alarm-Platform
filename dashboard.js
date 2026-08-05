@@ -368,29 +368,50 @@ function acCalNav(delta) {
   acRenderCalendar();
 }
 
+function acCalSetMonth() {
+  const mo = parseInt(document.getElementById('ac-cal-month').value);
+  acCalDate.setMonth(mo);
+  acRenderCalendar();
+}
+
+function acCalSetYear() {
+  const yr = parseInt(document.getElementById('ac-cal-year').value);
+  acCalDate.setFullYear(yr);
+  acRenderCalendar();
+}
+
 function acRenderCalendar() {
-  const grid  = document.getElementById('ac-cal-grid');
-  const title = document.getElementById('ac-cal-title');
-  if (!grid || !title) return;
+  const grid      = document.getElementById('ac-cal-grid');
+  const moSelect  = document.getElementById('ac-cal-month');
+  const yrSelect  = document.getElementById('ac-cal-year');
+  if (!grid) return;
 
-  const yr  = acCalDate.getFullYear();
-  const mo  = acCalDate.getMonth();
-  title.textContent = MONTHS[mo] + ' ' + yr;
+  const yr = acCalDate.getFullYear();
+  const mo = acCalDate.getMonth();
 
-  const today     = new Date();
-  const firstDay  = new Date(yr, mo, 1).getDay(); // 0=Sun
-  const daysInMo  = new Date(yr, mo + 1, 0).getDate();
+  // Populate month dropdown
+  moSelect.innerHTML = MONTHS.map((m, i) =>
+    `<option value="${i}" ${i === mo ? 'selected' : ''}>${m}</option>`
+  ).join('');
+
+  // Populate year dropdown — 5 years back to 5 years forward
+  const currentYr = new Date().getFullYear();
+  yrSelect.innerHTML = '';
+  for (let y = currentYr - 5; y <= currentYr + 5; y++) {
+    yrSelect.innerHTML += `<option value="${y}" ${y === yr ? 'selected' : ''}>${y}</option>`;
+  }
+
+  const today    = new Date();
+  const firstDay = new Date(yr, mo, 1).getDay();
+  const daysInMo = new Date(yr, mo + 1, 0).getDate();
 
   let html = '';
-  // Day name headers
   ['S','M','T','W','T','F','S'].forEach(d => {
     html += `<span class="ac-cal-day-name">${d}</span>`;
   });
-  // Empty cells before first day
   for (let i = 0; i < firstDay; i++) {
     html += `<button class="ac-cal-day empty" disabled></button>`;
   }
-  // Day cells
   for (let d = 1; d <= daysInMo; d++) {
     const isToday    = d === today.getDate() && mo === today.getMonth() && yr === today.getFullYear();
     const isSelected = d === acSelectedDate.getDate() && mo === acSelectedDate.getMonth() && yr === acSelectedDate.getFullYear();
