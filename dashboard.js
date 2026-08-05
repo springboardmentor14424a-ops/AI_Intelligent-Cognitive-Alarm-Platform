@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${alarm.alarm_time}</td>
             <td>--</td>
             <td>--</td>
-            <td>${alarm.title} (${alarm.difficulty_level})</td>
+            <td>${alarm.title} · ${alarm.difficulty_level}</td>
             <td><span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
               ${alarm.is_active ? 'Active' : 'Disabled'}
             </span></td>
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${timeVal}</td>
             <td>--</td>
             <td>--</td>
-            <td>${challengeText}</td>
+            <td>${challengeText} · ${document.getElementById('alarm-difficulty')?.value || 'medium'}</td>
             <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">Active</span></td>
             <td class="kebab-cell">
               <button class="kebab-btn" onclick="toggleKebab(this)">
