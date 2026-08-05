@@ -64,7 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const row = document.createElement('tr');
           row.setAttribute('data-alarm-id', alarm.id);
 
-          // Format time: "06:25:00" → "06:25 AM"
+          const challengeLabels = { math: 'Math Problems', logic: 'Logic Puzzles', memory: 'Memory Challenges', word: 'Word Games' };
+          const challengeDisplay = challengeLabels[alarm.challenge] || alarm.challenge;
           const [h, m] = alarm.alarm_time.split(':');
           const hr = parseInt(h);
           const ampm = hr >= 12 ? 'PM' : 'AM';
@@ -80,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${formattedTime}</td>
             <td>--</td>
             <td>--</td>
-            <td>${alarm.challenge} · ${alarm.difficulty_level}</td>
+            <td>${challengeDisplay} · ${alarm.difficulty_level}</td>
             <td><span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
               ${alarm.is_active ? 'Active' : 'Disabled'}
             </span></td>
@@ -209,14 +210,24 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add row to alarm history table
         const historyTable = document.querySelector('.data-table tbody');
         if (historyTable && alarm.id) {
+          // Format time properly with AM/PM
+          const [nh, nm] = timeVal.split(':');
+          const nhr = parseInt(nh);
+          const nampm = nhr >= 12 ? 'PM' : 'AM';
+          const nhr12 = nhr % 12 || 12;
+          const displayTime = `${String(nhr12).padStart(2,'0')}:${nm} ${nampm}`;
+          const diffVal = document.getElementById('alarm-difficulty')?.value || 'medium';
+          const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+
           const newRow = document.createElement('tr');
           newRow.setAttribute('data-alarm-id', alarm.id);
           newRow.innerHTML = `
-            <td>Scheduled</td>
-            <td>${timeVal}</td>
+            <td>${today}</td>
+            <td>${displayTime}</td>
             <td>--</td>
             <td>--</td>
-            <td>${challengeText} · ${document.getElementById('alarm-difficulty')?.value || 'medium'}</td>            <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">Active</span></td>
+            <td>${challengeText} · ${diffVal}</td>
+            <td><span class="badge badge-success">Active</span></td>
             <td class="kebab-cell">
               <button class="kebab-btn" onclick="toggleKebab(this)">
                 <span></span><span></span><span></span>
