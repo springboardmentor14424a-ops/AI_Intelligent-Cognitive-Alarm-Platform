@@ -322,6 +322,9 @@ async function deleteAlarm(alarmId, btn) {
 
 let acHour = 6, acMin = 30, acAMPM = 'AM';
 
+// Init drum display on page load
+window.addEventListener('load', () => { acSyncDrum(); });
+
 function acPad(n) { return String(n).padStart(2, '0'); }
 
 function acSyncHidden() {
