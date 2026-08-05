@@ -164,3 +164,131 @@ async def google_callback(request: Request):
 @app.get("/")
 def root():
     return {"status": "Wellspring API is running"}
+
+
+# ════════════════════════════════════════════════════════════
+#  ALARM CRUD
+# ════════════════════════════════════════════════════════════
+
+class AlarmCreate(BaseModel):
+    user_id: int
+    title: str = "My Alarm"
+    alarm_time: str        # "06:30"
+    alarm_type: str = "daily"
+    repeat_days: str = "Mon-Fri"
+    difficulty_level: str = "medium"
+    sound: str = "default"
+    vibration: bool = True
+    snooze_enabled: bool = True
+
+class AlarmUpdate(BaseModel):
+    title: str
+    alarm_time: str
+    alarm_type: str
+    repeat_days: str
+    difficulty_level: str
+    sound: str
+    vibration: bool
+    snooze_enabled: bool
+
+
+# ── Create alarm ─────────────────────────────────────────────
+@app.post("/alarms")
+def create_alarm(data: AlarmCreate):
+    conn = get_connection()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        """
+        INSERT INTO alarms
+          (user_id, title, alarm_time, alarm_type, repeat_days,
+           difficulty_level, sound, vibration, snooze_enabled)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING *
+        """,
+        (data.user_id, data.title, data.alarm_time, data.alarm_type,
+         data.repeat_days, data.difficulty_level, data.sound,
+         data.vibration, data.snooze_enabled)
+    )
+    alarm = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    return alarm
+
+
+# ── Read all alarms for a user ───────────────────────────────
+@app.get("/alarms/{user_id}")
+def get_alarms(user_id: int):
+    conn = get_connection()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT * FROM alarms WHERE user_id = %s ORDER BY created_at DESC",
+        (user_id,)
+    )
+    alarms = cur.fetchall()
+    cur.close()
+    conn.close()
+    return alarms
+
+
+# ── Update alarm ─────────────────────────────────────────────
+@app.put("/alarms/{alarm_id}")
+def update_alarm(alarm_id: int, data: AlarmUpdate):
+    conn = get_connection()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        """
+        UPDATE alarms
+        SET title=%s, alarm_time=%s, alarm_type=%s, repeat_days=%s,
+            difficulty_level=%s, sound=%s, vibration=%s,
+            snooze_enabled=%s, updated_at=NOW()
+        WHERE id=%s
+        RETURNING *
+        """,
+        (data.title, data.alarm_time, data.alarm_type, data.repeat_days,
+         data.difficulty_level, data.sound, data.vibration,
+         data.snooze_enabled, alarm_id)
+    )
+    alarm = cur.fetchone()
+    if not alarm:
+        raise HTTPException(status_code=404, detail="Alarm not found")
+    conn.commit()
+    cur.close()
+    conn.close()
+    return alarm
+
+
+# ── Enable / Disable alarm ───────────────────────────────────
+@app.patch("/alarms/{alarm_id}/toggle")
+def toggle_alarm(alarm_id: int):
+    conn = get_connection()
+    cur  = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        """
+        UPDATE alarms SET is_active = NOT is_active, updated_at = NOW()
+        WHERE id = %s RETURNING id, is_active
+        """,
+        (alarm_id,)
+    )
+    result = cur.fetchone()
+    if not result:
+        raise HTTPException(status_code=404, detail="Alarm not found")
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"alarm_id": result["id"], "is_active": result["is_active"]}
+
+
+# ── Delete alarm ─────────────────────────────────────────────
+@app.delete("/alarms/{alarm_id}")
+def delete_alarm(alarm_id: int):
+    conn = get_connection()
+    cur  = conn.cursor()
+    cur.execute("DELETE FROM alarms WHERE id = %s RETURNING id", (alarm_id,))
+    deleted = cur.fetchone()
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Alarm not found")
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"message": f"Alarm {alarm_id} deleted"}

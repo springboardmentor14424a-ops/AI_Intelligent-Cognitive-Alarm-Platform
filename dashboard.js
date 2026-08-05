@@ -128,10 +128,15 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id:      user.id || 1,
-            alarm_time:   timeVal + ':00',
-            challenge:    challengeVal,
-            repeat_daily: repeatVal
+            user_id:          user.id || 1,
+            title:            document.getElementById('alarm-label').value || 'My Alarm',
+            alarm_time:       timeVal,
+            alarm_type:       'daily',
+            repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => d.textContent).join(''),
+            difficulty_level: document.getElementById('alarm-difficulty')?.value || 'medium',
+            sound:            'default',
+            vibration:        true,
+            snooze_enabled:   document.getElementById('alarm-snooze')?.checked ?? true
           })
         });
         const alarm = await res.json();
