@@ -378,6 +378,10 @@ function acSetAMPM(val) {
   acSyncDrum();
 }
 
+function acToggleAMPM() {
+  acSetAMPM(acAMPM === 'AM' ? 'PM' : 'AM');
+}
+
 function acToggleNever() {
   const neverBtn = document.getElementById('ac-never');
   const isNever  = neverBtn.classList.toggle('active');
