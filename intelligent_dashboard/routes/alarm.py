@@ -461,8 +461,9 @@ def toggle_alarm_form(
     if not alarm:
         raise HTTPException(status_code=404, detail="Alarm not found")
     alarm.alarm_status = not alarm.alarm_status
+    state_str = "Enabled" if alarm.alarm_status else "Disabled"
     db.commit()
-    return RedirectResponse(url="/dashboard/user", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/user?msg=Alarm+'{alarm.alarm_name}'+{state_str}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/delete/{alarm_id}")
@@ -476,9 +477,10 @@ def delete_alarm_form(
     alarm = db.query(Alarm).filter(Alarm.id == alarm_id, Alarm.user_id == current_user.id).first()
     if not alarm:
         raise HTTPException(status_code=404, detail="Alarm not found")
+    name = alarm.alarm_name
     db.delete(alarm)
     db.commit()
-    return RedirectResponse(url="/dashboard/user", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/user?msg=Alarm+'{name}'+Deleted+Successfully", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/simulate/{alarm_id}")
@@ -503,15 +505,18 @@ def simulate_alarm_form(
         profile.habit_score = min(100, profile.habit_score + 3)
         alarm.snooze_count = 0
         action, details = "Challenge Solved", f"Solved '{alarm.challenge_required}' for '{alarm.alarm_name}'"
+        feedback = f"🎉+Alarm+Solved!+Habit+score:+{profile.habit_score}+(%2B3),+Streak:+{profile.streak}+days!"
     elif outcome == "snooze":
         alarm.snooze_count += 1
         profile.habit_score = max(0, profile.habit_score - 1)
         action, details = "Snoozed Alarm", f"Snoozed '{alarm.alarm_name}' (count: {alarm.snooze_count})"
+        feedback = f"⏰+Alarm+Snoozed!+Snooze+count:+{alarm.snooze_count},+Habit+score:+{profile.habit_score}+(-1)"
     else:  # missed
         profile.streak = 0
         profile.habit_score = max(0, profile.habit_score - 5)
         action, details = "Alarm Missed", f"Missed '{alarm.alarm_name}'"
+        feedback = f"❌+Alarm+Missed!+Streak+reset+to+0,+Habit+score:+{profile.habit_score}+(-5)"
 
     db.add(ActivityLog(user_id=current_user.id, action=action, details=details))
     db.commit()
-    return RedirectResponse(url="/dashboard/user", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/user?msg={feedback}", status_code=status.HTTP_303_SEE_OTHER)

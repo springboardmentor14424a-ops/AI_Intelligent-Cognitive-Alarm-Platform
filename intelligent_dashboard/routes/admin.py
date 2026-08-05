@@ -95,7 +95,7 @@ def admin_toggle_user_status(
     db.add(log)
     db.commit()
     
-    return RedirectResponse(url="/dashboard/admin?tab=users", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/admin?tab=users&msg=Status+for+user+@{user.username}+toggled+to+{status_str}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/users/reset-password/{user_id}")
 def admin_reset_user_password(
@@ -118,8 +118,7 @@ def admin_reset_user_password(
     db.add(log)
     db.commit()
     
-    # We can redirect and carry a flash/status message in production, here direct redirect works.
-    return RedirectResponse(url="/dashboard/admin?tab=users", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/admin?tab=users&msg=Password+for+@{user.username}+reset+to+'{temp_pass}'", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/users/delete/{user_id}")
 def admin_delete_user(
@@ -141,7 +140,7 @@ def admin_delete_user(
     db.add(log)
     db.commit()
     
-    return RedirectResponse(url="/dashboard/admin?tab=users", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/admin?tab=users&msg=User+@{username}+deleted+successfully", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/users/assign-coach")
 def admin_assign_coach(
@@ -165,7 +164,7 @@ def admin_assign_coach(
     db.add(log)
     db.commit()
     
-    return RedirectResponse(url="/dashboard/admin?tab=users", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/admin?tab=users&msg=Coach+assigned+to+@{user.username}+successfully", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/users/remove-coach/{user_id}")
 def admin_remove_coach(
@@ -186,7 +185,7 @@ def admin_remove_coach(
     db.add(log)
     db.commit()
     
-    return RedirectResponse(url="/dashboard/admin?tab=users", status_code=status.HTTP_303_SEE_OTHER)
+    return RedirectResponse(url=f"/dashboard/admin?tab=users&msg=Coach+unassigned+from+@{user.username}", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/broadcast")
 def admin_broadcast(

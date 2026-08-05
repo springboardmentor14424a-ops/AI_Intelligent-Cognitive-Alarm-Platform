@@ -76,10 +76,10 @@
                 
                 <!-- Notification Bell -->
                 <div style="position: relative;">
-                    <button style="background: var(--bg-secondary); border: 1px solid var(--border-card); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer;">
+                    <button onclick="openModal('notifications-modal')" style="background: var(--bg-secondary); border: 1px solid var(--border-card); width: 38px; height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); cursor: pointer;" title="Notifications Center">
                         🔔
                         {% if unread_count and unread_count > 0 %}
-                            <span style="position: absolute; top: -4px; right: -4px; background: var(--danger); border-radius: 50%; width: 18px; height: 18px; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">{{ unread_count }}</span>
+                            <span id="notif-badge" style="position: absolute; top: -4px; right: -4px; background: var(--danger); border-radius: 50%; width: 18px; height: 18px; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: bold;">{{ unread_count }}</span>
                         {% endif %}
                     </button>
                 </div>
@@ -202,14 +202,18 @@
                                 {% if a.smart_alarm %}<span class="badge badge-active">Smart Gradient</span>{% endif %}
                             </div>
 
-                            <!-- Simulator Widget -->
+                            <!-- Simulator & Challenge Widget -->
                             <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
                                 <span style="font-size: 10px; color: var(--text-secondary); display: block; margin-bottom: 8px; font-weight: bold;">DEVELOPER WAKE UP SIMULATOR</span>
-                                <form action="/api/alarm/simulate/{{ a.id }}" method="POST" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                                    <button type="submit" name="outcome" value="success" class="btn btn-success" style="padding: 6px; font-size: 11px;">Success</button>
-                                    <button type="submit" name="outcome" value="snooze" class="btn btn-warning" style="padding: 6px; font-size: 11px;">Snooze</button>
-                                    <button type="submit" name="outcome" value="missed" class="btn btn-danger" style="padding: 6px; font-size: 11px;">Miss</button>
-                                </form>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                                    <button type="button" onclick="openChallengeModal('{{ a.id }}', '{{ a.challenge_required }}')" class="btn btn-success" style="padding: 6px; font-size: 11px;">Solve ({{ a.challenge_required or 'Math' }})</button>
+                                    <form action="/api/alarm/simulate/{{ a.id }}" method="POST" style="margin:0;">
+                                        <button type="submit" name="outcome" value="snooze" class="btn btn-warning" style="width:100%; padding: 6px; font-size: 11px;">Snooze</button>
+                                    </form>
+                                    <form action="/api/alarm/simulate/{{ a.id }}" method="POST" style="margin:0;">
+                                        <button type="submit" name="outcome" value="missed" class="btn btn-danger" style="width:100%; padding: 6px; font-size: 11px;">Miss</button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     {% endfor %}
@@ -351,6 +355,59 @@
         </div>
     </div>
 
+    <!-- Notifications Center Modal -->
+    <div id="notifications-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 520px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>🔔 Notification Center</h3>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button onclick="markNotificationsRead()" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">Mark All Read</button>
+                    <button onclick="closeModal('notifications-modal')" class="modal-close">×</button>
+                </div>
+            </div>
+            
+            <div id="notifications-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 360px; overflow-y: auto;">
+                {% if notifications %}
+                    {% for n in notifications %}
+                        <div class="glass-card" style="padding: 12px; border-left: 3px solid {{ 'var(--primary)' if not n.read_status else 'var(--border-card)' }}; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <strong style="font-size: 14px;">{{ n.title }}</strong>
+                                <span style="font-size: 11px; color: var(--text-secondary);">{{ n.created_at.strftime('%H:%M') if n.created_at else '' }}</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin: 0;">{{ n.message }}</p>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="color: var(--text-secondary); text-align: center; padding: 20px;">No notifications yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Alarm Ring & Challenge Modal (Math Puzzle / Typo Solver) -->
+    <div id="challenge-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 440px; text-align: center;">
+            <div style="font-size: 48px; margin-bottom: 10px; animation: pulse 1s infinite;">⏰</div>
+            <h2 id="challenge-title" style="margin-bottom: 8px;">⏰ ALARM IS RINGING!</h2>
+            <p id="challenge-desc" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Solve the Math Puzzle below to disarm the ringing alarm.</p>
+
+            <form id="challenge-form" onsubmit="solveChallengeSubmit(event)">
+                <input type="hidden" id="challenge-alarm-id" name="alarm_id" value="">
+                <input type="hidden" id="challenge-expected" value="">
+                <div class="form-group" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 16px; border-radius: 12px;">
+                    <label id="challenge-label" style="font-size: 24px; font-weight: 800; color: var(--primary); display: block; margin-bottom: 10px;">27 + 38 = ?</label>
+                    <input type="text" id="challenge-input" required class="form-input" placeholder="Enter answer..." style="text-align: center; font-size: 20px; font-weight: bold; width: 100%;">
+                </div>
+                <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-size: 15px; margin-top: 10px;">Disarm & Turn Off Alarm 🎉</button>
+            </form>
+            
+            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px;">
+                <button type="button" onclick="stopAlarmSound(); showToast('Audio Muted', 'warning');" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">🔇 Mute Audio</button>
+                <button type="button" onclick="snoozeFromModal()" class="btn btn-warning" style="font-size: 11px; padding: 4px 8px;">💤 Snooze (5m)</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/app.js"></script>
     <script>
         // =====================================================================
@@ -422,6 +479,177 @@
         setTimeout(pollNotifications, 5000);
     </script>
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const msg = params.get('msg');
+            if (msg) {
+                showToast(msg, msg.includes('Missed') ? 'danger' : (msg.includes('Snoozed') ? 'warning' : 'success'));
+            }
+        });
+
+        function markNotificationsRead() {
+            fetch('/api/user/notifications/mark-read', { method: 'POST' })
+                .then(r => r.json())
+                .then(data => {
+                    const badge = document.getElementById('notif-badge');
+                    if (badge) badge.style.display = 'none';
+                    showToast('All notifications marked as read', 'info');
+                })
+                .catch(() => {});
+        }
+
+        function openChallengeModal(alarmId, challengeType) {
+            document.getElementById('challenge-alarm-id').value = alarmId;
+            const input = document.getElementById('challenge-input');
+            input.value = '';
+            
+            if (challengeType === 'Math Puzzle') {
+                const n1 = Math.floor(Math.random() * 40) + 12;
+                const n2 = Math.floor(Math.random() * 40) + 15;
+                const ans = n1 + n2;
+                document.getElementById('challenge-label').innerText = `${n1} + ${n2} = ?`;
+                document.getElementById('challenge-expected').value = String(ans);
+                document.getElementById('challenge-title').innerText = '🧮 Math Puzzle Challenge';
+                document.getElementById('challenge-desc').innerText = 'Solve this equation correctly to turn off your wake-up alarm!';
+            } else if (challengeType === 'Typo Solver') {
+                document.getElementById('challenge-label').innerText = 'Type: "WAKE UP NOW"';
+                document.getElementById('challenge-expected').value = 'WAKE UP NOW';
+                document.getElementById('challenge-title').innerText = '⌨ Typo Solver Challenge';
+                document.getElementById('challenge-desc').innerText = 'Type the exact phrase above to disarm your alarm!';
+            } else {
+                document.getElementById('challenge-label').innerText = 'Click Turn Off Alarm below to disarm!';
+                document.getElementById('challenge-expected').value = 'ANY';
+                document.getElementById('challenge-title').innerText = '⏰ Wake Up Challenge';
+                document.getElementById('challenge-desc').innerText = 'Confirm wake up to disarm alarm!';
+            }
+            openModal('challenge-modal');
+        }
+
+        function solveChallengeSubmit(e) {
+            e.preventDefault();
+            const inputVal = document.getElementById('challenge-input').value.trim();
+            const expectedVal = document.getElementById('challenge-expected').value.trim();
+            const alarmId = document.getElementById('challenge-alarm-id').value;
+
+            if (expectedVal !== 'ANY' && inputVal.toUpperCase() !== expectedVal.toUpperCase()) {
+                showToast('❌ Incorrect answer! Try again.', 'danger');
+                return;
+            }
+
+            closeModal('challenge-modal');
+            stopAlarmSound();
+            closeModal('challenge-modal');
+            
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/api/alarm/simulate/${alarmId}`;
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'outcome';
+            hidden.value = 'success';
+            form.appendChild(hidden);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function snoozeFromModal() {
+            stopAlarmSound();
+            closeModal('challenge-modal');
+            const alarmId = document.getElementById('challenge-alarm-id').value;
+            if (!alarmId) return;
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/api/alarm/simulate/${alarmId}`;
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'outcome';
+            hidden.value = 'snooze';
+            form.appendChild(hidden);
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        // =====================================================================
+        // WEB AUDIO API — Real-time Alarm Chime Synthesizer
+        // =====================================================================
+        let alarmAudioCtx = null;
+        let alarmAudioInterval = null;
+
+        function startAlarmSound() {
+            try {
+                if (!alarmAudioCtx) alarmAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (alarmAudioCtx.state === 'suspended') alarmAudioCtx.resume();
+                
+                if (alarmAudioInterval) clearInterval(alarmAudioInterval);
+                
+                function playBeep() {
+                    if (!alarmAudioCtx) return;
+                    const osc = alarmAudioCtx.createOscillator();
+                    const gain = alarmAudioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, alarmAudioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(440, alarmAudioCtx.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0.3, alarmAudioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, alarmAudioCtx.currentTime + 0.25);
+                    osc.connect(gain);
+                    gain.connect(alarmAudioCtx.destination);
+                    osc.start();
+                    osc.stop(alarmAudioCtx.currentTime + 0.25);
+                }
+                
+                playBeep();
+                alarmAudioInterval = setInterval(playBeep, 700);
+            } catch (e) {}
+        }
+
+        function stopAlarmSound() {
+            if (alarmAudioInterval) {
+                clearInterval(alarmAudioInterval);
+                alarmAudioInterval = null;
+            }
+        }
+
+        // =====================================================================
+        // REAL-TIME ALARM CLOCK CHECKER (Runs every 3 seconds)
+        // =====================================================================
+        const activeUserAlarms = [
+            {% for a in alarms %}
+                { id: "{{ a.id }}", name: "{{ a.alarm_name }}", time: "{{ a.alarm_time }}", status: {{ 'true' if a.alarm_status else 'false' }}, type: "{{ a.repeat_type }}", challenge: "{{ a.challenge_required or 'Math Puzzle' }}" }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        const triggeredAlarmsSet = new Set();
+
+        function checkAlarmClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const currentHHMM = `${h}:${m}`;
+
+            for (const a of activeUserAlarms) {
+                const alarmKey = `${a.id}_${currentHHMM}`;
+                if (a.status && a.time === currentHHMM && !triggeredAlarmsSet.has(alarmKey)) {
+                    triggeredAlarmsSet.add(alarmKey);
+                    
+                    // Disarm One-Time / once alarms immediately so they ring ONLY ONCE
+                    if (a.type === 'once' || a.type === 'One-Time') {
+                        a.status = false;
+                    }
+                    
+                    // Play audio chime for 4 seconds, then auto-stop (no infinite ringing!)
+                    startAlarmSound();
+                    setTimeout(() => { stopAlarmSound(); }, 4000);
+                    
+                    // Open Math Puzzle disarm modal ONCE
+                    openChallengeModal(a.id, a.challenge);
+                    showToast(`⏰ ALARM: ${a.name} (${a.time})`, 'danger');
+                    break;
+                }
+            }
+        }
+
+        setInterval(checkAlarmClock, 3000);
+
         function setTab(tabId, btn) {
             document.querySelectorAll('.switch-tab').forEach(t => t.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');

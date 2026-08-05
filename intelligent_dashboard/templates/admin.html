@@ -372,6 +372,10 @@
         document.addEventListener('DOMContentLoaded', () => {
             const params = new URLSearchParams(window.location.search);
             const tab = params.get('tab');
+            const msg = params.get('msg');
+            if (msg) {
+                showToast(msg, 'info');
+            }
             if (tab === 'users') {
                 const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.innerText.includes('Directory'));
                 if (btn) setTab('users-tab', btn);

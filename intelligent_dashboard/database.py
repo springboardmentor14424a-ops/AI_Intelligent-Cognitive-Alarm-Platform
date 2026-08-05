@@ -1,9 +1,4 @@
-# ==============================================================================
-# POSTGRESQL DATABASE & ORM SCHEMA MAPPING
-# Primary Database Connection: PostgreSQL (postgresql://postgres:postgres@localhost:5432/postgres)
-# Driver: psycopg2-binary
-# Schema Alignment: Matches pgAdmin 4 Users table definition (id, name, email, password, role, provider)
-# ==============================================================================
+
 
 import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Float
@@ -38,8 +33,8 @@ class User(Base):
     name = Column(String(100), nullable=False)
     email = Column(String(100), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    role = Column(String(30), nullable=False, default="user") # user, coach, administrator
-    provider = Column(String(20), default="LOCAL") # LOCAL, GOOGLE
+    role = Column(String(30), nullable=False, default="user") 
+    provider = Column(String(20), default="LOCAL")
     
     phone = Column(String(20), nullable=True)
     profile_image = Column(String(255), nullable=True)
