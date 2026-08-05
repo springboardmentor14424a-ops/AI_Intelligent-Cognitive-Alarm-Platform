@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${formattedTime}</td>
             <td>--</td>
             <td>--</td>
-            <td>${alarm.title} · ${alarm.difficulty_level}</td>
+            <td>${alarm.challenge} · ${alarm.difficulty_level}</td>
             <td><span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
               ${alarm.is_active ? 'Active' : 'Disabled'}
             </span></td>
@@ -189,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alarm_time:       timeVal,
             alarm_type:       'daily',
             repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(',') || 'Never',
+            challenge:        document.getElementById('alarm-challenge')?.value || 'math',
             difficulty_level: document.getElementById('alarm-difficulty')?.value || 'medium',
             sound:            'default',
             vibration:        true,
@@ -215,8 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${timeVal}</td>
             <td>--</td>
             <td>--</td>
-            <td>${challengeText} · ${document.getElementById('alarm-difficulty')?.value || 'medium'}</td>
-            <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">Active</span></td>
+            <td>${challengeText} · ${document.getElementById('alarm-difficulty')?.value || 'medium'}</td>            <td><span class="badge" style="background:#e0f2fe;color:#0369a1;">Active</span></td>
             <td class="kebab-cell">
               <button class="kebab-btn" onclick="toggleKebab(this)">
                 <span></span><span></span><span></span>

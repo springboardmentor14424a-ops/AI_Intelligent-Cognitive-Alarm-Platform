@@ -173,10 +173,11 @@ def root():
 class AlarmCreate(BaseModel):
     user_id: int
     title: str = "My Alarm"
-    alarm_time: str        # "06:30"
+    alarm_time: str
     alarm_type: str = "daily"
     repeat_days: str = "Mon-Fri"
     difficulty_level: str = "medium"
+    challenge: str = "math"
     sound: str = "default"
     vibration: bool = True
     snooze_enabled: bool = True
@@ -201,13 +202,13 @@ def create_alarm(data: AlarmCreate):
         """
         INSERT INTO alarms
           (user_id, title, alarm_time, alarm_type, repeat_days,
-           difficulty_level, sound, vibration, snooze_enabled)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+           difficulty_level, challenge, sound, vibration, snooze_enabled)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING *
         """,
         (data.user_id, data.title, data.alarm_time, data.alarm_type,
-         data.repeat_days, data.difficulty_level, data.sound,
-         data.vibration, data.snooze_enabled)
+         data.repeat_days, data.difficulty_level, data.challenge,
+         data.sound, data.vibration, data.snooze_enabled)
     )
     alarm = cur.fetchone()
     conn.commit()
