@@ -111,15 +111,11 @@
                 <div class="ac-drum-wrap">
                   <!-- Hour column -->
                   <div class="ac-drum-col">
-                    <span class="ac-drum-label">Hou</span>
+                    <span class="ac-drum-label">HOU</span>
                     <div class="ac-drum">
-                      <span class="ac-drum-prev" id="ac-hour-prev">05</span>
+                      <span class="ac-drum-prev" id="ac-hour-prev" onclick="acAdjust('hour',-1)">05</span>
                       <span class="ac-drum-cur"  id="ac-hour">06</span>
-                      <span class="ac-drum-next" id="ac-hour-next">07</span>
-                    </div>
-                    <div class="ac-drum-arrows">
-                      <button type="button" onclick="acAdjust('hour',-1)">&#8963;</button>
-                      <button type="button" onclick="acAdjust('hour',1)">&#8964;</button>
+                      <span class="ac-drum-next" id="ac-hour-next" onclick="acAdjust('hour',1)">07</span>
                     </div>
                   </div>
 
@@ -127,15 +123,11 @@
 
                   <!-- Minute column -->
                   <div class="ac-drum-col">
-                    <span class="ac-drum-label">Min</span>
+                    <span class="ac-drum-label">MIN</span>
                     <div class="ac-drum">
-                      <span class="ac-drum-prev" id="ac-min-prev">24</span>
+                      <span class="ac-drum-prev" id="ac-min-prev" onclick="acAdjust('min',-1)">24</span>
                       <span class="ac-drum-cur"  id="ac-min">25</span>
-                      <span class="ac-drum-next" id="ac-min-next">26</span>
-                    </div>
-                    <div class="ac-drum-arrows">
-                      <button type="button" onclick="acAdjust('min',-1)">&#8963;</button>
-                      <button type="button" onclick="acAdjust('min',1)">&#8964;</button>
+                      <span class="ac-drum-next" id="ac-min-next" onclick="acAdjust('min',1)">26</span>
                     </div>
                   </div>
 
@@ -143,13 +135,9 @@
                   <div class="ac-drum-col ac-ampm-col">
                     <span class="ac-drum-label">&nbsp;</span>
                     <div class="ac-drum ac-drum-ampm">
-                      <span class="ac-drum-prev" id="ac-ampm-other">PM</span>
-                      <span class="ac-drum-cur ac-ampm-active" id="ac-ampm-cur">AM</span>
+                      <span class="ac-drum-prev" id="ac-ampm-other" onclick="acToggleAMPM()">PM</span>
+                      <span class="ac-drum-cur"  id="ac-ampm-cur">AM</span>
                       <span class="ac-drum-next">&nbsp;</span>
-                    </div>
-                    <div class="ac-drum-arrows">
-                      <button type="button" onclick="acSetAMPM('AM')">&#8963;</button>
-                      <button type="button" onclick="acSetAMPM('PM')">&#8964;</button>
                     </div>
                   </div>
                 </div>
@@ -181,10 +169,20 @@
               <div class="ac-section">
                 <label class="ac-label" for="alarm-challenge">Cognitive Challenge</label>
                 <select id="alarm-challenge" class="ac-input">
-                  <option value="math">Math Equations</option>
-                  <option value="memory">Memory Matrix</option>
-                  <option value="tap">Speed Tap</option>
-                  <option value="pattern">Pattern Match</option>
+                  <option value="math">Math Problems</option>
+                  <option value="logic">Logic Puzzles</option>
+                  <option value="memory">Memory Challenges</option>
+                  <option value="word">Word Games</option>
+                </select>
+              </div>
+
+              <!-- Difficulty level -->
+              <div class="ac-section">
+                <label class="ac-label" for="alarm-difficulty">Difficulty Level</label>
+                <select id="alarm-difficulty" class="ac-input">
+                  <option value="beginner">Beginner</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="hard">Hard</option>
                 </select>
               </div>
 
