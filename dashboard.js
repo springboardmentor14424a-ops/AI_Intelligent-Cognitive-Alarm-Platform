@@ -52,7 +52,52 @@ document.addEventListener('DOMContentLoaded', () => {
     if (correctTab)   correctTab.classList.add('active');
   }
 
-  // 1. DYNAMIC TAB SWITCHING LOGIC
+  // ── Load alarms from database on page load ───────────────────
+  if (user && user.id) {
+    fetch(`http://localhost:8000/alarms/${user.id}`)
+      .then(res => res.json())
+      .then(alarms => {
+        const historyTable = document.querySelector('.data-table tbody');
+        if (!historyTable || !alarms.length) return;
+        // Clear static hardcoded rows
+        historyTable.innerHTML = '';
+        alarms.forEach(alarm => {
+          const row = document.createElement('tr');
+          row.setAttribute('data-alarm-id', alarm.id);
+          row.innerHTML = `
+            <td>Scheduled</td>
+            <td>${alarm.alarm_time}</td>
+            <td>--</td>
+            <td>--</td>
+            <td>${alarm.title} (${alarm.difficulty_level})</td>
+            <td><span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
+              ${alarm.is_active ? 'Active' : 'Disabled'}
+            </span></td>
+            <td class="kebab-cell">
+              <button class="kebab-btn" onclick="toggleKebab(this)">
+                <span></span><span></span><span></span>
+              </button>
+              <div class="kebab-menu">
+                <button onclick="editAlarm(${alarm.id},'${alarm.alarm_time}','${alarm.title}',true);closeKebab()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit
+                </button>
+                <button onclick="toggleAlarm(${alarm.id},this);closeKebab()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                  ${alarm.is_active ? 'Disable' : 'Enable'}
+                </button>
+                <button class="kebab-danger" onclick="deleteAlarm(${alarm.id},this);closeKebab()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                  Remove
+                </button>
+              </div>
+            </td>
+          `;
+          historyTable.appendChild(row);
+        });
+      })
+      .catch(() => {}); // silently fail if backend is off
+  }
   roleTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       const targetPanelId = tab.getAttribute('data-target');
