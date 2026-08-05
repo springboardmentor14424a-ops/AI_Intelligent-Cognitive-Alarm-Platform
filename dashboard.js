@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             user_id:          user.id || 1,
             title:            document.getElementById('alarm-label').value || 'My Alarm',
             alarm_time:       timeVal,
-            alarm_type:       'daily',
+            alarm_type:       document.getElementById('alarm-type')?.value || 'daily',
             repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(',') || 'Never',
             challenge:        document.getElementById('alarm-challenge')?.value || 'math',
             difficulty_level: document.getElementById('alarm-difficulty')?.value || 'medium',
@@ -410,6 +410,8 @@ function acReset() {
   if (challenge) challenge.value = '';
   const difficulty = document.getElementById('alarm-difficulty');
   if (difficulty) difficulty.value = '';
+  const alarmType = document.getElementById('alarm-type');
+  if (alarmType) alarmType.value = '';
   // Reset snooze
   const snooze = document.getElementById('alarm-snooze');
   if (snooze) snooze.checked = true;
