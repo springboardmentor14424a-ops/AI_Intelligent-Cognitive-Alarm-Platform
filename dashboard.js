@@ -59,14 +59,25 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(alarms => {
         const historyTable = document.querySelector('.data-table tbody');
         if (!historyTable || !alarms.length) return;
-        // Clear static hardcoded rows
         historyTable.innerHTML = '';
         alarms.forEach(alarm => {
           const row = document.createElement('tr');
           row.setAttribute('data-alarm-id', alarm.id);
+
+          // Format time: "06:25:00" → "06:25 AM"
+          const [h, m] = alarm.alarm_time.split(':');
+          const hr = parseInt(h);
+          const ampm = hr >= 12 ? 'PM' : 'AM';
+          const hr12 = hr % 12 || 12;
+          const formattedTime = `${String(hr12).padStart(2,'0')}:${m} ${ampm}`;
+
+          // Format date from created_at
+          const d = new Date(alarm.created_at);
+          const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
           row.innerHTML = `
-            <td>Scheduled</td>
-            <td>${alarm.alarm_time}</td>
+            <td>${dateStr}</td>
+            <td>${formattedTime}</td>
             <td>--</td>
             <td>--</td>
             <td>${alarm.title} · ${alarm.difficulty_level}</td>
@@ -96,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
           historyTable.appendChild(row);
         });
       })
-      .catch(() => {}); // silently fail if backend is off
+      .catch(() => {});
   }
   roleTabs.forEach(tab => {
     tab.addEventListener('click', () => {
@@ -177,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
             title:            document.getElementById('alarm-label').value || 'My Alarm',
             alarm_time:       timeVal,
             alarm_type:       'daily',
-            repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => d.textContent).join(''),
+            repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(',') || 'Never',
             difficulty_level: document.getElementById('alarm-difficulty')?.value || 'medium',
             sound:            'default',
             vibration:        true,
