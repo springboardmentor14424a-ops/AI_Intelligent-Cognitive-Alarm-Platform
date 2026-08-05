@@ -81,6 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${formattedTime}</td>
             <td>${alarm.title}</td>
             <td>${alarm.alarm_type}</td>
+            <td>--</td>
+            <td>--</td>
             <td>${challengeDisplay} · ${alarm.difficulty_level}</td>
             <td><span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
               ${alarm.is_active ? 'Active' : 'Disabled'}
@@ -226,6 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <td>${displayTime}</td>
             <td>${document.getElementById('alarm-label')?.value || 'My Alarm'}</td>
             <td>${document.getElementById('alarm-type')?.value || 'daily'}</td>
+            <td>--</td>
+            <td>--</td>
             <td>${challengeText} · ${diffVal}</td>
             <td><span class="badge badge-success">Active</span></td>
             <td class="kebab-cell">
