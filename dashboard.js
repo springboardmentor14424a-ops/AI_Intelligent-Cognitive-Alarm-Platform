@@ -50,6 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const correctTab   = document.querySelector(`[data-target="${targetPanelId}"]`);
     if (correctPanel) correctPanel.classList.add('active');
     if (correctTab)   correctTab.classList.add('active');
+
+    // Init sidebar for this role
+    const sidebarRole = user.role === 'wellness_coach' ? 'coach' : user.role === 'admin' ? 'admin' : 'user';
+    initSidebar(sidebarRole);
   }
 
   // ── Load alarms from database on page load ───────────────────
@@ -119,16 +123,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (!targetPanel || tab.classList.contains('active')) return;
 
-      // Deactivate current tab and panel
       document.querySelectorAll('.role-tab.active').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.panel-section.active').forEach(p => p.classList.remove('active'));
 
-      // Activate clicked tab
       tab.classList.add('active');
 
-      // Small delay to allow the slide out animation to play out nicely
       setTimeout(() => {
         targetPanel.classList.add('active');
+        // Update sidebar for the switched role
+        const roleMap = { 'user-panel': 'user', 'coach-panel': 'coach', 'admin-panel': 'admin' };
+        const newRole = roleMap[targetPanelId];
+        if (newRole) initSidebar(newRole);
       }, 150);
     });
   });
@@ -612,4 +617,105 @@ function closeAlarmModal(e) {
   // Close only if clicking the overlay background, not the modal itself
   if (e && e.target !== document.getElementById('alarmModalOverlay')) return;
   document.getElementById('alarmModalOverlay').classList.remove('open');
+}
+
+// ── Sidebar ───────────────────────────────────────────────────
+
+function initSidebar(role) {
+  // Hide all sidebars, show the right one
+  document.querySelectorAll('.sidebar-nav').forEach(n => n.style.display = 'none');
+  const nav = document.getElementById(`sidebar-${role}`);
+  if (nav) nav.style.display = 'flex';
+}
+
+function showSubSection(role, sub, btn) {
+  // Update active button
+  const nav = document.getElementById(`sidebar-${role}`);
+  if (nav) nav.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // Show/hide alarm history card for user
+  if (role === 'user') {
+    const historyCard = document.querySelector('.sub-card[data-role="user"][data-sub="alarm-history"]');
+    if (sub === 'alarm-history') {
+      if (historyCard) historyCard.classList.add('sub-visible');
+      // Scroll to it
+      if (historyCard) historyCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      if (historyCard) historyCard.classList.remove('sub-visible');
+    }
+
+    // Show/hide alarm setter card
+    const alarmCard = document.querySelector('.alarm-setter-card');
+    if (alarmCard) alarmCard.style.display = sub === 'my-alarms' ? 'flex' : (sub === 'overview' ? 'flex' : 'none');
+  }
+
+  // For coach — highlight relevant cards
+  if (role === 'coach') {
+    const cardMap = {
+      'overview':  null,
+      'clients':   document.querySelector('#coach-panel .grid-col-span-2'),
+      'habits':    document.querySelector('#coach-panel .habit-chart-list')?.closest('.dashboard-card'),
+      'sleep':     document.querySelector('#coach-panel .line-chart-svg')?.closest('.dashboard-card'),
+    };
+    if (sub !== 'overview' && cardMap[sub]) {
+      cardMap[sub].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // For admin — scroll to relevant card
+  if (role === 'admin') {
+    const cardMap = {
+      'users':           document.querySelector('.user-management'),
+      'analytics':       document.querySelector('.platform-analytics'),
+      'reports':         document.querySelector('.system-reports'),
+      'recommendations': document.querySelector('.recommendation-monitoring'),
+    };
+    if (sub !== 'overview' && cardMap[sub]) {
+      cardMap[sub].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+}
+
+// Init sidebar when panel opens — hook into existing tab switching
+const _origRoleTabClick = document.querySelectorAll('.role-tab');
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.role-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = tab.getAttribute('data-target');
+      const roleMap = { 'user-panel': 'user', 'coach-panel': 'coach', 'admin-panel': 'admin' };
+      const role = roleMap[target];
+      if (role) initSidebar(role);
+    });
+  });
+});
+
+// ── Sidebar navigation ────────────────────────────────────────
+
+function showSubSection(role, sub, btn) {
+  // Highlight active sidebar item
+  const nav = document.getElementById(`sidebar-${role}`);
+  if (nav) {
+    nav.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+  }
+
+  // All sub-cards for this role: hide all, show the clicked one
+  const allSubCards = document.querySelectorAll(`.sub-card[data-role="${role}"]`);
+  allSubCards.forEach(c => c.classList.remove('sub-visible'));
+
+  if (sub !== 'overview') {
+    const target = document.querySelector(`.sub-card[data-role="${role}"][data-sub="${sub}"]`);
+    if (target) target.classList.add('sub-visible');
+  }
+}
+
+function initSidebar(role) {
+  // Hide all sidebars, show the one for this role
+  ['user','coach','admin'].forEach(r => {
+    const nav = document.getElementById(`sidebar-${r}`);
+    if (nav) nav.style.display = r === role ? 'flex' : 'none';
+  });
+  // Default to overview (Dashboard) on role switch
+  showSubSection(role, 'overview', document.querySelector(`#sidebar-${role} .sidebar-item`));
 }

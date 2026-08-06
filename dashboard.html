@@ -64,20 +64,81 @@
 
     <!-- Main Viewport for Role Panels -->
     <main class="dashboard-content">
+      <div class="dashboard-body">
+
+      <!-- ── LEFT SIDEBAR ─────────────────────────────────── -->
+      <aside class="dash-sidebar" id="dashSidebar">
+
+        <!-- USER sidebar -->
+        <nav class="sidebar-nav" id="sidebar-user" style="display:none;">
+          <button class="sidebar-item active" onclick="showSubSection('user','overview',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('user','my-alarms',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            My Alarms
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('user','alarm-history',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            Alarm History
+          </button>
+        </nav>
+
+        <!-- COACH sidebar -->
+        <nav class="sidebar-nav" id="sidebar-coach" style="display:none;">
+          <button class="sidebar-item active" onclick="showSubSection('coach','overview',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('coach','clients',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            My Clients
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('coach','habits',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Habit Analytics
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('coach','sleep',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            Sleep Reports
+          </button>
+        </nav>
+
+        <!-- ADMIN sidebar -->
+        <nav class="sidebar-nav" id="sidebar-admin" style="display:none;">
+          <button class="sidebar-item active" onclick="showSubSection('admin','overview',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('admin','users',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+            User Management
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('admin','analytics',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            Analytics
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('admin','reports',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            System Reports
+          </button>
+          <button class="sidebar-item" onclick="showSubSection('admin','recommendations',this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Recommendations
+          </button>
+        </nav>
+
+      </aside>
+
+      <!-- ── MAIN CONTENT ──────────────────────────────────── -->
+      <div class="dashboard-main">
       
       <!-- ==================== 1. USER PANEL ==================== -->
       <section id="user-panel" class="panel-section">
-        <div class="panel-header-info" style="display:flex;align-items:center;justify-content:space-between;">
-          <div>
-            <h2>User Dashboard</h2>
-            <p>Track your alarm performance, daily habit compliance, and cognitive sharpness.</p>
-          </div>
-          <button class="ac-set-alarm-btn" onclick="openAlarmModal()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            Set Alarm
-          </button>
+        <div class="panel-header-info">
+          <h2>User Dashboard</h2>
+          <p>Track your alarm performance, daily habit compliance, and cognitive sharpness.</p>
         </div>
         
         <div class="dashboard-grid">
@@ -239,8 +300,8 @@
             <p class="chart-footer-text">Average reaction solve time: <strong>14.2s</strong> (improved by 8% this week).</p>
           </div>
 
-          <!-- Card: Alarm History -->
-          <div class="dashboard-card grid-col-span-2">
+          <!-- Card: Alarm History — shown in Alarm History sub-section -->
+          <div class="dashboard-card grid-col-span-2 sub-card" data-role="user" data-sub="alarm-history">
             <h3>Alarm History</h3>
             <div class="table-responsive">
               <table class="data-table">
@@ -571,6 +632,8 @@
         </div>
       </section>
 
+      </div><!-- /.dashboard-main -->
+      </div><!-- /.dashboard-body -->
     </main>
 
   <!-- ── ALARM MODAL (full screen overlay) ─────────────────── -->
