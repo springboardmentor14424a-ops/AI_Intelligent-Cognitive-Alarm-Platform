@@ -156,7 +156,7 @@ async def google_callback(request: Request):
     safe_name = quote(user["full_name"])
 
     return RedirectResponse(
-        url=f"http://127.0.0.1:5500/dashboard.html?token={jwt_token}&name={safe_name}&role={user['role']}"
+        url=f"http://127.0.0.1:5500/dashboard.html?token={jwt_token}&name={safe_name}&role={user['role']}&id={user['id']}"
     )
 
 

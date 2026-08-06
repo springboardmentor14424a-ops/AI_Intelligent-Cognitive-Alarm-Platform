@@ -7,10 +7,10 @@ const urlRole   = urlParams.get('role');
 if (urlToken) {
     localStorage.setItem('token', urlToken);
     localStorage.setItem('user', JSON.stringify({
+        id:        parseInt(urlParams.get('id') || '0'),
         full_name: decodeURIComponent(urlName || ''),
-        role: urlRole || 'user'
+        role:      urlRole || 'user'
     }));
-    // Clean the token out of the URL
     window.history.replaceState({}, document.title, 'dashboard.html');
 }
 
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Load alarms from database on page load ───────────────────
-  if (user && user.id) {
+  if (user && user.id && user.id > 0) {
     fetch(`http://localhost:8000/alarms/${user.id}`)
       .then(res => res.json())
       .then(alarms => {
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id:          user.id || 1,
+            user_id:          user.id,
             title:            document.getElementById('alarm-label').value || 'My Alarm',
             alarm_time:       timeVal,
             alarm_type:       document.getElementById('alarm-type')?.value || 'daily',
