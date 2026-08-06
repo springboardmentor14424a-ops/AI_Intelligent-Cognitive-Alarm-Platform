@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
             repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(',') || 'Never',
             challenge:        document.getElementById('alarm-challenge')?.value || 'math',
             difficulty_level: document.getElementById('alarm-difficulty')?.value || 'medium',
-            sound:            'default',
+            sound:            document.getElementById('alarm-sound')?.value || 'default',
             vibration:        true,
             snooze_enabled:   document.getElementById('alarm-snooze')?.checked ?? true
           })
@@ -579,7 +579,22 @@ function acSelectDate(yr, mo, d) {
 
 // ── Alarm Modal ───────────────────────────────────────────────
 function openAlarmModal() {
-  acReset();
+  // Show selected time from card clock in modal header
+  const timeEl = document.getElementById('modal-time-display');
+  const dateEl = document.getElementById('modal-date-display');
+  if (timeEl) timeEl.textContent = `${acPad(acHour)}:${acPad(acMin)} ${acAMPM}`;
+  if (dateEl) dateEl.textContent = document.getElementById('ac-date-label')?.textContent || 'Today';
+  // Reset form fields
+  const challenge = document.getElementById('alarm-challenge');
+  if (challenge) challenge.value = '';
+  const difficulty = document.getElementById('alarm-difficulty');
+  if (difficulty) difficulty.value = '';
+  const alarmType = document.getElementById('alarm-type');
+  if (alarmType) alarmType.value = '';
+  const label = document.getElementById('alarm-label');
+  if (label) label.value = '';
+  document.querySelectorAll('.ac-day:not(.ac-never)').forEach(d => d.classList.remove('active'));
+  document.getElementById('ac-never')?.classList.remove('active');
   document.getElementById('alarmModalOverlay').classList.add('open');
 }
 
