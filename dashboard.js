@@ -362,7 +362,10 @@ async function deleteAlarm(alarmId, btn) {
 
 // ── Alarm Creator — time picker & day chips ───────────────────
 
-let acHour = 6, acMin = 30, acAMPM = 'AM';
+let acNow = new Date();
+let acHour = acNow.getHours() % 12 || 12;
+let acMin  = acNow.getMinutes();
+let acAMPM = acNow.getHours() >= 12 ? 'PM' : 'AM';
 
 // Init drum display on page load
 window.addEventListener('load', () => { acSyncDrum(); });
@@ -434,7 +437,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function acReset() {
-  acHour = 6; acMin = 30; acAMPM = 'AM';
+  const now = new Date();
+  acHour = now.getHours() % 12 || 12;
+  acMin  = now.getMinutes();
+  acAMPM = now.getHours() >= 12 ? 'PM' : 'AM';
   acSyncDrum();
   // Clear label
   const label = document.getElementById('alarm-label');
