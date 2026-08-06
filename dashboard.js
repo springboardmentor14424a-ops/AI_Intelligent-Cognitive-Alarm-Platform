@@ -207,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
           btnText.textContent = 'Save Alarm';
           saveBtn.style.background = '';
           acReset(); // clear form after save
+          document.getElementById('alarmModalOverlay').classList.remove('open');
         }, 1500);
 
         // Add row to alarm history table
@@ -574,4 +575,16 @@ function acSelectDate(yr, mo, d) {
   document.getElementById('ac-calendar').style.display = 'none';
   // Re-render to show selected state
   acCalDate = new Date(yr, mo, 1);
+}
+
+// ── Alarm Modal ───────────────────────────────────────────────
+function openAlarmModal() {
+  acReset();
+  document.getElementById('alarmModalOverlay').classList.add('open');
+}
+
+function closeAlarmModal(e) {
+  // Close only if clicking the overlay background, not the modal itself
+  if (e && e.target !== document.getElementById('alarmModalOverlay')) return;
+  document.getElementById('alarmModalOverlay').classList.remove('open');
 }

@@ -1255,3 +1255,88 @@ body {
 }
 
 .ac-cal-grid .ac-cal-day.empty { cursor: default; }
+
+/* ── SET ALARM BUTTON ────────────────────────────────────── */
+.ac-set-alarm-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: background 0.2s, transform 0.15s;
+  white-space: nowrap;
+}
+
+.ac-set-alarm-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+/* ── ALARM MODAL ─────────────────────────────────────────── */
+.alarm-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.alarm-modal-overlay.open {
+  display: flex;
+}
+
+.alarm-modal {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 28px 28px 24px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(15,23,42,0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+}
+
+.alarm-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.alarm-modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 8px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.alarm-modal-close:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.alarm-modal .alarm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
