@@ -369,7 +369,17 @@ let acMin  = acNow.getMinutes();
 let acAMPM = acNow.getHours() >= 12 ? 'PM' : 'AM';
 
 // Init drum display on page load
-window.addEventListener('load', () => { acSyncDrum(); });
+window.addEventListener('load', () => {
+  acSyncDrum();
+  // Update clock every minute to stay current
+  setInterval(() => {
+    const now = new Date();
+    acHour = now.getHours() % 12 || 12;
+    acMin  = now.getMinutes();
+    acAMPM = now.getHours() >= 12 ? 'PM' : 'AM';
+    acSyncDrum();
+  }, 60000);
+});
 
 function acPad(n) { return String(n).padStart(2, '0'); }
 
