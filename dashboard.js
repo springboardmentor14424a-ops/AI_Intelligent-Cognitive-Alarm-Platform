@@ -693,20 +693,45 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Sidebar navigation ────────────────────────────────────────
 
 function showSubSection(role, sub, btn) {
-  // Highlight active sidebar item
   const nav = document.getElementById(`sidebar-${role}`);
   if (nav) {
     nav.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
     if (btn) btn.classList.add('active');
   }
 
-  // All sub-cards for this role: hide all, show the clicked one
-  const allSubCards = document.querySelectorAll(`.sub-card[data-role="${role}"]`);
-  allSubCards.forEach(c => c.classList.remove('sub-visible'));
+  const panelMap = { user: 'user-panel', coach: 'coach-panel', admin: 'admin-panel' };
+  const panel = document.getElementById(panelMap[role]);
+  if (!panel) return;
 
-  if (sub !== 'overview') {
-    const target = document.querySelector(`.sub-card[data-role="${role}"][data-sub="${sub}"]`);
-    if (target) target.classList.add('sub-visible');
+  const grid = panel.querySelector('.dashboard-grid');
+  const allSubCards = panel.querySelectorAll('.sub-card');
+
+  if (sub === 'overview') {
+    // Show all regular cards, hide sub-cards
+    if (grid) {
+      grid.querySelectorAll('.dashboard-card:not(.sub-card)').forEach(c => c.style.display = '');
+    }
+    allSubCards.forEach(c => {
+      c.classList.remove('sub-visible');
+      c.style.display = 'none';
+    });
+  } else {
+    // Hide all regular cards
+    if (grid) {
+      grid.querySelectorAll('.dashboard-card:not(.sub-card)').forEach(c => c.style.display = 'none');
+    }
+    // Hide all sub-cards, show the target one
+    allSubCards.forEach(c => {
+      c.classList.remove('sub-visible');
+      c.style.display = 'none';
+    });
+    const target = panel.querySelector(`.sub-card[data-sub="${sub}"]`);
+    if (target) {
+      target.style.display = 'flex';
+      target.classList.add('sub-visible');
+      // Make it span full width
+      target.style.gridColumn = '1 / -1';
+    }
   }
 }
 
