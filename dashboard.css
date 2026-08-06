@@ -1430,3 +1430,456 @@ body {
   .sidebar-nav { flex-direction: row; flex-wrap: wrap; }
   .sidebar-item { width: auto; }
 }
+
+/* ── SIDEBAR REDESIGN ────────────────────────────────────── */
+.sidebar-menu-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0 6px;
+  margin-bottom: 10px;
+}
+
+.sidebar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.sidebar-icon svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--muted);
+}
+
+.sidebar-item.active .sidebar-icon {
+  background: rgba(255,255,255,0.2);
+}
+
+.sidebar-item.active .sidebar-icon svg { stroke: #fff; }
+
+.sidebar-item:hover:not(.active) .sidebar-icon {
+  background: #dbeafe;
+}
+
+.sidebar-item:hover:not(.active) .sidebar-icon svg { stroke: var(--primary); }
+
+.sidebar-badge {
+  margin-left: auto;
+  background: #EF4444;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+
+/* ── PROFILE AT BOTTOM ────────────────────────────────────── */
+.sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #F59E0B;
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.sidebar-viewprofile {
+  font-size: 0.75rem;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.sidebar-viewprofile:hover { text-decoration: underline; }
+
+/* Make sidebar flex column so profile sticks to bottom */
+.dash-sidebar {
+  display: flex !important;
+  flex-direction: column;
+}
+
+/* ── MY ALARMS SECTION ───────────────────────────────────── */
+.my-alarms-container-card {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--card-bg, #ffffff);
+  border-radius: 20px;
+  padding: 28px;
+  border: 1.5px solid var(--border, #e2e8f0);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.04);
+}
+
+.my-alarms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.my-alarms-title {
+  font-family: var(--font-heading);
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: var(--text-dark, #0f172a);
+  margin: 0 0 4px 0;
+  letter-spacing: -0.01em;
+}
+
+.my-alarms-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-muted, #64748b);
+  margin: 0;
+}
+
+.btn-add-alarm-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btn-add-alarm-main:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
+}
+
+/* Filters bar */
+.my-alarms-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.alarm-filter-pill {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 8px 20px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.alarm-filter-pill:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.alarm-filter-pill.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+/* Alarm List */
+.my-alarms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Individual Alarm Card */
+.alarm-card-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 18px 24px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.alarm-card-item:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+.alarm-card-item.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: #2563eb;
+  border-top-left-radius: 16px;
+  border-bottom-left-radius: 16px;
+}
+
+.alarm-card-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+/* Time display */
+.alarm-time-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 140px;
+}
+
+.alarm-time-num {
+  font-family: var(--font-heading);
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.alarm-card-item:not(.is-active) .alarm-time-num {
+  color: #94a3b8;
+}
+
+.alarm-time-period {
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.alarm-card-item:not(.is-active) .alarm-time-period {
+  color: #cbd5e1;
+}
+
+/* Details block */
+.alarm-details-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alarm-item-title {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.alarm-card-item:not(.is-active) .alarm-item-title {
+  color: #64748b;
+}
+
+/* Days row */
+.alarm-days-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.day-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.day-circle.active {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+/* Badges row */
+.alarm-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.badge-challenge {
+  background: #fef9c3;
+  color: #b45309;
+}
+
+.badge-challenge-none {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.badge-sound {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* Controls right */
+.alarm-card-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-icon-box svg {
+  width: 17px;
+  height: 17px;
+}
+
+.btn-icon-box:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.btn-icon-box.btn-delete:hover {
+  background: #fef2f2;
+  color: #ef4444;
+  border-color: #fca5a5;
+}
+
+/* Switch toggle */
+.alarm-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+
+.alarm-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.alarm-switch-slider {
+  position: absolute;
+  inset: 0;
+  background-color: #cbd5e1;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.25s ease;
+}
+
+.alarm-switch-slider::before {
+  content: "";
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: transform 0.25s ease;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+}
+
+.alarm-switch input:checked + .alarm-switch-slider {
+  background-color: #2563eb;
+}
+
+.alarm-switch input:checked + .alarm-switch-slider::before {
+  transform: translateX(22px);
+}
+
+@media (max-width: 680px) {
+  .alarm-card-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .alarm-card-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .alarm-card-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
+

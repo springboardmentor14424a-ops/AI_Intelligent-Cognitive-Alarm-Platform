@@ -27,6 +27,25 @@ function signOut() {
     window.location.href = 'index.html';
 }
 
+function switchRole(roleTarget) {
+  const panelMap = { 'user': 'user-panel', 'coach': 'coach-panel', 'admin': 'admin-panel' };
+  const targetPanelId = panelMap[roleTarget] || roleTarget;
+  const targetPanel = document.getElementById(targetPanelId);
+
+  if (!targetPanel) return;
+
+  document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel-section').forEach(p => p.classList.remove('active'));
+
+  const activeTab = document.querySelector(`[data-target="${targetPanelId}"]`);
+  if (activeTab) activeTab.classList.add('active');
+  targetPanel.classList.add('active');
+
+  const roleNameMap = { 'user-panel': 'user', 'coach-panel': 'coach', 'admin-panel': 'admin' };
+  const role = roleNameMap[targetPanelId] || roleTarget;
+  if (typeof initSidebar === 'function') initSidebar(role);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const roleTabs = document.querySelectorAll('.role-tab');
 
@@ -35,6 +54,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Display the logged-in user's name in the header if element exists
     const userNameEl = document.getElementById('loggedInUser');
     if (userNameEl) userNameEl.textContent = user.full_name;
+
+    // Update sidebar profile
+    const sidebarName = document.getElementById('sidebar-username');
+    const sidebarAvatar = document.getElementById('sidebar-avatar');
+    if (sidebarName) sidebarName.textContent = user.full_name || 'User';
+    if (sidebarAvatar) {
+      const parts = (user.full_name || 'U').split(' ');
+      sidebarAvatar.textContent = parts.map(p => p[0]).join('').substring(0, 2).toUpperCase();
+    }
 
     // Auto-open the panel that matches the user's role
     let targetPanelId = 'user-panel'; // default
@@ -62,7 +90,14 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(res => res.json())
       .then(alarms => {
         const historyTable = document.querySelector('.data-table tbody');
+        if (alarms && alarms.length) {
+          myAlarmsList = alarms;
+          if (typeof renderMyAlarms === 'function') renderMyAlarms();
+        }
         if (!historyTable || !alarms.length) return;
+        // Update alarm count badge
+        const badge = document.getElementById('alarm-count-badge');
+        if (badge) badge.textContent = alarms.length;
         historyTable.innerHTML = '';
         alarms.forEach(alarm => {
           const row = document.createElement('tr');
@@ -96,14 +131,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span></span><span></span><span></span>
               </button>
               <div class="kebab-menu">
-                <button onclick="editAlarm(${alarm.id},'${alarm.alarm_time}','${alarm.title}',true);closeKebab()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Edit
-                </button>
-                <button onclick="toggleAlarm(${alarm.id},this);closeKebab()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                  ${alarm.is_active ? 'Disable' : 'Enable'}
-                </button>
                 <button class="kebab-danger" onclick="deleteAlarm(${alarm.id},this);closeKebab()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                   Remove
@@ -121,20 +148,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const targetPanelId = tab.getAttribute('data-target');
       const targetPanel = document.getElementById(targetPanelId);
 
-      if (!targetPanel || tab.classList.contains('active')) return;
+      if (!targetPanel) return;
 
-      document.querySelectorAll('.role-tab.active').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.panel-section.active').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.role-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel-section').forEach(p => p.classList.remove('active'));
 
       tab.classList.add('active');
+      targetPanel.classList.add('active');
 
-      setTimeout(() => {
-        targetPanel.classList.add('active');
-        // Update sidebar for the switched role
-        const roleMap = { 'user-panel': 'user', 'coach-panel': 'coach', 'admin-panel': 'admin' };
-        const newRole = roleMap[targetPanelId];
-        if (newRole) initSidebar(newRole);
-      }, 150);
+      // Update sidebar for the switched role
+      const roleMap = { 'user-panel': 'user', 'coach-panel': 'coach', 'admin-panel': 'admin' };
+      const newRole = roleMap[targetPanelId];
+      if (newRole) initSidebar(newRole);
     });
   });
 
@@ -243,14 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 <span></span><span></span><span></span>
               </button>
               <div class="kebab-menu">
-                <button onclick="editAlarm(${alarm.id},'${timeVal}','${document.getElementById('alarm-challenge').value}',true);closeKebab()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                  Edit
-                </button>
-                <button onclick="toggleAlarm(${alarm.id},this);closeKebab()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-                  Disable
-                </button>
                 <button class="kebab-danger" onclick="deleteAlarm(${alarm.id},this);closeKebab()">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                   Remove
@@ -259,6 +276,20 @@ document.addEventListener('DOMContentLoaded', () => {
             </td>
           `;
           historyTable.insertBefore(newRow, historyTable.firstChild);
+        }
+
+        // Add to My Alarms list view
+        if (typeof myAlarmsList !== 'undefined') {
+          myAlarmsList.unshift({
+            id: alarm.id || Date.now(),
+            title: document.getElementById('alarm-label')?.value || 'My Alarm',
+            alarm_time: timeVal,
+            repeat_days: [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(','),
+            challenge: document.getElementById('alarm-challenge')?.value || 'math',
+            sound: document.getElementById('alarm-sound')?.value || 'chime',
+            is_active: true
+          });
+          if (typeof renderMyAlarms === 'function') renderMyAlarms();
         }
 
       } catch (err) {
@@ -621,76 +652,21 @@ function closeAlarmModal(e) {
 
 // ── Sidebar ───────────────────────────────────────────────────
 
-function initSidebar(role) {
-  // Hide all sidebars, show the right one
-  document.querySelectorAll('.sidebar-nav').forEach(n => n.style.display = 'none');
-  const nav = document.getElementById(`sidebar-${role}`);
-  if (nav) nav.style.display = 'flex';
-}
-
-function showSubSection(role, sub, btn) {
-  // Update active button
-  const nav = document.getElementById(`sidebar-${role}`);
-  if (nav) nav.querySelectorAll('.sidebar-item').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-
-  // Show/hide alarm history card for user
-  if (role === 'user') {
-    const historyCard = document.querySelector('.sub-card[data-role="user"][data-sub="alarm-history"]');
-    if (sub === 'alarm-history') {
-      if (historyCard) historyCard.classList.add('sub-visible');
-      // Scroll to it
-      if (historyCard) historyCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      if (historyCard) historyCard.classList.remove('sub-visible');
-    }
-
-    // Show/hide alarm setter card
-    const alarmCard = document.querySelector('.alarm-setter-card');
-    if (alarmCard) alarmCard.style.display = sub === 'my-alarms' ? 'flex' : (sub === 'overview' ? 'flex' : 'none');
-  }
-
-  // For coach — highlight relevant cards
-  if (role === 'coach') {
-    const cardMap = {
-      'overview':  null,
-      'clients':   document.querySelector('#coach-panel .grid-col-span-2'),
-      'habits':    document.querySelector('#coach-panel .habit-chart-list')?.closest('.dashboard-card'),
-      'sleep':     document.querySelector('#coach-panel .line-chart-svg')?.closest('.dashboard-card'),
-    };
-    if (sub !== 'overview' && cardMap[sub]) {
-      cardMap[sub].scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
-
-  // For admin — scroll to relevant card
-  if (role === 'admin') {
-    const cardMap = {
-      'users':           document.querySelector('.user-management'),
-      'analytics':       document.querySelector('.platform-analytics'),
-      'reports':         document.querySelector('.system-reports'),
-      'recommendations': document.querySelector('.recommendation-monitoring'),
-    };
-    if (sub !== 'overview' && cardMap[sub]) {
-      cardMap[sub].scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }
-}
-
-// Init sidebar when panel opens — hook into existing tab switching
-const _origRoleTabClick = document.querySelectorAll('.role-tab');
-document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.role-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      const target = tab.getAttribute('data-target');
-      const roleMap = { 'user-panel': 'user', 'coach-panel': 'coach', 'admin-panel': 'admin' };
-      const role = roleMap[target];
-      if (role) initSidebar(role);
-    });
-  });
-});
-
 // ── Sidebar navigation ────────────────────────────────────────
+
+function initSidebar(role) {
+  // Hide all sidebars, show the one for this role
+  ['user','coach','admin'].forEach(r => {
+    const nav = document.getElementById(`sidebar-${r}`);
+    if (nav) nav.style.display = r === role ? 'flex' : 'none';
+  });
+  // Default to overview (Dashboard) on role switch
+  const activeNav = document.getElementById(`sidebar-${role}`);
+  if (activeNav) {
+    const firstItem = activeNav.querySelector('.sidebar-item');
+    if (firstItem) showSubSection(role, 'overview', firstItem);
+  }
+}
 
 function showSubSection(role, sub, btn) {
   const nav = document.getElementById(`sidebar-${role}`);
@@ -707,7 +683,6 @@ function showSubSection(role, sub, btn) {
   const allSubCards = panel.querySelectorAll('.sub-card');
 
   if (sub === 'overview') {
-    // Show all regular cards, hide sub-cards
     if (grid) {
       grid.querySelectorAll('.dashboard-card:not(.sub-card)').forEach(c => c.style.display = '');
     }
@@ -716,11 +691,9 @@ function showSubSection(role, sub, btn) {
       c.style.display = 'none';
     });
   } else {
-    // Hide all regular cards
     if (grid) {
       grid.querySelectorAll('.dashboard-card:not(.sub-card)').forEach(c => c.style.display = 'none');
     }
-    // Hide all sub-cards, show the target one
     allSubCards.forEach(c => {
       c.classList.remove('sub-visible');
       c.style.display = 'none';
@@ -729,18 +702,298 @@ function showSubSection(role, sub, btn) {
     if (target) {
       target.style.display = 'flex';
       target.classList.add('sub-visible');
-      // Make it span full width
       target.style.gridColumn = '1 / -1';
     }
   }
 }
 
-function initSidebar(role) {
-  // Hide all sidebars, show the one for this role
-  ['user','coach','admin'].forEach(r => {
-    const nav = document.getElementById(`sidebar-${r}`);
-    if (nav) nav.style.display = r === role ? 'flex' : 'none';
-  });
-  // Default to overview (Dashboard) on role switch
-  showSubSection(role, 'overview', document.querySelector(`#sidebar-${role} .sidebar-item`));
+// ════════════════════════════════════════════════════════════
+//  MY ALARMS LOGIC & RENDERING
+// ════════════════════════════════════════════════════════════
+
+let initialSampleAlarms = [
+  {
+    id: 1,
+    title: "Morning Wake-up",
+    alarm_time: "06:30",
+    repeat_days: "Mon,Tue,Wed,Thu,Fri",
+    challenge: "math",
+    sound: "chime",
+    is_active: true
+  },
+  {
+    id: 2,
+    title: "Workout Reminder",
+    alarm_time: "07:15",
+    repeat_days: "Tue,Thu,Sat",
+    challenge: "shake",
+    sound: "energetic",
+    is_active: true
+  },
+  {
+    id: 3,
+    title: "Wind-down Reminder",
+    alarm_time: "21:00",
+    repeat_days: "",
+    challenge: "none",
+    sound: "bell",
+    is_active: false
+  },
+  {
+    id: 4,
+    title: "Weekend Light Wake",
+    alarm_time: "06:00",
+    repeat_days: "Sat,Sun",
+    challenge: "qr",
+    sound: "nature",
+    is_active: true
+  }
+];
+
+let myAlarmsList = [...initialSampleAlarms];
+let currentAlarmFilter = 'all';
+
+function formatAlarmTime(timeStr) {
+  if (!timeStr) return { num: '00:00', period: 'AM' };
+  const [h, m] = timeStr.split(':');
+  let hour = parseInt(h, 10);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  hour = hour % 12;
+  hour = hour ? hour : 12;
+  const num = `${String(hour).padStart(2, '0')}:${m || '00'}`;
+  return { num, period };
 }
+
+function getChallengeBadge(challenge) {
+  const map = {
+    math: { icon: '', label: 'Math Puzzle', class: 'badge-challenge' },
+    shake: { icon: '', label: 'Shake to Dismiss', class: 'badge-challenge' },
+    none: { icon: '', label: 'No Challenge', class: 'badge-challenge-none' },
+    qr: { icon: '', label: 'QR Scan', class: 'badge-challenge' },
+    logic: { icon: '', label: 'Logic Puzzle', class: 'badge-challenge' },
+    memory: { icon: '', label: 'Memory Game', class: 'badge-challenge' },
+    word: { icon: '', label: 'Word Game', class: 'badge-challenge' }
+  };
+  return map[challenge] || { icon: '', label: challenge || 'Challenge', class: 'badge-challenge' };
+}
+
+function getSoundBadge(sound) {
+  const map = {
+    chime: { icon: '', label: 'Chime' },
+    energetic: { icon: '', label: 'Energetic' },
+    bell: { icon: '', label: 'Soft Bell' },
+    nature: { icon: '', label: 'Nature Sounds' },
+    default: { icon: '', label: 'Default Sound' },
+    beep: { icon: '', label: 'Beep' },
+    digital: { icon: '', label: 'Digital Sound' }
+  };
+  return map[sound] || { icon: '', label: sound || 'Default' };
+}
+
+function renderAlarmHistoryTable() {
+  const historyTable = document.querySelector('.data-table tbody');
+  if (!historyTable) return;
+
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+  historyTable.innerHTML = myAlarmsList.map(alarm => {
+    const timeObj = formatAlarmTime(alarm.alarm_time);
+    const formattedTime = `${timeObj.num} ${timeObj.period}`;
+    const chal = getChallengeBadge(alarm.challenge);
+    const diff = alarm.difficulty_level || 'medium';
+    const type = alarm.alarm_type || (alarm.repeat_days ? 'daily' : 'one-time');
+
+    return `
+      <tr data-alarm-id="${alarm.id}">
+        <td>${today}</td>
+        <td>${formattedTime}</td>
+        <td>${alarm.title || 'My Alarm'}</td>
+        <td style="text-transform:capitalize;">${type}</td>
+        <td>--</td>
+        <td>--</td>
+        <td>${chal.label} · ${diff}</td>
+        <td>
+          <span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
+            ${alarm.is_active ? 'Active' : 'Disabled'}
+          </span>
+        </td>
+        <td class="kebab-cell">
+          <button type="button" class="kebab-btn" onclick="toggleKebab(this)">
+            <span></span><span></span><span></span>
+          </button>
+          <div class="kebab-menu">
+            <button type="button" class="kebab-danger" onclick="deleteMyAlarmCard(${alarm.id});closeKebab()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+              Remove
+            </button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function renderMyAlarms(filter = currentAlarmFilter) {
+  currentAlarmFilter = filter;
+  const container = document.getElementById('my-alarms-list');
+  const countBadge = document.getElementById('filter-count-all');
+  const navBadge = document.getElementById('alarm-count-badge');
+
+  if (countBadge) countBadge.textContent = myAlarmsList.length;
+  if (navBadge) navBadge.textContent = myAlarmsList.length;
+
+  renderAlarmHistoryTable();
+
+  if (!container) return;
+
+  // Filter alarms
+  let filtered = myAlarmsList;
+  if (filter === 'active') {
+    filtered = myAlarmsList.filter(a => a.is_active);
+  } else if (filter === 'weekdays') {
+    filtered = myAlarmsList.filter(a => {
+      const days = a.repeat_days || '';
+      return days.includes('Mon') || days.includes('Tue') || days.includes('Wed') || days.includes('Thu') || days.includes('Fri');
+    });
+  } else if (filter === 'weekends') {
+    filtered = myAlarmsList.filter(a => {
+      const days = a.repeat_days || '';
+      return days.includes('Sat') || days.includes('Sun');
+    });
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);">No alarms found in this category.</div>`;
+    return;
+  }
+
+  const daysMap = [
+    { short: 'M', key: 'Mon' },
+    { short: 'T', key: 'Tue' },
+    { short: 'W', key: 'Wed' },
+    { short: 'T', key: 'Thu' },
+    { short: 'F', key: 'Fri' },
+    { short: 'S', key: 'Sat' },
+    { short: 'S', key: 'Sun' }
+  ];
+
+  container.innerHTML = filtered.map(alarm => {
+    const timeObj = formatAlarmTime(alarm.alarm_time);
+    const chal = getChallengeBadge(alarm.challenge);
+    const snd = getSoundBadge(alarm.sound);
+    const repDays = alarm.repeat_days || '';
+
+    const daysHtml = daysMap.map(d => {
+      const active = repDays.includes(d.key);
+      return `<span class="day-circle ${active ? 'active' : ''}">${d.short}</span>`;
+    }).join('');
+
+    return `
+      <div class="alarm-card-item ${alarm.is_active ? 'is-active' : ''}" data-alarm-id="${alarm.id}">
+        <div class="alarm-card-left">
+          <div class="alarm-time-display">
+            <span class="alarm-time-num">${timeObj.num}</span>
+            <span class="alarm-time-period">${timeObj.period}</span>
+          </div>
+
+          <div class="alarm-details-block">
+            <div class="alarm-item-title">${alarm.title || 'Alarm'}</div>
+            
+            <div class="alarm-days-row">
+              ${daysHtml}
+            </div>
+
+            <div class="alarm-badges-row">
+              <span class="badge-pill ${chal.class}">
+                ${chal.label}
+              </span>
+              <span class="badge-pill badge-sound">
+                ${snd.label}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="alarm-card-controls">
+          <button type="button" class="btn-icon-box" onclick="editMyAlarmCard(${alarm.id})" title="Edit Alarm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+
+          <button type="button" class="btn-icon-box btn-delete" onclick="deleteMyAlarmCard(${alarm.id})" title="Delete Alarm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+              <path d="M10 11v6"></path>
+              <path d="M14 11v6"></path>
+              <path d="M9 6V4h6v2"></path>
+            </svg>
+          </button>
+
+          <label class="alarm-switch">
+            <input type="checkbox" ${alarm.is_active ? 'checked' : ''} onchange="toggleMyAlarmCard(${alarm.id}, this)">
+            <span class="alarm-switch-slider"></span>
+          </label>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterAlarms(filter, pillBtn) {
+  document.querySelectorAll('.alarm-filter-pill').forEach(b => b.classList.remove('active'));
+  if (pillBtn) pillBtn.classList.add('active');
+  renderMyAlarms(filter);
+}
+
+function toggleMyAlarmCard(id, checkbox) {
+  const item = myAlarmsList.find(a => a.id === id);
+  if (item) {
+    item.is_active = checkbox.checked;
+    fetch(`http://localhost:8000/alarms/${id}/toggle`, { method: 'PATCH' }).catch(() => {});
+    renderMyAlarms();
+  }
+}
+
+function deleteMyAlarmCard(id) {
+  if (!confirm('Are you sure you want to delete this alarm?')) return;
+  myAlarmsList = myAlarmsList.filter(a => a.id !== id);
+  fetch(`http://localhost:8000/alarms/${id}`, { method: 'DELETE' }).catch(() => {});
+  renderMyAlarms();
+}
+
+function editMyAlarmCard(id) {
+  const item = myAlarmsList.find(a => a.id === id);
+  if (!item) return;
+  const newTitle = prompt('Update Alarm Title:', item.title);
+  if (newTitle === null) return;
+  const newTime = prompt('Update Alarm Time (HH:MM, e.g. 07:30):', item.alarm_time);
+  if (newTime === null) return;
+
+  item.title = newTitle || item.title;
+  item.alarm_time = newTime || item.alarm_time;
+
+  fetch(`http://localhost:8000/alarms/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: item.title,
+      alarm_time: item.alarm_time,
+      alarm_type: 'daily',
+      repeat_days: item.repeat_days || 'Mon,Tue,Wed,Thu,Fri',
+      difficulty_level: 'medium',
+      sound: item.sound || 'chime',
+      vibration: true,
+      snooze_enabled: true
+    })
+  }).catch(() => {});
+
+  renderMyAlarms();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderMyAlarms();
+});
+
