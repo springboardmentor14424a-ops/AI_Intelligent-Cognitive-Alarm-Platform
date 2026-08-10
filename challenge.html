@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cognitive Alarm — Wake Up Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary:      #1E88E5;
+      --primary-dark: #1565C0;
+      --bg:           #F4F8FC;
+      --card:         #ffffff;
+      --ink:          #1F2937;
+      --muted:        #6B7280;
+      --border:       #E5E7EB;
+      --success:      #22C55E;
+      --danger:       #EF4444;
+      --warning:      #F59E0B;
+      --shadow:       0 10px 30px rgba(15,23,42,0.08);
+      --font-h:       'Poppins', sans-serif;
+      --font-b:       'Inter', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-b);
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    /* ── Card ── */
+    .challenge-card {
+      background: var(--card);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 520px;
+      overflow: hidden;
+    }
+
+    /* ── Top banner ── */
+    .alarm-banner {
+      background: linear-gradient(135deg, #0d2a63, #1552c9);
+      color: #fff;
+      padding: 20px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .alarm-banner .alarm-info h2 {
+      font-family: var(--font-h);
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .alarm-banner .alarm-info p {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.7);
+      margin-top: 2px;
+    }
+
+    .alarm-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ── Timer bar ── */
+    .timer-wrap {
+      padding: 0 28px;
+      margin-top: 20px;
+    }
+
+    .timer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .timer-label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .timer-count {
+      font-family: var(--font-h);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .timer-count.warning { color: var(--warning); }
+    .timer-count.danger  { color: var(--danger);  }
+
+    .timer-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .timer-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 1s linear, background 0.3s;
+    }
+
+    .timer-fill.warning { background: var(--warning); }
+    .timer-fill.danger  { background: var(--danger);  }
+
+    /* ── Challenge body ── */
+    .challenge-body {
+      padding: 24px 28px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .challenge-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .badge-type {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: #E3F2FD;
+      color: var(--primary-dark);
+    }
+
+    .badge-diff {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .badge-diff.easy   { background: #dcfce7; color: #166534; }
+    .badge-diff.medium { background: #fef9c3; color: #854d0e; }
+    .badge-diff.hard   { background: #fee2e2; color: #991b1b; }
+
+    .challenge-title {
+      font-family: var(--font-h);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .challenge-instructions {
+      font-size: 0.85rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .challenge-question {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      font-family: var(--font-h);
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    /* ── Multiple choice ── */
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .opt-btn {
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      font-family: var(--font-b);
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--ink);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+    }
+
+    .opt-btn:hover  { border-color: var(--primary); background: #EDF6FF; color: var(--primary); }
+    .opt-btn.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .opt-btn.correct  { border-color: var(--success); background: #dcfce7; color: #166534; }
+    .opt-btn.wrong    { border-color: var(--danger);  background: #fee2e2; color: #991b1b; }
+
+    /* ── Text input ── */
+    .answer-input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      font-family: var(--font-b);
+      font-size: 1rem;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.2s;
+      text-align: center;
+    }
+
+    .answer-input:focus {
+      border-color: var(--primary);
+      background: var(--card);
+      box-shadow: 0 0 0 3px rgba(30,136,229,0.1);
+    }
+
+    /* ── Hint ── */
+    .hint-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: #FFF8E1;
+      border: 1px solid #F59E0B44;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 0.82rem;
+      color: #78350f;
+      display: none;
+    }
+
+    /* ── Result message ── */
+    .result-msg {
+      display: none;
+      padding: 14px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .result-msg.success { background: #dcfce7; color: #166534; }
+    .result-msg.fail    { background: #fee2e2; color: #991b1b; }
+
+    /* ── Buttons ── */
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 10px;
+    }
+
+    .btn-hint, .btn-snooze {
+      padding: 11px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: var(--card);
+      font-family: var(--font-b);
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-hint:hover   { border-color: var(--warning); color: var(--warning); }
+    .btn-snooze:hover { border-color: var(--primary); color: var(--primary); }
+
+    .btn-submit {
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-family: var(--font-b);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      box-shadow: var(--shadow);
+    }
+
+    .btn-submit:hover    { background: var(--primary-dark); transform: translateY(-1px); }
+    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-next {
+      display: none;
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      border: none;
+      background: var(--success);
+      color: #fff;
+      font-family: var(--font-b);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-next:hover { background: #16a34a; }
+
+    /* ── Score ── */
+    .score-row {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .score-val {
+      font-family: var(--font-h);
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1rem;
+    }
+
+    /* loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+
+<div class="challenge-card">
+
+  <!-- Top banner -->
+  <div class="alarm-banner">
+    <div class="alarm-info">
+      <h2 id="alarmTimeDisplay">⏰ 06:30 AM</h2>
+      <p id="alarmLabel">Morning Alarm — Solve the challenge to dismiss</p>
+    </div>
+    <div class="alarm-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" width="26" height="26" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Timer bar -->
+  <div class="timer-wrap">
+    <div class="timer-row">
+      <span class="timer-label">Time Remaining</span>
+      <span class="timer-count" id="timerCount">45s</span>
+    </div>
+    <div class="timer-bar">
+      <div class="timer-fill" id="timerFill" style="width:100%"></div>
+    </div>
+  </div>
+
+  <!-- Challenge content -->
+  <div class="challenge-body" id="challengeBody">
+    <div class="loading">Loading your challenge...</div>
+  </div>
+
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+
+// ── Read URL params ──────────────────────────────────────────
+const params      = new URLSearchParams(window.location.search);
+const alarmId     = params.get('alarm_id') || '0';
+const challengeType = params.get('type') || 'math';
+const difficulty  = params.get('difficulty') || 'medium';
+const alarmTime   = params.get('time') || '';
+const alarmLabel  = params.get('label') || 'Morning Alarm';
+
+// Show alarm info
+if (alarmTime) document.getElementById('alarmTimeDisplay').textContent = '⏰ ' + alarmTime;
+document.getElementById('alarmLabel').textContent = alarmLabel + ' — Solve the challenge to dismiss';
+
+// ── State ────────────────────────────────────────────────────
+let currentChallenge = null;
+let selectedOption   = null;
+let timerInterval    = null;
+let timeLeft         = 45;
+let totalTime        = 45;
+let startTime        = Date.now();
+let score            = 0;
+let attempts         = 0;
+
+// ── Load challenge from API ──────────────────────────────────
+async function loadChallenge() {
+  document.getElementById('challengeBody').innerHTML = '<div class="loading">Loading your challenge...</div>';
+  try {
+    const res  = await fetch(`${API}/challenges/generate?type=${challengeType}&difficulty=${difficulty}`);
+    const data = await res.json();
+    currentChallenge = data;
+    selectedOption   = null;
+    renderChallenge(data);
+    startTimer(data.time_limit || 45);
+  } catch (err) {
+    document.getElementById('challengeBody').innerHTML =
+      '<div class="loading">Could not load challenge. Make sure the backend is running.</div>';
+  }
+}
+
+// ── Render challenge ─────────────────────────────────────────
+function renderChallenge(c) {
+  const diffClass = c.difficulty;
+  const diffLabel = c.difficulty.charAt(0).toUpperCase() + c.difficulty.slice(1);
+
+  let answerHtml = '';
+  if (c.input_type === 'choice' && c.options && c.options.length) {
+    answerHtml = `<div class="options-grid" id="optionsGrid">
+      ${c.options.map(o => `<button class="opt-btn" onclick="selectOption(this,'${o}')">${o}</button>`).join('')}
+    </div>`;
+  } else {
+    answerHtml = `<input type="text" class="answer-input" id="answerInput"
+      placeholder="Type your answer here..." autocomplete="off"
+      onkeydown="if(event.key==='Enter') submitAnswer()">`;
+  }
+
+  document.getElementById('challengeBody').innerHTML = `
+    <div class="challenge-meta">
+      <span class="badge-type">${c.title}</span>
+      <span class="badge-diff ${diffClass}">${diffLabel}</span>
+    </div>
+    <div>
+      <div class="challenge-title">${c.title}</div>
+      <div class="challenge-instructions">${c.instructions}</div>
+    </div>
+    <div class="challenge-question">${c.question}</div>
+    ${answerHtml}
+    <div class="hint-box" id="hintBox">💡 ${c.hint || ''}</div>
+    <div class="result-msg" id="resultMsg"></div>
+    <div class="action-row">
+      <button class="btn-hint" onclick="showHint()">💡 Hint</button>
+      <button class="btn-snooze" onclick="snooze()">😴 Snooze</button>
+      <button class="btn-submit" id="submitBtn" onclick="submitAnswer()">Submit Answer</button>
+    </div>
+    <button class="btn-next" id="nextBtn" onclick="loadChallenge()">Try Another Challenge →</button>
+    <div class="score-row">Score: <span class="score-val" id="scoreDisplay">${score}</span></div>
+  `;
+
+  startTime = Date.now();
+}
+
+// ── Option selection ─────────────────────────────────────────
+function selectOption(btn, val) {
+  document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedOption = val;
+}
+
+// ── Submit answer ────────────────────────────────────────────
+async function submitAnswer() {
+  if (!currentChallenge) return;
+
+  const submitBtn = document.getElementById('submitBtn');
+  const resultMsg = document.getElementById('resultMsg');
+  const nextBtn   = document.getElementById('nextBtn');
+  submitBtn.disabled = true;
+
+  let userAnswer = '';
+  if (currentChallenge.input_type === 'choice') {
+    userAnswer = selectedOption || '';
+    if (!userAnswer) {
+      submitBtn.disabled = false;
+      resultMsg.style.display = 'block';
+      resultMsg.className = 'result-msg fail';
+      resultMsg.textContent = 'Please select an option first.';
+      return;
+    }
+  } else {
+    const inp = document.getElementById('answerInput');
+    userAnswer = inp ? inp.value.trim() : '';
+    if (!userAnswer) {
+      submitBtn.disabled = false;
+      resultMsg.style.display = 'block';
+      resultMsg.className = 'result-msg fail';
+      resultMsg.textContent = 'Please enter your answer.';
+      return;
+    }
+  }
+
+  const timeTaken = (Date.now() - startTime) / 1000;
+  stopTimer();
+  attempts++;
+
+  try {
+    const res = await fetch(`${API}/challenges/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        challenge_id:       currentChallenge.challenge_id,
+        answer_key:         currentChallenge.answer_key,
+        user_answer:        userAnswer,
+        time_taken_seconds: timeTaken
+      })
+    });
+    const data = await res.json();
+
+    resultMsg.style.display = 'block';
+    score += data.score || 0;
+    const scoreEl = document.getElementById('scoreDisplay');
+    if (scoreEl) scoreEl.textContent = score;
+
+    if (data.success) {
+      resultMsg.className = 'result-msg success';
+      resultMsg.textContent = data.message;
+      // Mark correct option
+      document.querySelectorAll('.opt-btn').forEach(b => {
+        if (b.textContent.trim() === currentChallenge.answer_key) b.classList.add('correct');
+      });
+      nextBtn.style.display = 'block';
+      nextBtn.textContent   = '✅ Alarm Dismissed — Back to Dashboard';
+      nextBtn.onclick = () => { window.location.href = 'dashboard.html'; };
+    } else {
+      resultMsg.className = 'result-msg fail';
+      resultMsg.textContent = data.message;
+      // Mark wrong/correct options
+      document.querySelectorAll('.opt-btn').forEach(b => {
+        const t = b.textContent.trim();
+        if (t === currentChallenge.answer_key) b.classList.add('correct');
+        else if (t === userAnswer)             b.classList.add('wrong');
+      });
+      nextBtn.style.display = 'block';
+      nextBtn.textContent   = '🔄 Try Another Challenge';
+      nextBtn.onclick = loadChallenge;
+      submitBtn.disabled = false;
+    }
+  } catch (err) {
+    resultMsg.style.display = 'block';
+    resultMsg.className = 'result-msg fail';
+    resultMsg.textContent = 'Cannot connect to server.';
+    submitBtn.disabled = false;
+  }
+}
+
+// ── Hint ─────────────────────────────────────────────────────
+function showHint() {
+  const h = document.getElementById('hintBox');
+  if (h) h.style.display = h.style.display === 'flex' ? 'none' : 'flex';
+}
+
+// ── Snooze ───────────────────────────────────────────────────
+function snooze() {
+  if (confirm('Snooze for 5 minutes? The alarm will remind you again.')) {
+    stopTimer();
+    document.getElementById('challengeBody').innerHTML = `
+      <div class="loading">😴 Snoozed! Returning to dashboard...<br><br>
+      <small>Your alarm will fire again in 5 minutes.</small></div>`;
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
+  }
+}
+
+// ── Timer ────────────────────────────────────────────────────
+function startTimer(seconds) {
+  stopTimer();
+  timeLeft  = seconds;
+  totalTime = seconds;
+  updateTimerUI();
+
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimerUI();
+    if (timeLeft <= 0) {
+      stopTimer();
+      timeExpired();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+}
+
+function updateTimerUI() {
+  const countEl = document.getElementById('timerCount');
+  const fillEl  = document.getElementById('timerFill');
+  if (!countEl || !fillEl) return;
+
+  const pct = (timeLeft / totalTime) * 100;
+  countEl.textContent = timeLeft + 's';
+  fillEl.style.width  = pct + '%';
+
+  const cls = timeLeft <= 10 ? 'danger' : timeLeft <= 20 ? 'warning' : '';
+  countEl.className = 'timer-count ' + cls;
+  fillEl.className  = 'timer-fill '  + cls;
+}
+
+function timeExpired() {
+  const resultMsg = document.getElementById('resultMsg');
+  const nextBtn   = document.getElementById('nextBtn');
+  const submitBtn = document.getElementById('submitBtn');
+  if (resultMsg) {
+    resultMsg.style.display = 'block';
+    resultMsg.className = 'result-msg fail';
+    resultMsg.textContent = '⏰ Time\'s up! The correct answer was: ' + (currentChallenge?.answer_key || '');
+  }
+  if (submitBtn) submitBtn.disabled = true;
+  if (nextBtn) {
+    nextBtn.style.display = 'block';
+    nextBtn.textContent   = '🔄 Try Another Challenge';
+    nextBtn.onclick = loadChallenge;
+  }
+}
+
+// ── Init ─────────────────────────────────────────────────────
+loadChallenge();
+</script>
+</body>
+</html>

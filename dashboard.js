@@ -199,102 +199,143 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 4. ALARM SETTER FORM SUBMISSION — wired to backend
+  // 4. ALARM SETTER FORM SUBMISSION — wired to backend + offline fallback
   const alarmForm = document.getElementById('alarm-setter-form');
   if (alarmForm) {
     alarmForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const timeVal      = document.getElementById('alarm-time').value;
-      const challengeVal = document.getElementById('alarm-challenge').value;
-      const repeatVal    = [...document.querySelectorAll('.ac-day:not(.ac-never).active')].length > 0;
-      const challengeText = document.getElementById('alarm-challenge').options[document.getElementById('alarm-challenge').selectedIndex].text;
+      
+      const timeVal = document.getElementById('alarm-time')?.value || '06:30';
+      const labelVal = document.getElementById('alarm-label')?.value || 'My Alarm';
+      const typeVal = document.getElementById('alarm-type')?.value || 'daily';
+      const challengeVal = document.getElementById('alarm-challenge')?.value || 'math';
+      const diffVal = document.getElementById('alarm-difficulty')?.value || 'medium';
+      const soundVal = document.getElementById('alarm-sound')?.value || 'default';
+      const snoozeVal = document.getElementById('alarm-snooze')?.checked ?? true;
+
+      const challengeSelect = document.getElementById('alarm-challenge');
+      const challengeText = (challengeSelect && challengeSelect.selectedIndex >= 0 && challengeSelect.options[challengeSelect.selectedIndex]) 
+        ? challengeSelect.options[challengeSelect.selectedIndex].text 
+        : 'Math Problems';
+
+      const activeDays = [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]);
+      const repeatDaysStr = activeDays.length > 0 ? activeDays.join(',') : 'Never';
 
       const saveBtn = alarmForm.querySelector('.btn-alarm-set');
-      const btnText = saveBtn.querySelector('.btn-text');
+      const btnText = saveBtn ? saveBtn.querySelector('.btn-text') : null;
+
+      let savedAlarm = null;
 
       try {
+        const userId = (user && user.id) ? parseInt(user.id) : 1;
         const res = await fetch('http://localhost:8000/alarms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id:          user.id,
-            title:            document.getElementById('alarm-label').value || 'My Alarm',
+            user_id:          userId,
+            title:            labelVal,
             alarm_time:       timeVal,
-            alarm_type:       document.getElementById('alarm-type')?.value || 'daily',
-            repeat_days:      [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(',') || 'Never',
-            challenge:        document.getElementById('alarm-challenge')?.value || 'math',
-            difficulty_level: document.getElementById('alarm-difficulty')?.value || 'medium',
-            sound:            document.getElementById('alarm-sound')?.value || 'default',
+            alarm_type:       typeVal,
+            repeat_days:      repeatDaysStr,
+            challenge:        challengeVal,
+            difficulty_level: diffVal,
+            sound:            soundVal,
             vibration:        true,
-            snooze_enabled:   document.getElementById('alarm-snooze')?.checked ?? true
+            snooze_enabled:   snoozeVal
           })
         });
-        const alarm = await res.json();
-
-        btnText.textContent = 'SAVED!';
-        saveBtn.style.background = 'linear-gradient(90deg, #22c55e, #15803d)';
-        setTimeout(() => {
-          btnText.textContent = 'Save Alarm';
-          saveBtn.style.background = '';
-          acReset(); // clear form after save
-          document.getElementById('alarmModalOverlay').classList.remove('open');
-        }, 1500);
-
-        // Add row to alarm history table
-        const historyTable = document.querySelector('.data-table tbody');
-        if (historyTable && alarm.id) {
-          // Format time properly with AM/PM
-          const [nh, nm] = timeVal.split(':');
-          const nhr = parseInt(nh);
-          const nampm = nhr >= 12 ? 'PM' : 'AM';
-          const nhr12 = nhr % 12 || 12;
-          const displayTime = `${String(nhr12).padStart(2,'0')}:${nm} ${nampm}`;
-          const diffVal = document.getElementById('alarm-difficulty')?.value || 'medium';
-          const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-
-          const newRow = document.createElement('tr');
-          newRow.setAttribute('data-alarm-id', alarm.id);
-          newRow.innerHTML = `
-            <td>${today}</td>
-            <td>${displayTime}</td>
-            <td>${document.getElementById('alarm-label')?.value || 'My Alarm'}</td>
-            <td>${document.getElementById('alarm-type')?.value || 'daily'}</td>
-            <td>--</td>
-            <td>--</td>
-            <td>${challengeText} · ${diffVal}</td>
-            <td><span class="badge badge-success">Active</span></td>
-            <td class="kebab-cell">
-              <button class="kebab-btn" onclick="toggleKebab(this)">
-                <span></span><span></span><span></span>
-              </button>
-              <div class="kebab-menu">
-                <button class="kebab-danger" onclick="deleteAlarm(${alarm.id},this);closeKebab()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-                  Remove
-                </button>
-              </div>
-            </td>
-          `;
-          historyTable.insertBefore(newRow, historyTable.firstChild);
+        if (res.ok) {
+          savedAlarm = await res.json();
         }
-
-        // Add to My Alarms list view
-        if (typeof myAlarmsList !== 'undefined') {
-          myAlarmsList.unshift({
-            id: alarm.id || Date.now(),
-            title: document.getElementById('alarm-label')?.value || 'My Alarm',
-            alarm_time: timeVal,
-            repeat_days: [...document.querySelectorAll('.ac-day:not(.ac-never).active')].map(d => ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getAttribute('data-day')]).join(','),
-            challenge: document.getElementById('alarm-challenge')?.value || 'math',
-            sound: document.getElementById('alarm-sound')?.value || 'chime',
-            is_active: true
-          });
-          if (typeof renderMyAlarms === 'function') renderMyAlarms();
-        }
-
       } catch (err) {
-        alert('Cannot connect to server. Make sure the backend is running.');
+        console.warn('Backend server unreachable, saving alarm locally:', err);
       }
+
+      // Fallback if backend API is not running
+      if (!savedAlarm) {
+        savedAlarm = {
+          id: Date.now(),
+          user_id: (user && user.id) ? parseInt(user.id) : 1,
+          title: labelVal,
+          alarm_time: timeVal,
+          alarm_type: typeVal,
+          repeat_days: repeatDaysStr,
+          challenge: challengeVal,
+          difficulty_level: diffVal,
+          sound: soundVal,
+          is_active: true
+        };
+      }
+
+      // Feedback on Save button
+      if (btnText) btnText.textContent = 'SAVED!';
+      if (saveBtn) saveBtn.style.background = 'linear-gradient(90deg, #22c55e, #15803d)';
+
+      // Format time for UI
+      const [nh, nm] = timeVal.split(':');
+      const nhr = parseInt(nh) || 6;
+      const nampm = nhr >= 12 ? 'PM' : 'AM';
+      const nhr12 = nhr % 12 || 12;
+      const displayTime = `${String(nhr12).padStart(2,'0')}:${nm || '00'} ${nampm}`;
+      const todayStr = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+
+      // Add to alarm history table
+      const historyTable = document.querySelector('.data-table tbody');
+      if (historyTable) {
+        const newRow = document.createElement('tr');
+        newRow.setAttribute('data-alarm-id', savedAlarm.id);
+        newRow.innerHTML = `
+          <td>${todayStr}</td>
+          <td>${displayTime}</td>
+          <td>${labelVal}</td>
+          <td>${typeVal}</td>
+          <td>--</td>
+          <td>--</td>
+          <td>${challengeText} · ${diffVal}</td>
+          <td><span class="badge badge-success">Active</span></td>
+          <td class="kebab-cell">
+            <button class="kebab-btn" onclick="toggleKebab(this)">
+              <span></span><span></span><span></span>
+            </button>
+            <div class="kebab-menu">
+              <button class="kebab-danger" onclick="deleteAlarm(${savedAlarm.id},this);closeKebab()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+                Remove
+              </button>
+            </div>
+          </td>
+        `;
+        historyTable.insertBefore(newRow, historyTable.firstChild);
+
+        const badge = document.getElementById('alarm-count-badge');
+        if (badge) {
+          const currentCount = parseInt(badge.textContent || '0') + 1;
+          badge.textContent = currentCount;
+        }
+      }
+
+      // Add to My Alarms list view
+      if (typeof myAlarmsList !== 'undefined') {
+        myAlarmsList.unshift({
+          id: savedAlarm.id,
+          title: labelVal,
+          alarm_time: timeVal,
+          repeat_days: repeatDaysStr,
+          challenge: challengeVal,
+          sound: soundVal,
+          is_active: true
+        });
+        if (typeof renderMyAlarms === 'function') renderMyAlarms();
+      }
+
+      // Close modal & reset form state
+      setTimeout(() => {
+        if (btnText) btnText.textContent = 'Save Alarm';
+        if (saveBtn) saveBtn.style.background = '';
+        acReset();
+        const modalOverlay = document.getElementById('alarmModalOverlay');
+        if (modalOverlay) modalOverlay.classList.remove('open');
+      }, 800);
     });
   }
 
@@ -492,13 +533,13 @@ function acReset() {
   // Clear label
   const label = document.getElementById('alarm-label');
   if (label) label.value = '';
-  // Reset dropdowns to placeholder
+  // Reset dropdowns to sensible defaults
   const challenge = document.getElementById('alarm-challenge');
-  if (challenge) challenge.value = '';
+  if (challenge) challenge.value = 'math';
   const difficulty = document.getElementById('alarm-difficulty');
-  if (difficulty) difficulty.value = '';
+  if (difficulty) difficulty.value = 'medium';
   const alarmType = document.getElementById('alarm-type');
-  if (alarmType) alarmType.value = '';
+  if (alarmType) alarmType.value = 'daily';
   // Reset snooze
   const snooze = document.getElementById('alarm-snooze');
   if (snooze) snooze.checked = true;
@@ -630,13 +671,13 @@ function openAlarmModal() {
   const dateEl = document.getElementById('modal-date-display');
   if (timeEl) timeEl.textContent = `${acPad(acHour)}:${acPad(acMin)} ${acAMPM}`;
   if (dateEl) dateEl.textContent = document.getElementById('ac-date-label')?.textContent || 'Today';
-  // Reset form fields
+  // Reset form fields with defaults
   const challenge = document.getElementById('alarm-challenge');
-  if (challenge) challenge.value = '';
+  if (challenge) challenge.value = 'math';
   const difficulty = document.getElementById('alarm-difficulty');
-  if (difficulty) difficulty.value = '';
+  if (difficulty) difficulty.value = 'medium';
   const alarmType = document.getElementById('alarm-type');
-  if (alarmType) alarmType.value = '';
+  if (alarmType) alarmType.value = 'daily';
   const label = document.getElementById('alarm-label');
   if (label) label.value = '';
   document.querySelectorAll('.ac-day:not(.ac-never)').forEach(d => d.classList.remove('active'));
@@ -997,3 +1038,43 @@ document.addEventListener('DOMContentLoaded', () => {
   renderMyAlarms();
 });
 
+
+// ── Alarm polling — checks every minute if an alarm is due ────
+let cachedAlarms = [];
+
+function startAlarmPolling() {
+  if (!user || !user.id) return;
+
+  // Load alarms into memory for polling
+  fetch(`http://localhost:8000/alarms/${user.id}`)
+    .then(r => r.json())
+    .then(alarms => { cachedAlarms = alarms; })
+    .catch(() => {});
+
+  // Check every 30 seconds
+  setInterval(() => {
+    const now   = new Date();
+    const hh    = String(now.getHours()).padStart(2, '0');
+    const mm    = String(now.getMinutes()).padStart(2, '0');
+    const nowStr = `${hh}:${mm}:00`;
+
+    cachedAlarms.forEach(alarm => {
+      if (!alarm.is_active) return;
+      // alarm_time comes as "HH:MM:SS" from backend
+      const alarmHHMM = alarm.alarm_time.substring(0, 5) + ':00';
+      if (alarmHHMM === nowStr) {
+        // Format time for display
+        const hr = parseInt(hh) % 12 || 12;
+        const ap = parseInt(hh) >= 12 ? 'PM' : 'AM';
+        const displayTime = `${String(hr).padStart(2,'0')}:${mm} ${ap}`;
+        window.location.href =
+          `challenge.html?alarm_id=${alarm.id}&type=${alarm.challenge}&difficulty=${alarm.difficulty_level}&time=${encodeURIComponent(displayTime)}&label=${encodeURIComponent(alarm.title)}`;
+      }
+    });
+  }, 30000);
+}
+
+// Start polling after page loads
+document.addEventListener('DOMContentLoaded', () => {
+  startAlarmPolling();
+});
