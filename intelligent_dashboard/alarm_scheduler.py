@@ -1,11 +1,3 @@
-# ==============================================================================
-# ALARM SCHEDULER SERVICE
-# Uses APScheduler to run recurring background jobs that:
-#   1. Check which alarms should fire every minute
-#   2. Send FCM push + in-app notifications
-#   3. Apply Smart Adaptive rule-based adjustments
-#   4. Handle all alarm types: Daily, Weekday, Weekend, One-Time, Smart Adaptive
-# ==============================================================================
 
 import datetime
 import logging
@@ -21,13 +13,9 @@ from notification_service import send_alarm_notification, send_upcoming_reminder
 
 logger = logging.getLogger(__name__)
 
-# Global scheduler instance (singleton)
 _scheduler: Optional[BackgroundScheduler] = None
 
 
-# ==============================================================================
-# SMART ADAPTIVE ALARM RULES ENGINE
-# ==============================================================================
 
 def apply_smart_adaptive_rules(alarm: Alarm, profile: Optional[UserProfile]) -> str:
     """
@@ -67,9 +55,7 @@ def apply_smart_adaptive_rules(alarm: Alarm, profile: Optional[UserProfile]) -> 
     return adjusted
 
 
-# ==============================================================================
-# ALARM TYPE ACTIVE-DAY CHECKER
-# ==============================================================================
+
 
 def is_alarm_active_today(alarm: Alarm) -> bool:
     """
@@ -106,11 +92,6 @@ def is_alarm_active_today(alarm: Alarm) -> bool:
             return today in active_days
         return True
 
-
-# ==============================================================================
-# CORE SCHEDULER JOB — runs every minute
-# ==============================================================================
-
 def check_and_fire_alarms():
     """
     Scheduled job — runs every minute.
@@ -121,7 +102,7 @@ def check_and_fire_alarms():
 
     db = SessionLocal()
     try:
-        # Fetch all active alarms
+        
         active_alarms = db.query(Alarm).filter(Alarm.alarm_status == True).all()
 
         for alarm in active_alarms:

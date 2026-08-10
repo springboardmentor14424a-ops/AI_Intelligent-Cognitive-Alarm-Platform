@@ -1,8 +1,4 @@
-# ==============================================================================
-# NOTIFICATION SERVICE
-# Handles Firebase Cloud Messaging (FCM) push notifications
-# Falls back to in-app database notifications when FCM is not configured
-# ==============================================================================
+
 
 import os
 import logging
@@ -11,7 +7,6 @@ from database import SessionLocal, Notification
 
 logger = logging.getLogger(__name__)
 
-# FCM is optional - app works fully without it (uses in-app DB notifications)
 _fcm_available = False
 try:
     import firebase_admin
