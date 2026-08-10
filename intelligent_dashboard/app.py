@@ -112,6 +112,7 @@ app.include_router(admin_routes.router, prefix="/api/admin", tags=["Admin Contro
 app.include_router(coach_routes.router, prefix="/api/coach", tags=["Coach Operations APIs"])
 app.include_router(alarm_routes.router, prefix="/api/alarm", tags=["Alarms APIs"])
 app.include_router(alarm_routes.router, prefix="/alarms", tags=["Alarms Alias APIs"])
+app.include_router(alarm_routes.router, prefix="/api", tags=["Cognitive Challenges APIs"])
 
 
 @app.get("/scheduler/status", response_class=JSONResponse, tags=["Scheduler"])

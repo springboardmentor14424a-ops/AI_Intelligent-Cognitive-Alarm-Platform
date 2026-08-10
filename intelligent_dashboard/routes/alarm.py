@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from database import get_db, Alarm, User, UserProfile, ActivityLog
 import auth
 from alarm_scheduler import get_scheduler_status, apply_smart_adaptive_rules, is_alarm_active_today
+from challenge_generator import generate_cognitive_challenge, verify_challenge_answer
 
 router = APIRouter()
 
@@ -520,3 +521,62 @@ def simulate_alarm_form(
     db.add(ActivityLog(user_id=current_user.id, action=action, details=details))
     db.commit()
     return RedirectResponse(url=f"/dashboard/user?msg={feedback}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+# ==============================================================================
+# COGNITIVE CHALLENGE GENERATION & WEEKLY PREFERENCE ENDPOINTS
+# ==============================================================================
+
+@router.get("/challenges/generate", response_class=JSONResponse)
+@router.get("/api/challenges/generate", response_class=JSONResponse)
+def get_generated_challenge(
+    type: str = "Math Problems",
+    difficulty: str = "Medium",
+    current_user: User = Depends(auth.get_current_user)
+):
+    """GET /api/challenges/generate — Generates a cognitive challenge powered by Gemini LLM / Dynamic Generator."""
+    challenge = generate_cognitive_challenge(challenge_type=type, difficulty=difficulty)
+    return challenge
+
+
+class ChallengeVerifySchema(BaseModel):
+    expected: str
+    user_answer: str
+
+@router.post("/challenges/verify", response_class=JSONResponse)
+@router.post("/api/challenges/verify", response_class=JSONResponse)
+def verify_challenge(
+    data: ChallengeVerifySchema,
+    current_user: User = Depends(auth.get_current_user)
+):
+    """POST /api/challenges/verify — Verifies answer submitted for cognitive challenge."""
+    is_correct = verify_challenge_answer(data.expected, data.user_answer)
+    return {"success": is_correct, "message": "Correct answer!" if is_correct else "Incorrect answer, try again!"}
+
+
+@router.post("/user/weekly-preference", response_class=JSONResponse)
+@router.post("/api/user/weekly-preference", response_class=JSONResponse)
+def set_weekly_preference(
+    challenge_type: str = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """POST /api/user/weekly-preference — Saves user preference for playing similar puzzles this week."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    profile = current_user.profile
+    if not profile:
+        profile = UserProfile(user_id=current_user.id)
+        db.add(profile)
+    
+    profile.challenge_preference = challenge_type
+    log = ActivityLog(user_id=current_user.id, action="Update Preference", details=f"Set weekly puzzle preference to '{challenge_type}'")
+    db.add(log)
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Weekly puzzle preference set to '{challenge_type}'!",
+        "challenge_preference": challenge_type
+    }
+

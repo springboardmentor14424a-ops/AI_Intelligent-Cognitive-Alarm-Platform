@@ -278,10 +278,60 @@ class TestAlarmFullSuite(unittest.TestCase):
         print(f"PASS - Multiple alarms supported: {types_found}")
 
     # ------------------------------------------------------------------
-    # 9. DELETE all test alarms (cleanup)
+    # 9. COGNITIVE CHALLENGE GENERATION & WEEKLY PREFERENCE TESTS
     # ------------------------------------------------------------------
 
-    def test_21_delete_all_test_alarms(self):
+    def test_21_generate_all_7_challenge_types(self):
+        """Verify dynamic challenge generation for all 7 types across Easy, Medium, Hard."""
+        types = [
+            "Math Problems", "Logic Puzzles", "Memory Challenges",
+            "Word Games", "Pattern Recognition", "Riddles", "Quick Quizzes"
+        ]
+        difficulties = ["Easy", "Medium", "Hard"]
+
+        for ctype in types:
+            for diff in difficulties:
+                res = self.client.get(f"/api/challenges/generate?type={ctype}&difficulty={diff}", headers=self.headers)
+                self.assertEqual(res.status_code, 200)
+                data = res.json()
+                self.assertIn("question", data)
+                self.assertIn("expected_answer", data)
+                self.assertEqual(data["challenge_type"], ctype)
+                self.assertEqual(data["difficulty"], diff)
+        print("PASS - Generated all 7 challenge types across Easy/Medium/Hard successfully")
+
+    def test_22_verify_challenge_answer(self):
+        """Verify answer verification endpoint."""
+        res = self.client.post("/api/challenges/verify", json={
+            "expected": "42",
+            "user_answer": "42"
+        }, headers=self.headers)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["success"])
+
+        res_bad = self.client.post("/api/challenges/verify", json={
+            "expected": "42",
+            "user_answer": "99"
+        }, headers=self.headers)
+        self.assertEqual(res_bad.status_code, 200)
+        self.assertFalse(res_bad.json()["success"])
+        print("PASS - Challenge answer verification functioning")
+
+    def test_23_weekly_preference_selection(self):
+        """Verify saving user weekly challenge preference."""
+        res = self.client.post("/api/user/weekly-preference", data={
+            "challenge_type": "Logic Puzzles"
+        }, headers=self.headers)
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()["success"])
+        self.assertEqual(res.json()["challenge_preference"], "Logic Puzzles")
+        print("PASS - Weekly preference set to Logic Puzzles")
+
+    # ------------------------------------------------------------------
+    # 10. DELETE all test alarms (cleanup)
+    # ------------------------------------------------------------------
+
+    def test_24_delete_all_test_alarms(self):
         for alarm_id in self.created_alarm_ids:
             res = self.client.delete(f"/alarms/{alarm_id}", headers=self.headers)
             self.assertEqual(res.status_code, 200)

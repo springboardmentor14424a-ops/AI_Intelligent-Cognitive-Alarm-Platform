@@ -334,12 +334,23 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Challenge Required</label>
-                    <select name="challenge_required" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
-                        <option value="Math Puzzle">Math Puzzle</option>
-                        <option value="Shake Phone">Shake Phone</option>
-                        <option value="Typo Solver">Typo Solver</option>
-                        <option value="None">None</option>
+                    <label>Cognitive Challenge Type</label>
+                    <select name="challenge_required" id="create-challenge-type" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="Math Problems">Math Problems</option>
+                        <option value="Logic Puzzles">Logic Puzzles</option>
+                        <option value="Memory Challenges">Memory Challenges</option>
+                        <option value="Word Games">Word Games</option>
+                        <option value="Pattern Recognition">Pattern Recognition</option>
+                        <option value="Riddles">Riddles</option>
+                        <option value="Quick Quizzes">Quick Quizzes</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Difficulty Level</label>
+                    <select name="difficulty_level" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="Easy">Easy</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="Hard">Hard</option>
                     </select>
                 </div>
                 <div style="display: flex; gap: 20px; margin-bottom: 20px;">
@@ -384,26 +395,55 @@
         </div>
     </div>
 
-    <!-- Interactive Alarm Ring & Challenge Modal (Math Puzzle / Typo Solver) -->
+    <!-- Interactive Alarm Ring & Cognitive Challenge Modal -->
     <div id="challenge-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 440px; text-align: center;">
+        <div class="modal-content" style="max-width: 480px; text-align: center;">
             <div style="font-size: 48px; margin-bottom: 10px; animation: pulse 1s infinite;">⏰</div>
+            <div style="display: flex; justify-content: center; gap: 8px; margin-bottom: 8px;">
+                <span id="challenge-type-badge" class="badge badge-info" style="font-size: 11px;">Math Problems</span>
+                <span id="challenge-diff-badge" class="badge badge-active" style="font-size: 11px;">Medium</span>
+                <span id="challenge-source-badge" class="badge" style="font-size: 11px; background: rgba(139, 92, 246, 0.2); color: #a78bfa;">Gemini AI</span>
+            </div>
             <h2 id="challenge-title" style="margin-bottom: 8px;">⏰ ALARM IS RINGING!</h2>
-            <p id="challenge-desc" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Solve the Math Puzzle below to disarm the ringing alarm.</p>
+            <p id="challenge-desc" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Solve the cognitive challenge below to disarm the alarm.</p>
 
             <form id="challenge-form" onsubmit="solveChallengeSubmit(event)">
                 <input type="hidden" id="challenge-alarm-id" name="alarm_id" value="">
                 <input type="hidden" id="challenge-expected" value="">
-                <div class="form-group" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 16px; border-radius: 12px;">
-                    <label id="challenge-label" style="font-size: 24px; font-weight: 800; color: var(--primary); display: block; margin-bottom: 10px;">27 + 38 = ?</label>
-                    <input type="text" id="challenge-input" required class="form-input" placeholder="Enter answer..." style="text-align: center; font-size: 20px; font-weight: bold; width: 100%;">
+                <input type="hidden" id="current-challenge-type" value="Math Problems">
+
+                <div id="challenge-box" class="form-group" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); padding: 18px; border-radius: 12px;">
+                    <label id="challenge-label" style="font-size: 18px; font-weight: 700; color: var(--primary); display: block; margin-bottom: 12px; line-height: 1.4;">Loading Challenge...</label>
+                    
+                    <!-- Dynamic Options Container for Multiple Choice / Quiz -->
+                    <div id="challenge-options-container" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;"></div>
+                    
+                    <!-- Text Input Box -->
+                    <input type="text" id="challenge-input" required class="form-input" placeholder="Type your answer here..." style="text-align: center; font-size: 18px; font-weight: bold; width: 100%;">
+                    
+                    <p id="challenge-hint-text" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; display: none;"></p>
+                    <button type="button" id="hint-btn" onclick="toggleHint()" style="background: none; border: none; color: var(--text-secondary); font-size: 11px; text-decoration: underline; cursor: pointer; margin-top: 6px;">Show Hint</button>
                 </div>
                 <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-size: 15px; margin-top: 10px;">Disarm & Turn Off Alarm 🎉</button>
             </form>
             
             <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px;">
-                <button type="button" onclick="stopAlarmSound(); showToast('Audio Muted', 'warning');" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">🔇 Mute Audio</button>
-                <button type="button" onclick="snoozeFromModal()" class="btn btn-warning" style="font-size: 11px; padding: 4px 8px;">💤 Snooze (5m)</button>
+                <button type="button" onclick="stopAlarmSound(); showToast('Audio Muted', 'warning');" class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;">🔇 Mute Audio</button>
+                <button type="button" onclick="snoozeFromModal()" class="btn btn-warning" style="font-size: 11px; padding: 6px 12px;">💤 Snooze (5m)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly Preference Prompt Modal -->
+    <div id="weekly-pref-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 440px; text-align: center;">
+            <div style="font-size: 40px; margin-bottom: 8px;">🧠</div>
+            <h3 style="margin-bottom: 8px;">Weekly Challenge Preference</h3>
+            <p id="weekly-pref-text" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Would you like to play similar puzzles this week?</p>
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" onclick="confirmWeeklyPreference(true)" class="btn btn-primary" style="padding: 10px;">Yes, set as my weekly preference! 👍</button>
+                <button type="button" onclick="confirmWeeklyPreference(false)" class="btn btn-secondary" style="padding: 10px;">No thanks, keep existing setup</button>
             </div>
         </div>
     </div>
@@ -498,30 +538,73 @@
                 .catch(() => {});
         }
 
-        function openChallengeModal(alarmId, challengeType) {
+        let currentSolvedAlarmId = null;
+        let currentSolvedChallengeType = "Math Problems";
+
+        function toggleHint() {
+            const el = document.getElementById('challenge-hint-text');
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function selectOptionAnswer(optValue) {
+            document.getElementById('challenge-input').value = optValue;
+            document.querySelectorAll('.opt-btn').forEach(b => {
+                b.style.borderColor = (b.innerText === optValue) ? 'var(--primary)' : 'var(--border-card)';
+            });
+        }
+
+        function openChallengeModal(alarmId, challengeType, difficulty = 'Medium') {
+            currentSolvedAlarmId = alarmId;
+            currentSolvedChallengeType = challengeType || "Math Problems";
             document.getElementById('challenge-alarm-id').value = alarmId;
-            const input = document.getElementById('challenge-input');
-            input.value = '';
+            document.getElementById('current-challenge-type').value = currentSolvedChallengeType;
             
-            if (challengeType === 'Math Puzzle') {
-                const n1 = Math.floor(Math.random() * 40) + 12;
-                const n2 = Math.floor(Math.random() * 40) + 15;
-                const ans = n1 + n2;
-                document.getElementById('challenge-label').innerText = `${n1} + ${n2} = ?`;
-                document.getElementById('challenge-expected').value = String(ans);
-                document.getElementById('challenge-title').innerText = '🧮 Math Puzzle Challenge';
-                document.getElementById('challenge-desc').innerText = 'Solve this equation correctly to turn off your wake-up alarm!';
-            } else if (challengeType === 'Typo Solver') {
-                document.getElementById('challenge-label').innerText = 'Type: "WAKE UP NOW"';
-                document.getElementById('challenge-expected').value = 'WAKE UP NOW';
-                document.getElementById('challenge-title').innerText = '⌨ Typo Solver Challenge';
-                document.getElementById('challenge-desc').innerText = 'Type the exact phrase above to disarm your alarm!';
-            } else {
-                document.getElementById('challenge-label').innerText = 'Click Turn Off Alarm below to disarm!';
-                document.getElementById('challenge-expected').value = 'ANY';
-                document.getElementById('challenge-title').innerText = '⏰ Wake Up Challenge';
-                document.getElementById('challenge-desc').innerText = 'Confirm wake up to disarm alarm!';
-            }
+            const labelEl = document.getElementById('challenge-label');
+            const inputEl = document.getElementById('challenge-input');
+            const optsContainer = document.getElementById('challenge-options-container');
+            const hintEl = document.getElementById('challenge-hint-text');
+            const typeBadge = document.getElementById('challenge-type-badge');
+            const diffBadge = document.getElementById('challenge-diff-badge');
+            const sourceBadge = document.getElementById('challenge-source-badge');
+
+            inputEl.value = '';
+            optsContainer.innerHTML = '';
+            hintEl.style.display = 'none';
+            hintEl.innerText = '';
+            labelEl.innerText = '🧠 Fetching challenge...';
+
+            typeBadge.innerText = currentSolvedChallengeType;
+            diffBadge.innerText = difficulty;
+
+            // Fetch dynamically generated challenge from backend API (Gemini LLM / Rule Engine)
+            fetch(`/api/challenges/generate?type=${encodeURIComponent(currentSolvedChallengeType)}&difficulty=${encodeURIComponent(difficulty)}`)
+                .then(r => r.json())
+                .then(data => {
+                    labelEl.innerText = data.question || 'Solve to disarm alarm:';
+                    document.getElementById('challenge-expected').value = data.expected_answer || '';
+                    hintEl.innerText = `💡 Hint: ${data.hint || 'Read carefully!'}`;
+                    sourceBadge.innerText = data.source === 'gemini' ? 'Gemini AI' : 'Cognitive Engine';
+
+                    if (data.options && data.options.length > 0) {
+                        data.options.forEach(opt => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'btn btn-secondary opt-btn';
+                            btn.style.width = '100%';
+                            btn.style.padding = '8px';
+                            btn.style.fontSize = '14px';
+                            btn.innerText = opt;
+                            btn.onclick = () => selectOptionAnswer(opt);
+                            optsContainer.appendChild(btn);
+                        });
+                    }
+                })
+                .catch(err => {
+                    labelEl.innerText = 'What is 15 + 27?';
+                    document.getElementById('challenge-expected').value = '42';
+                    hintEl.innerText = '💡 Hint: Add 15 and 27.';
+                });
+
             openModal('challenge-modal');
         }
 
@@ -529,20 +612,66 @@
             e.preventDefault();
             const inputVal = document.getElementById('challenge-input').value.trim();
             const expectedVal = document.getElementById('challenge-expected').value.trim();
-            const alarmId = document.getElementById('challenge-alarm-id').value;
 
-            if (expectedVal !== 'ANY' && inputVal.toUpperCase() !== expectedVal.toUpperCase()) {
-                showToast('❌ Incorrect answer! Try again.', 'danger');
+            if (!inputVal) {
+                showToast('Please enter or select an answer!', 'warning');
                 return;
             }
 
-            closeModal('challenge-modal');
-            stopAlarmSound();
-            closeModal('challenge-modal');
+            fetch('/api/challenges/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ expected: expectedVal, user_answer: inputVal })
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    stopAlarmSound();
+                    closeModal('challenge-modal');
+                    // Show Weekly Preference Prompt
+                    document.getElementById('weekly-pref-text').innerText = `🎉 Correct answer! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
+                    openModal('weekly-pref-modal');
+                } else {
+                    showToast('❌ Incorrect answer! Try again.', 'danger');
+                }
+            })
+            .catch(() => {
+                if (inputVal.toLowerCase() === expectedVal.toLowerCase()) {
+                    stopAlarmSound();
+                    closeModal('challenge-modal');
+                    document.getElementById('weekly-pref-text').innerText = `🎉 Correct answer! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
+                    openModal('weekly-pref-modal');
+                } else {
+                    showToast('❌ Incorrect answer! Try again.', 'danger');
+                }
+            });
+        }
+
+        function confirmWeeklyPreference(agreed) {
+            closeModal('weekly-pref-modal');
             
+            if (agreed) {
+                const formData = new FormData();
+                formData.append('challenge_type', currentSolvedChallengeType);
+                fetch('/api/user/weekly-preference', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(data => {
+                    showToast(`👍 '${currentSolvedChallengeType}' set as your weekly preference!`, 'success');
+                    submitFinalDisarmForm();
+                })
+                .catch(() => submitFinalDisarmForm());
+            } else {
+                submitFinalDisarmForm();
+            }
+        }
+
+        function submitFinalDisarmForm() {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/api/alarm/simulate/${alarmId}`;
+            form.action = `/api/alarm/simulate/${currentSolvedAlarmId}`;
             const hidden = document.createElement('input');
             hidden.type = 'hidden';
             hidden.name = 'outcome';
@@ -614,7 +743,7 @@
         // =====================================================================
         const activeUserAlarms = [
             {% for a in alarms %}
-                { id: "{{ a.id }}", name: "{{ a.alarm_name }}", time: "{{ a.alarm_time }}", status: {{ 'true' if a.alarm_status else 'false' }}, type: "{{ a.repeat_type }}", challenge: "{{ a.challenge_required or 'Math Puzzle' }}" }{% if not loop.last %},{% endif %}
+                { id: "{{ a.id }}", name: "{{ a.alarm_name }}", time: "{{ a.alarm_time }}", status: {{ 'true' if a.alarm_status else 'false' }}, type: "{{ a.repeat_type }}", challenge: "{{ a.challenge_required or 'Math Problems' }}", difficulty: "{{ a.difficulty_level or 'Medium' }}" }{% if not loop.last %},{% endif %}
             {% endfor %}
         ];
 
@@ -631,17 +760,14 @@
                 if (a.status && a.time === currentHHMM && !triggeredAlarmsSet.has(alarmKey)) {
                     triggeredAlarmsSet.add(alarmKey);
                     
-                    // Disarm One-Time / once alarms immediately so they ring ONLY ONCE
                     if (a.type === 'once' || a.type === 'One-Time') {
                         a.status = false;
                     }
                     
-                    // Play audio chime for 4 seconds, then auto-stop (no infinite ringing!)
                     startAlarmSound();
                     setTimeout(() => { stopAlarmSound(); }, 4000);
                     
-                    // Open Math Puzzle disarm modal ONCE
-                    openChallengeModal(a.id, a.challenge);
+                    openChallengeModal(a.id, a.challenge, a.difficulty);
                     showToast(`⏰ ALARM: ${a.name} (${a.time})`, 'danger');
                     break;
                 }
