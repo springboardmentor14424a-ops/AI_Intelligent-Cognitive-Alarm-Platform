@@ -7,6 +7,9 @@ An intelligent alarm management system built with FastAPI. The platform allows u
 - Alarm Management - Create, update, delete, enable and disable alarms
 - Alarm Types - Daily, Weekday, Weekend, One-Time, and Smart Adaptive
 - AM/PM Time Picker - Set alarms using 12-hour or 24-hour format
+- Cognitive Challenge Engine - Supports 7 challenge types (Math Problems, Logic Puzzles, Memory Challenges, Word Games, Pattern Recognition, Riddles, Quick Quizzes) across Easy, Medium, and Hard difficulties
+- Gemini LLM Integration - Generates unique dynamic challenges using Gemini AI with fallback rule engine
+- Weekly Preference Prompt - Allows users to set their preferred challenge type for the week upon alarm disarm
 - Smart Adaptive Alarm - Adjusts wake time based on habit score and streak
 - Live Notifications - Browser popup and in-app notifications when alarm fires
 - FCM Push Notifications - Firebase Cloud Messaging support for mobile devices
@@ -17,9 +20,10 @@ An intelligent alarm management system built with FastAPI. The platform allows u
 ## Tech Stack
 
 - Backend - FastAPI (Python 3.10)
-- Database - PostgreSQL with SQLite fallback for local development
+- Database - PostgreSQL with SQLite fallback
 - Authentication - JWT and Google OAuth
 - Scheduling - APScheduler (BackgroundScheduler)
+- AI Generator - Gemini LLM (google-genai) / Dynamic Challenge Generator
 - Notifications - Firebase Cloud Messaging (FCM)
 - Validation - Pydantic V2
 
@@ -59,8 +63,11 @@ API Documentation: http://127.0.0.1:8000/docs
 | GET    | /alarms/today | Get today's alarms |
 | GET    | /alarms/upcoming | Get upcoming alarms |
 | POST   | /alarms/check-next | Get next alarm using Smart Adaptive logic |
+| GET    | /api/challenges/generate | Generate dynamic cognitive challenge (Gemini LLM) |
+| POST   | /api/challenges/verify | Verify submitted challenge answer |
+| POST   | /api/user/weekly-preference | Save user weekly challenge preference |
 
-## Module 3 Deliverables
+## Deliverables Completed
 
 - [x] Alarm CRUD APIs
 - [x] PostgreSQL schema
@@ -69,6 +76,9 @@ API Documentation: http://127.0.0.1:8000/docs
 - [x] Multiple alarm support
 - [x] Alarm customization (sound, vibration, snooze, difficulty)
 - [x] Smart Adaptive alarm (rule-based)
+- [x] Cognitive Challenge Engine (7 types across Easy, Medium, Hard)
+- [x] Gemini LLM Integration for dynamic quiz generation
+- [x] Weekly puzzle preference selection prompt
 - [x] Notification integration (FCM and in-app)
 - [x] Postman collection
-- [x] 22 automated tests all passing
+- [x] 25 automated tests all passing
