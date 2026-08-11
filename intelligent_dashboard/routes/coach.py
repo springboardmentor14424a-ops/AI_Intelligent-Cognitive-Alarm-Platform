@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Form, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
-from database import get_db, User, UserProfile, Notification, ActivityLog, Report
+from database import get_db, User, UserProfile, Notification, ActivityLog
 import auth
 import datetime
 
@@ -24,28 +23,13 @@ def update_coach_notes(
         
     profile = user.profile
     if profile:
-        profile.productivity_goal = f"Coach Note: {notes}"
+        profile.productivity_goal = f"Coach Note from {current_coach.full_name or current_coach.username}: {notes}"
         
     # Log
     log = ActivityLog(user_id=current_coach.id, action="Update Profile", details=f"Coach updated notes for client: {user.username}")
     db.add(log)
-    
-    # Save as a weekly report recommendation
-    today = datetime.date.today()
-    report = Report(
-        user_id=user.id,
-        report_type="weekly",
-        start_date=today - datetime.timedelta(days=7),
-        end_date=today,
-        average_sleep_duration=profile.sleep_duration if profile else 8.0,
-        wake_up_consistency=90.0,
-        challenge_completion_rate=95.0,
-        habit_score=profile.habit_score if profile else 50,
-        recommendation_notes=notes
-    )
-    db.add(report)
-    
     db.commit()
+    
     return RedirectResponse(url="/dashboard/coach", status_code=status.HTTP_303_SEE_OTHER)
 
 @router.post("/message/{user_id}")
@@ -61,10 +45,11 @@ def send_coach_message(
     user = db.query(User).filter(User.id == user_id, User.coach_id == current_coach.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Client not assigned to you")
-        
+    
+    coach_name = current_coach.full_name or current_coach.username or "Your Coach"
     notification = Notification(
         user_id=user.id,
-        title="Coach Sarah Motivation",
+        title=f"Coach {coach_name} — Motivation",
         message=message,
         type="coach",
         read_status=False

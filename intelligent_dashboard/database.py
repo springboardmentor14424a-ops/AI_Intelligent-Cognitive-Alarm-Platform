@@ -165,6 +165,23 @@ class Report(Base):
     file_path = Column(String(255), nullable=False)
     generated_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class ChallengePerformance(Base):
+    __tablename__ = "challenge_performances"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    alarm_id = Column(Integer, ForeignKey("alarms.id", ondelete="SET NULL"), nullable=True)
+    challenge_type = Column(String(50), nullable=False)
+    difficulty = Column(String(20), nullable=False)
+    accuracy = Column(Float, nullable=False)
+    time_taken = Column(Float, nullable=False)
+    failed_attempts = Column(Integer, default=0)
+    status = Column(String(20), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", backref="performances")
+    alarm = relationship("Alarm", backref="performances")
+
 def get_db():
     db = SessionLocal()
     try:

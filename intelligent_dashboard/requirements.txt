@@ -10,3 +10,7 @@ pandas
 openpyxl
 reportlab
 pydantic-settings
+google-generativeai
+apscheduler
+python-multipart
+requests

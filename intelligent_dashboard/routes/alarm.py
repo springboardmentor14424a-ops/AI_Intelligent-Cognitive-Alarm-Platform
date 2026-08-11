@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Form, Request, status
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
-from database import get_db, Alarm, User, UserProfile, ActivityLog
+from database import get_db, Alarm, User, UserProfile, ActivityLog, ChallengePerformance
 import auth
 from alarm_scheduler import get_scheduler_status, apply_smart_adaptive_rules, is_alarm_active_today
 from challenge_generator import generate_cognitive_challenge, verify_challenge_answer
@@ -72,8 +72,8 @@ class AlarmCreateSchema(BaseModel):
     @field_validator("difficulty_level")
     @classmethod
     def validate_difficulty(cls, v):
-        if v and v not in {"Easy", "Medium", "Hard"}:
-            raise ValueError("difficulty_level must be Easy, Medium, or Hard")
+        if v and v not in {"Beginner", "Easy", "Medium", "Hard", "Expert"}:
+            raise ValueError("difficulty_level must be Beginner, Easy, Medium, Hard, or Expert")
         return v
 
 
@@ -488,6 +488,10 @@ def delete_alarm_form(
 def simulate_alarm_form(
     alarm_id: int,
     outcome: str = Form(...),  # success | snooze | missed
+    time_taken: Optional[float] = Form(None),
+    failed_attempts: Optional[int] = Form(None),
+    difficulty: Optional[str] = Form(None),
+    challenge_type: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):
@@ -518,8 +522,28 @@ def simulate_alarm_form(
         action, details = "Alarm Missed", f"Missed '{alarm.alarm_name}'"
         feedback = f"❌+Alarm+Missed!+Streak+reset+to+0,+Habit+score:+{profile.habit_score}+(-5)"
 
+    # Log to Activity Log
     db.add(ActivityLog(user_id=current_user.id, action=action, details=details))
+
+    # Log to ChallengePerformance table
+    acc = 0.0
+    if outcome == "success":
+        fa = failed_attempts or 0
+        acc = round((1.0 / (fa + 1)) * 100, 1)
+    
+    perf = ChallengePerformance(
+        user_id=current_user.id,
+        alarm_id=alarm_id,
+        challenge_type=challenge_type or alarm.challenge_required or "Math Problems",
+        difficulty=difficulty or alarm.difficulty_level or "Medium",
+        accuracy=acc,
+        time_taken=time_taken or 0.0,
+        failed_attempts=failed_attempts or 0,
+        status=outcome
+    )
+    db.add(perf)
     db.commit()
+
     return RedirectResponse(url=f"/dashboard/user?msg={feedback}", status_code=status.HTTP_303_SEE_OTHER)
 
 
@@ -532,10 +556,64 @@ def simulate_alarm_form(
 def get_generated_challenge(
     type: str = "Math Problems",
     difficulty: str = "Medium",
+    alarm_id: Optional[int] = None,
+    db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):
-    """GET /api/challenges/generate — Generates a cognitive challenge powered by Gemini LLM / Dynamic Generator."""
-    challenge = generate_cognitive_challenge(challenge_type=type, difficulty=difficulty)
+    """GET /api/challenges/generate — Generates a cognitive challenge powered by Gemini LLM / Dynamic Generator with adaptive selection."""
+    adapted_difficulty = difficulty
+    if alarm_id and current_user:
+        levels = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
+        
+        # 1. Fetch latest 3 attempts for this challenge type
+        history = (
+            db.query(ChallengePerformance)
+            .filter(ChallengePerformance.user_id == current_user.id, ChallengePerformance.challenge_type == type)
+            .order_by(ChallengePerformance.created_at.desc())
+            .limit(3)
+            .all()
+        )
+        
+        if not history:
+            # Fallback to overall history
+            history = (
+                db.query(ChallengePerformance)
+                .filter(ChallengePerformance.user_id == current_user.id)
+                .order_by(ChallengePerformance.created_at.desc())
+                .limit(3)
+                .all()
+            )
+            
+        if history:
+            success_count = sum(1 for p in history if p.status == "success")
+            total_attempts = len(history)
+            avg_accuracy = sum(p.accuracy for p in history) / total_attempts
+            avg_time = sum(p.time_taken for p in history) / total_attempts
+            total_failed_attempts = sum(p.failed_attempts for p in history)
+            
+            # Base difficulty
+            base_diff = difficulty
+            alarm = db.query(Alarm).filter(Alarm.id == alarm_id).first()
+            if alarm and alarm.difficulty_level:
+                base_diff = alarm.difficulty_level
+                
+            try:
+                idx = levels.index(base_diff)
+            except ValueError:
+                idx = 2  # Medium
+                
+            # Increase difficulty if performance is excellent (>=80% acc, <30s time, <=2 failed attempts)
+            if success_count >= 2 and avg_accuracy >= 80 and avg_time < 30 and total_failed_attempts <= 2:
+                idx = min(len(levels) - 1, idx + 1)
+            # Decrease difficulty if performance is poor (<=1 success, <60% acc, >60s time, >4 failed attempts)
+            elif success_count <= 1 or avg_accuracy < 60 or avg_time > 60 or total_failed_attempts > 4:
+                idx = max(0, idx - 1)
+                
+            adapted_difficulty = levels[idx]
+
+    challenge = generate_cognitive_challenge(challenge_type=type, difficulty=adapted_difficulty)
+    # Ensure difficulty is returned in the payload so client can update the UI badge
+    challenge["difficulty"] = adapted_difficulty
     return challenge
 
 

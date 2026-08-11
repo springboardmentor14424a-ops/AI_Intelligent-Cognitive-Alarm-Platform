@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from config import Config
-from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report
+from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report, ChallengePerformance
 from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes
 import auth
 from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
@@ -198,6 +198,7 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
         
     alarms = db.query(Alarm).filter(Alarm.user_id == current_user.id).all()
     notifications = db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).all()
+    performances = db.query(ChallengePerformance).filter(ChallengePerformance.user_id == current_user.id).order_by(ChallengePerformance.created_at.desc()).all()
     profile = current_user.profile
     
     unread_count = sum(1 for n in notifications if not n.read_status)
@@ -207,6 +208,7 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
         "profile": profile,
         "alarms": alarms,
         "notifications": notifications,
+        "performances": performances,
         "unread_count": unread_count
     })
 
