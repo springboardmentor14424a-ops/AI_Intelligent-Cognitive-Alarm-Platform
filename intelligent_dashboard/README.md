@@ -1,84 +1,55 @@
 # AI Intelligent Cognitive Alarm Platform
 
-An intelligent alarm management system built with FastAPI. The platform allows users to create, manage, and schedule alarms with smart adaptive features that adjust wake times based on sleep habits and habit scores.
+An intelligent alarm platform built with FastAPI. It features smart alarm scheduling, cognitive wake-up puzzles powered by Google Gemini AI, adaptive difficulty selection based on user accuracy and speed, and real-time circadian tracking.
 
-## Features
-
-- Alarm Management - Create, update, delete, enable and disable alarms
-- Alarm Types - Daily, Weekday, Weekend, One-Time, and Smart Adaptive
-- AM/PM Time Picker - Set alarms using 12-hour or 24-hour format
-- Cognitive Challenge Engine - Supports 7 challenge types (Math Problems, Logic Puzzles, Memory Challenges, Word Games, Pattern Recognition, Riddles, Quick Quizzes) across Easy, Medium, and Hard difficulties
-- Gemini LLM Integration - Generates unique dynamic challenges using Gemini AI with fallback rule engine
-- Weekly Preference Prompt - Allows users to set their preferred challenge type for the week upon alarm disarm
-- Smart Adaptive Alarm - Adjusts wake time based on habit score and streak
-- Live Notifications - Browser popup and in-app notifications when alarm fires
-- FCM Push Notifications - Firebase Cloud Messaging support for mobile devices
-- Background Scheduler - APScheduler runs every minute to fire alarms automatically
-- JWT Authentication - Secure login with Google OAuth support
-- Role-Based Access - Separate dashboards for Admin, Coach, and User roles
-
-## Tech Stack
-
-- Backend - FastAPI (Python 3.10)
-- Database - PostgreSQL with SQLite fallback
-- Authentication - JWT and Google OAuth
-- Scheduling - APScheduler (BackgroundScheduler)
-- AI Generator - Gemini LLM (google-genai) / Dynamic Challenge Generator
-- Notifications - Firebase Cloud Messaging (FCM)
-- Validation - Pydantic V2
-
-## Setup
+## Quick Start
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# Run the server
+# 2. Run the application
 python app.py
 ```
 
-Server runs at: http://127.0.0.1:8000
+Access dashboard at: **http://127.0.0.1:8000**  
+Interactive API docs at: **http://127.0.0.1:8000/docs**
 
-API Documentation: http://127.0.0.1:8000/docs
+---
 
-## Demo Login Credentials
+## Key Features
 
-| Role  | Username | Password |
-|-------|----------|----------|
-| Admin | admin    | admin123 |
-| Coach | coach    | coach123 |
-| User  | user     | user123  |
+- **7 Cognitive Challenge Types**: Math Problems, Logic Puzzles, Memory Challenges, Word Games, Pattern Recognition, Riddles, and Quick Quizzes.
+- **5 Difficulty Levels**: Beginner, Easy, Medium, Hard, and Expert.
+- **Personalized & Adaptive Selection**: Automatically scales challenge difficulty up or down based on your previous accuracy, completion time, and failed attempts.
+- **Gemini LLM Integration**: Generates fresh challenges using Google Gemini 1.5/3.5 Flash AI, with an automatic fallback rule engine when offline.
+- **Real-Time Analytics**: Tracks streak days, habit scores (0–100), completion accuracy, and time taken in real-time without dummy data.
+- **Snooze & Disarm Rules**: Alarms ring continuously until solved or snoozed. One-time alarms disarm automatically upon completion.
 
-## API Endpoints
+---
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST   | /alarms | Create a new alarm |
-| GET    | /alarms | List all alarms |
-| GET    | /alarms/{id} | Get a single alarm |
-| PUT    | /alarms/{id} | Update an alarm |
-| DELETE | /alarms/{id} | Delete an alarm |
-| PATCH  | /alarms/{id}/enable | Enable an alarm |
-| PATCH  | /alarms/{id}/disable | Disable an alarm |
-| GET    | /alarms/today | Get today's alarms |
-| GET    | /alarms/upcoming | Get upcoming alarms |
-| POST   | /alarms/check-next | Get next alarm using Smart Adaptive logic |
-| GET    | /api/challenges/generate | Generate dynamic cognitive challenge (Gemini LLM) |
-| POST   | /api/challenges/verify | Verify submitted challenge answer |
-| POST   | /api/user/weekly-preference | Save user weekly challenge preference |
+## Demo Accounts
 
-## Deliverables Completed
+| Role | Email / Username | Password |
+|---|---|---|
+| **User** | `user` | `user123` |
+| **Coach** | `coach` | `coach123` |
+| **Admin** | `admin` | `admin123` |
 
-- [x] Alarm CRUD APIs
-- [x] PostgreSQL schema
-- [x] Alarm scheduling service
-- [x] Recurring alarm logic
-- [x] Multiple alarm support
-- [x] Alarm customization (sound, vibration, snooze, difficulty)
-- [x] Smart Adaptive alarm (rule-based)
-- [x] Cognitive Challenge Engine (7 types across Easy, Medium, Hard)
-- [x] Gemini LLM Integration for dynamic quiz generation
-- [x] Weekly puzzle preference selection prompt
-- [x] Notification integration (FCM and in-app)
-- [x] Postman collection
-- [x] 25 automated tests all passing
+---
+
+## Project Structure
+
+```text
+intelligent_dashboard/
+├── app.py                 # FastAPI application entry point
+├── database.py            # Database models (User, Alarm, ChallengePerformance, etc.)
+├── challenge_generator.py # Gemini LLM & rule engine challenge generators
+├── alarm_scheduler.py     # Background APScheduler service
+├── config.py              # App configuration & API key settings
+├── routes/                # Endpoint routers (auth, user, alarm, admin, coach)
+├── templates/             # HTML Jinja2 dashboards
+├── static/                # CSS and static assets
+├── test_alarms.py         # Pytest test suite (25 tests)
+└── requirements.txt       # Project dependencies
+```
