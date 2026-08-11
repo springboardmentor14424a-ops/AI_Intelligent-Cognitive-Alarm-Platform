@@ -618,32 +618,36 @@
                 return;
             }
 
+            // Inline verify to handle offline too
+            function handleVerifyResult(isCorrect) {
+                if (isCorrect) {
+                    // CORRECT — stop alarm permanently
+                    stopAlarmSound();
+                    alarmDisarmed = true;
+                    closeModal('challenge-modal');
+                    document.getElementById('weekly-pref-text').innerText = `Correct answer! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
+                    openModal('weekly-pref-modal');
+                } else {
+                    // WRONG — keep alarm ringing, shake input, clear field
+                    showToast('Wrong answer! Try again.', 'danger');
+                    // Ring again if sound stopped
+                    if (!alarmAudioInterval) startAlarmSound();
+                    document.getElementById('challenge-input').value = '';
+                    document.getElementById('challenge-input').focus();
+                }
+            }
+
             fetch('/api/challenges/verify', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ expected: expectedVal, user_answer: inputVal })
             })
             .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    stopAlarmSound();
-                    closeModal('challenge-modal');
-                    // Show Weekly Preference Prompt
-                    document.getElementById('weekly-pref-text').innerText = `🎉 Correct answer! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
-                    openModal('weekly-pref-modal');
-                } else {
-                    showToast('❌ Incorrect answer! Try again.', 'danger');
-                }
-            })
+            .then(res => handleVerifyResult(res.success))
             .catch(() => {
-                if (inputVal.toLowerCase() === expectedVal.toLowerCase()) {
-                    stopAlarmSound();
-                    closeModal('challenge-modal');
-                    document.getElementById('weekly-pref-text').innerText = `🎉 Correct answer! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
-                    openModal('weekly-pref-modal');
-                } else {
-                    showToast('❌ Incorrect answer! Try again.', 'danger');
-                }
+                // Offline fallback: local compare
+                const ok = inputVal.trim().toLowerCase() === expectedVal.trim().toLowerCase();
+                handleVerifyResult(ok);
             });
         }
 
@@ -686,6 +690,8 @@
             closeModal('challenge-modal');
             const alarmId = document.getElementById('challenge-alarm-id').value;
             if (!alarmId) return;
+
+            // Post snooze outcome
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = `/api/alarm/simulate/${alarmId}`;
@@ -696,6 +702,26 @@
             form.appendChild(hidden);
             document.body.appendChild(form);
             form.submit();
+
+            // Re-ring after 5 minutes by clearing the triggered key
+            // so checkAlarmClock can fire it again
+            const snoozeMs = 5 * 60 * 1000;
+            showToast('Snoozed for 5 minutes. Alarm will ring again!', 'warning');
+            setTimeout(() => {
+                // Remove all keys for this alarm so it can retrigger
+                for (const key of [...triggeredAlarmsSet]) {
+                    if (key.startsWith(alarmId + '_')) {
+                        triggeredAlarmsSet.delete(key);
+                    }
+                }
+                // Re-enable alarm in activeUserAlarms list
+                for (const a of activeUserAlarms) {
+                    if (String(a.id) === String(alarmId)) {
+                        a.status = true;
+                        a._snoozed = true;
+                    }
+                }
+            }, snoozeMs);
         }
 
         // =====================================================================
@@ -748,6 +774,7 @@
         ];
 
         const triggeredAlarmsSet = new Set();
+        let alarmDisarmed = false;
 
         function checkAlarmClock() {
             const now = new Date();
@@ -759,16 +786,18 @@
                 const alarmKey = `${a.id}_${currentHHMM}`;
                 if (a.status && a.time === currentHHMM && !triggeredAlarmsSet.has(alarmKey)) {
                     triggeredAlarmsSet.add(alarmKey);
-                    
+                    alarmDisarmed = false;
+
+                    // Once alarm: disable after triggering so it never fires again
                     if (a.type === 'once' || a.type === 'One-Time') {
                         a.status = false;
                     }
-                    
+
+                    // Start ringing — NO auto-stop. Stops only when user solves or snoozes.
                     startAlarmSound();
-                    setTimeout(() => { stopAlarmSound(); }, 4000);
-                    
+
                     openChallengeModal(a.id, a.challenge, a.difficulty);
-                    showToast(`⏰ ALARM: ${a.name} (${a.time})`, 'danger');
+                    showToast('ALARM: ' + a.name + ' (' + a.time + ')', 'danger');
                     break;
                 }
             }
