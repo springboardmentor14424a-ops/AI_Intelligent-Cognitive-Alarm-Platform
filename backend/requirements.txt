@@ -9,3 +9,4 @@ pydantic[email]
 authlib
 httpx
 itsdangerous
+google-generativeai

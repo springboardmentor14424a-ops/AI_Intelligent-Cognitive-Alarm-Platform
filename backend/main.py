@@ -4,9 +4,18 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
-from database import get_db
-from models import User, Alarm
-from auth import hash_password, verify_password, create_token
+try:
+    from database import get_db
+    from models import User, Alarm, ChallengeLog
+    from schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse
+    from challenge_generator import generate_cognitive_challenge
+    from auth import hash_password, verify_password, create_token
+except ImportError:
+    from backend.database import get_db
+    from backend.models import User, Alarm, ChallengeLog
+    from backend.schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse
+    from backend.challenge_generator import generate_cognitive_challenge
+    from backend.auth import hash_password, verify_password, create_token
 from authlib.integrations.starlette_client import OAuth
 from urllib.parse import quote
 import traceback
@@ -237,7 +246,96 @@ def delete_alarm(alarm_id: int, db: Session = Depends(get_db)):
     return {"message": f"Alarm {alarm_id} deleted"}
 
 
+# ══════════════════════════════════════════════════════════════
+#  COGNITIVE CHALLENGES
+# ══════════════════════════════════════════════════════════════
+
+@app.get("/challenges/types")
+def get_challenge_types():
+    return {
+        "types": [
+            {"id": "math", "name": "Math Problems", "description": "Mental arithmetic & multi-step calculations"},
+            {"id": "logic", "name": "Logic Puzzles", "description": "Boolean logic, ordering & syllogisms"},
+            {"id": "memory", "name": "Memory Challenges", "description": "Sequence recall & spatial/reverse digit memory"},
+            {"id": "word", "name": "Word Games", "description": "Anagram scrambles & vocabulary association"},
+            {"id": "pattern", "name": "Pattern Recognition", "description": "Sequence predictions & matrix logic"},
+            {"id": "riddle", "name": "Riddles", "description": "Lateral thinking & cognitive brain-teasers"},
+            {"id": "quiz", "name": "Quick Quizzes", "description": "General knowledge & analytical trivia"}
+        ],
+        "difficulties": ["easy", "medium", "hard"]
+    }
+
+
+@app.get("/challenges/generate", response_model=ChallengeResponse)
+def generate_challenge(type: str = "math", difficulty: str = "medium"):
+    return generate_cognitive_challenge(challenge_type=type, difficulty=difficulty)
+
+
+@app.post("/challenges/verify", response_model=ChallengeVerifyResponse)
+def verify_challenge(data: ChallengeVerifyRequest, db: Session = Depends(get_db)):
+    user_ans = data.user_answer.strip().lower()
+    correct_ans = data.answer_key.strip().lower()
+
+    # Direct match or numeric equivalence
+    is_correct = False
+    if user_ans == correct_ans:
+        is_correct = True
+    else:
+        try:
+            if float(user_ans) == float(correct_ans):
+                is_correct = True
+        except ValueError:
+            pass
+
+    score = 0
+    if is_correct:
+        base_score = 100
+        # Time bonus: faster answer = higher score
+        speed_bonus = max(0, int(50 - data.time_taken_seconds))
+        score = base_score + speed_bonus
+        msg = f"Correct! Excellent brain activation. Score: {score} pts."
+    else:
+        msg = f"Incorrect. The correct answer was: {data.answer_key}."
+
+    # Log to DB
+    try:
+        log = ChallengeLog(
+            user_id=None,  # Optional user tracking
+            challenge_type="verify",
+            difficulty="medium",
+            success=is_correct,
+            score=score,
+            time_taken_seconds=data.time_taken_seconds
+        )
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        print(f"Error logging challenge: {e}")
+
+    return ChallengeVerifyResponse(
+        success=is_correct,
+        message=msg,
+        correct_answer=data.answer_key,
+        score=score
+    )
+
+
+@app.get("/challenges/history")
+def get_challenge_history(db: Session = Depends(get_db)):
+    logs = db.query(ChallengeLog).order_by(ChallengeLog.created_at.desc()).limit(20).all()
+    return [
+        {
+            "id": l.id,
+            "success": l.success,
+            "score": l.score,
+            "time_taken": l.time_taken_seconds,
+            "timestamp": str(l.created_at)
+        } for l in logs
+    ]
+
+
 # ── Health check ─────────────────────────────────────────────
 @app.get("/")
 def root():
     return {"status": "Wellspring API is running"}
+
