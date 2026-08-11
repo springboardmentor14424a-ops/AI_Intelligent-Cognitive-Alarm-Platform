@@ -3,510 +3,444 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cognitive Alarm — Wake Up Challenge</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <title>Cognitive Alarm — Challenge</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --primary:      #1E88E5;
-      --primary-dark: #1565C0;
-      --bg:           #F4F8FC;
-      --card:         #ffffff;
-      --ink:          #1F2937;
-      --muted:        #6B7280;
-      --border:       #E5E7EB;
-      --success:      #22C55E;
-      --danger:       #EF4444;
-      --warning:      #F59E0B;
-      --shadow:       0 10px 30px rgba(15,23,42,0.08);
-      --font-h:       'Poppins', sans-serif;
-      --font-b:       'Inter', sans-serif;
+      --bg:        #0d2a63;
+      --card:      #ffffff;
+      --primary:   #1E88E5;
+      --success:   #22C55E;
+      --danger:    #EF4444;
+      --warning:   #F59E0B;
+      --ink:       #1F2937;
+      --muted:     #6B7280;
+      --border:    #E5E7EB;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: var(--font-b);
-      background: var(--bg);
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(160deg, #0a1f44 0%, #0d2a63 50%, #1552c9 100%);
       min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px 16px;
     }
 
-    /* ── Card ── */
+    /* ── Time display ── */
+    .alarm-time {
+      font-family: 'Poppins', sans-serif;
+      font-size: 4rem;
+      font-weight: 800;
+      color: #fff;
+      text-align: center;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    .alarm-date {
+      font-size: 0.95rem;
+      color: rgba(255,255,255,0.65);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* ── Type + difficulty badges ── */
+    .badge-row {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 18px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      backdrop-filter: blur(8px);
+    }
+
+    .badge-type { background: rgba(255,255,255,0.15); color: #fff; }
+    .badge-diff { background: rgba(255,255,255,0.1);  color: rgba(255,255,255,0.85); }
+
+    /* ── Challenge card ── */
     .challenge-card {
       background: var(--card);
-      border-radius: 24px;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
+      border-radius: 20px;
       width: 100%;
-      max-width: 520px;
-      overflow: hidden;
+      max-width: 460px;
+      padding: 28px 28px 24px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
     }
 
-    /* ── Top banner ── */
-    .alarm-banner {
-      background: linear-gradient(135deg, #0d2a63, #1552c9);
-      color: #fff;
-      padding: 20px 28px;
+    /* ── Progress bar (3 segments) ── */
+    .progress-bar {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 16px;
     }
 
-    .alarm-banner .alarm-info h2 {
-      font-family: var(--font-h);
-      font-size: 1.4rem;
+    .progress-seg {
+      height: 5px;
+      flex: 1;
+      border-radius: 3px;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+
+    .progress-seg.done    { background: var(--success); }
+    .progress-seg.active  { background: var(--primary);  }
+
+    /* ── Step label ── */
+    .step-label {
+      font-size: 0.7rem;
       font-weight: 700;
-    }
-
-    .alarm-banner .alarm-info p {
-      font-size: 0.82rem;
-      color: rgba(255,255,255,0.7);
-      margin-top: 2px;
-    }
-
-    .alarm-icon {
-      width: 48px;
-      height: 48px;
-      background: rgba(255,255,255,0.15);
-      border-radius: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    /* ── Timer bar ── */
-    .timer-wrap {
-      padding: 0 28px;
-      margin-top: 20px;
-    }
-
-    .timer-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-
-    .timer-label {
-      font-size: 0.78rem;
-      font-weight: 600;
       color: var(--muted);
+      letter-spacing: 0.08em;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      margin-bottom: 18px;
     }
 
-    .timer-count {
-      font-family: var(--font-h);
-      font-size: 1rem;
+    /* ── Question ── */
+    .question-text {
+      font-family: 'Poppins', sans-serif;
+      font-size: 2rem;
       font-weight: 700;
       color: var(--primary);
-    }
-
-    .timer-count.warning { color: var(--warning); }
-    .timer-count.danger  { color: var(--danger);  }
-
-    .timer-bar {
-      width: 100%;
-      height: 6px;
-      background: var(--border);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .timer-fill {
-      height: 100%;
-      background: var(--primary);
-      border-radius: 3px;
-      transition: width 1s linear, background 0.3s;
-    }
-
-    .timer-fill.warning { background: var(--warning); }
-    .timer-fill.danger  { background: var(--danger);  }
-
-    /* ── Challenge body ── */
-    .challenge-body {
-      padding: 24px 28px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-
-    .challenge-meta {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .badge-type {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      background: #E3F2FD;
-      color: var(--primary-dark);
-    }
-
-    .badge-diff {
-      display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-
-    .badge-diff.easy   { background: #dcfce7; color: #166534; }
-    .badge-diff.medium { background: #fef9c3; color: #854d0e; }
-    .badge-diff.hard   { background: #fee2e2; color: #991b1b; }
-
-    .challenge-title {
-      font-family: var(--font-h);
-      font-size: 1.05rem;
-      font-weight: 700;
-      color: var(--ink);
-    }
-
-    .challenge-instructions {
-      font-size: 0.85rem;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .challenge-question {
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      font-family: var(--font-h);
-      font-size: 1.15rem;
-      font-weight: 600;
-      color: var(--ink);
-      line-height: 1.5;
       text-align: center;
+      line-height: 1.3;
+      margin-bottom: 10px;
+      padding: 0 8px;
     }
 
-    /* ── Multiple choice ── */
+    /* ── Timer ── */
+    .timer-row {
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--warning);
+      margin-bottom: 20px;
+    }
+
+    .timer-row.danger { color: var(--danger); }
+    .timer-row.ok     { color: var(--muted); }
+
+    /* ── Options grid ── */
     .options-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 12px;
+      margin-bottom: 20px;
     }
 
     .opt-btn {
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: 1.5px solid var(--border);
+      padding: 18px 12px;
+      border-radius: 14px;
+      border: 2px solid var(--border);
       background: var(--card);
-      font-family: var(--font-b);
-      font-size: 0.92rem;
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.1rem;
       font-weight: 600;
       color: var(--ink);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.18s;
       text-align: center;
     }
 
-    .opt-btn:hover  { border-color: var(--primary); background: #EDF6FF; color: var(--primary); }
-    .opt-btn.selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .opt-btn:hover    { border-color: var(--primary); background: #EDF6FF; color: var(--primary); }
+    .opt-btn.selected { border-color: var(--primary); background: #EDF6FF; color: var(--primary); }
     .opt-btn.correct  { border-color: var(--success); background: #dcfce7; color: #166534; }
     .opt-btn.wrong    { border-color: var(--danger);  background: #fee2e2; color: #991b1b; }
 
-    /* ── Text input ── */
+    /* ── Text input (for memory/word/pattern) ── */
     .answer-input {
       width: 100%;
-      padding: 14px 16px;
+      padding: 16px;
       border-radius: 12px;
-      border: 1.5px solid var(--border);
-      background: var(--bg);
-      font-family: var(--font-b);
-      font-size: 1rem;
+      border: 2px solid var(--border);
+      background: #f8fafc;
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
       color: var(--ink);
       outline: none;
+      text-align: center;
+      margin-bottom: 16px;
       transition: border-color 0.2s;
-      text-align: center;
     }
 
-    .answer-input:focus {
-      border-color: var(--primary);
-      background: var(--card);
-      box-shadow: 0 0 0 3px rgba(30,136,229,0.1);
-    }
+    .answer-input:focus { border-color: var(--primary); background: #fff; }
 
-    /* ── Hint ── */
-    .hint-box {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      background: #FFF8E1;
-      border: 1px solid #F59E0B44;
-      border-radius: 10px;
-      padding: 10px 14px;
-      font-size: 0.82rem;
-      color: #78350f;
-      display: none;
-    }
-
-    /* ── Result message ── */
-    .result-msg {
-      display: none;
-      padding: 14px 16px;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-align: center;
-    }
-
-    .result-msg.success { background: #dcfce7; color: #166534; }
-    .result-msg.fail    { background: #fee2e2; color: #991b1b; }
-
-    /* ── Buttons ── */
-    .action-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr 2fr;
-      gap: 10px;
-    }
-
-    .btn-hint, .btn-snooze {
-      padding: 11px;
-      border-radius: 10px;
-      border: 1.5px solid var(--border);
-      background: var(--card);
-      font-family: var(--font-b);
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--muted);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-hint:hover   { border-color: var(--warning); color: var(--warning); }
-    .btn-snooze:hover { border-color: var(--primary); color: var(--primary); }
-
+    /* ── Submit button ── */
     .btn-submit {
-      padding: 12px;
-      border-radius: 10px;
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
       border: none;
       background: var(--primary);
       color: #fff;
-      font-family: var(--font-b);
+      font-family: 'Poppins', sans-serif;
       font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
       transition: background 0.2s, transform 0.15s;
-      box-shadow: var(--shadow);
+      margin-bottom: 8px;
     }
 
-    .btn-submit:hover    { background: var(--primary-dark); transform: translateY(-1px); }
-    .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-submit:hover    { background: #1565C0; transform: translateY(-1px); }
+    .btn-submit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
-    .btn-next {
-      display: none;
-      width: 100%;
-      padding: 13px;
-      border-radius: 10px;
-      border: none;
-      background: var(--success);
-      color: #fff;
-      font-family: var(--font-b);
-      font-size: 0.95rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .btn-next:hover { background: #16a34a; }
-
-    /* ── Score ── */
-    .score-row {
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      gap: 6px;
+    /* ── Footer text ── */
+    .footer-text {
+      text-align: center;
       font-size: 0.8rem;
       color: var(--muted);
     }
 
-    .score-val {
-      font-family: var(--font-h);
-      font-weight: 700;
-      color: var(--primary);
-      font-size: 1rem;
+    /* ── Result feedback ── */
+    .result-feedback {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
     }
 
-    /* loading */
-    .loading {
-      text-align: center;
-      padding: 40px;
+    .result-feedback.success { background: #dcfce7; color: #166534; }
+    .result-feedback.fail    { background: #fee2e2; color: #991b1b; }
+
+    /* ── Dismissed screen ── */
+    .dismissed-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 0;
+    }
+
+    .dismissed-screen .check {
+      font-size: 3.5rem;
+    }
+
+    .dismissed-screen h2 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--success);
+    }
+
+    .dismissed-screen p {
+      font-size: 0.85rem;
       color: var(--muted);
+      text-align: center;
+    }
+
+    .btn-dashboard {
+      margin-top: 8px;
+      padding: 12px 28px;
+      border-radius: 10px;
+      border: none;
+      background: var(--primary);
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    /* Loading */
+    .loading-text {
+      text-align: center;
+      color: var(--muted);
+      padding: 30px 0;
       font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
 
-<div class="challenge-card">
+  <!-- Time -->
+  <div class="alarm-time" id="alarmTimeDisplay">06:30 AM</div>
+  <div class="alarm-date" id="alarmDateDisplay">Monday, August 11</div>
 
-  <!-- Top banner -->
-  <div class="alarm-banner">
-    <div class="alarm-info">
-      <h2 id="alarmTimeDisplay">⏰ 06:30 AM</h2>
-      <p id="alarmLabel">Morning Alarm — Solve the challenge to dismiss</p>
-    </div>
-    <div class="alarm-icon">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" width="26" height="26" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
-    </div>
+  <!-- Badges -->
+  <div class="badge-row">
+    <span class="badge badge-type" id="badgeType">
+      <span>⬛</span> <span id="typeLabel">Math Problems</span>
+    </span>
+    <span class="badge badge-diff" id="badgeDiff">Medium</span>
   </div>
 
-  <!-- Timer bar -->
-  <div class="timer-wrap">
-    <div class="timer-row">
-      <span class="timer-label">Time Remaining</span>
-      <span class="timer-count" id="timerCount">45s</span>
+  <!-- Card -->
+  <div class="challenge-card">
+
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-seg" id="seg0"></div>
+      <div class="progress-seg" id="seg1"></div>
+      <div class="progress-seg" id="seg2"></div>
     </div>
-    <div class="timer-bar">
-      <div class="timer-fill" id="timerFill" style="width:100%"></div>
+
+    <!-- Step label -->
+    <div class="step-label" id="stepLabel">STEP 1 OF 3 · CONSECUTIVE CORRECT REQUIRED</div>
+
+    <!-- Dynamic content -->
+    <div id="challengeContent">
+      <div class="loading-text">Loading your challenge...</div>
     </div>
+
+    <!-- Dismissed screen (hidden until 3 correct) -->
+    <div class="dismissed-screen" id="dismissedScreen">
+      <div class="check">✅</div>
+      <h2>Alarm Dismissed!</h2>
+      <p>Great job! You solved 3 challenges in a row.<br>Have a productive day.</p>
+      <button class="btn-dashboard" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+    </div>
+
   </div>
 
-  <!-- Challenge content -->
-  <div class="challenge-body" id="challengeBody">
-    <div class="loading">Loading your challenge...</div>
-  </div>
-
-</div>
+  <!-- Footer -->
+  <p style="color:rgba(255,255,255,0.45);font-size:0.78rem;margin-top:18px;">
+    Solve 3 in a row correctly to dismiss the alarm
+  </p>
 
 <script>
 const API = 'http://localhost:8000';
 
-// ── Read URL params ──────────────────────────────────────────
+// ── URL params ────────────────────────────────────────────────
 const params      = new URLSearchParams(window.location.search);
-const alarmId     = params.get('alarm_id') || '0';
 const challengeType = params.get('type') || 'math';
 const difficulty  = params.get('difficulty') || 'medium';
 const alarmTime   = params.get('time') || '';
 const alarmLabel  = params.get('label') || 'Morning Alarm';
 
-// Show alarm info
-if (alarmTime) document.getElementById('alarmTimeDisplay').textContent = '⏰ ' + alarmTime;
-document.getElementById('alarmLabel').textContent = alarmLabel + ' — Solve the challenge to dismiss';
+// ── Set alarm time & date ─────────────────────────────────────
+if (alarmTime) document.getElementById('alarmTimeDisplay').textContent = alarmTime;
+const now = new Date();
+document.getElementById('alarmDateDisplay').textContent =
+  now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-// ── State ────────────────────────────────────────────────────
+// ── Badge labels ──────────────────────────────────────────────
+const typeLabels = {
+  math: 'Math Problems', logic: 'Logic Puzzles', memory: 'Memory Challenges',
+  word: 'Word Games', pattern: 'Pattern Recognition', riddle: 'Riddles', quiz: 'Quick Quizzes'
+};
+const typeIcons = {
+  math: '🔢', logic: '🧩', memory: '🧠', word: '📝', pattern: '🔷', riddle: '🤔', quiz: '❓'
+};
+
+document.getElementById('typeLabel').textContent = typeLabels[challengeType] || challengeType;
+document.querySelector('#badgeType span').textContent = typeIcons[challengeType] || '⬛';
+document.getElementById('badgeDiff').textContent =
+  difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
+
+// ── State ─────────────────────────────────────────────────────
+let correctStreak = 0;   // need 3
 let currentChallenge = null;
 let selectedOption   = null;
 let timerInterval    = null;
 let timeLeft         = 45;
 let totalTime        = 45;
 let startTime        = Date.now();
-let score            = 0;
-let attempts         = 0;
 
-// ── Load challenge from API ──────────────────────────────────
+// ── Progress bar ──────────────────────────────────────────────
+function updateProgress() {
+  for (let i = 0; i < 3; i++) {
+    const seg = document.getElementById(`seg${i}`);
+    seg.className = 'progress-seg';
+    if (i < correctStreak)     seg.classList.add('done');
+    else if (i === correctStreak) seg.classList.add('active');
+  }
+  document.getElementById('stepLabel').textContent =
+    `STEP ${correctStreak + 1} OF 3 · CONSECUTIVE CORRECT REQUIRED`;
+}
+
+// ── Load challenge ────────────────────────────────────────────
 async function loadChallenge() {
-  document.getElementById('challengeBody').innerHTML = '<div class="loading">Loading your challenge...</div>';
+  selectedOption = null;
+  document.getElementById('challengeContent').innerHTML =
+    '<div class="loading-text">Loading challenge...</div>';
+  updateProgress();
+
   try {
     const res  = await fetch(`${API}/challenges/generate?type=${challengeType}&difficulty=${difficulty}`);
-    const data = await res.json();
-    currentChallenge = data;
-    selectedOption   = null;
-    renderChallenge(data);
-    startTimer(data.time_limit || 45);
-  } catch (err) {
-    document.getElementById('challengeBody').innerHTML =
-      '<div class="loading">Could not load challenge. Make sure the backend is running.</div>';
+    currentChallenge = await res.json();
+    renderChallenge(currentChallenge);
+    startTimer(currentChallenge.time_limit || 45);
+  } catch {
+    document.getElementById('challengeContent').innerHTML =
+      '<div class="loading-text">⚠️ Cannot connect to server.</div>';
   }
 }
 
-// ── Render challenge ─────────────────────────────────────────
+// ── Render challenge ──────────────────────────────────────────
 function renderChallenge(c) {
-  const diffClass = c.difficulty;
-  const diffLabel = c.difficulty.charAt(0).toUpperCase() + c.difficulty.slice(1);
-
   let answerHtml = '';
-  if (c.input_type === 'choice' && c.options && c.options.length) {
+  if (c.input_type === 'choice' && c.options?.length) {
     answerHtml = `<div class="options-grid" id="optionsGrid">
-      ${c.options.map(o => `<button class="opt-btn" onclick="selectOption(this,'${o}')">${o}</button>`).join('')}
+      ${c.options.map(o =>
+        `<button class="opt-btn" onclick="selectOption(this,'${o.replace(/'/g,"\\'")}')">
+          ${o}
+        </button>`
+      ).join('')}
     </div>`;
   } else {
     answerHtml = `<input type="text" class="answer-input" id="answerInput"
-      placeholder="Type your answer here..." autocomplete="off"
-      onkeydown="if(event.key==='Enter') submitAnswer()">`;
+      placeholder="Type your answer..." autocomplete="off"
+      onkeydown="if(event.key==='Enter')submitAnswer()">`;
   }
 
-  document.getElementById('challengeBody').innerHTML = `
-    <div class="challenge-meta">
-      <span class="badge-type">${c.title}</span>
-      <span class="badge-diff ${diffClass}">${diffLabel}</span>
-    </div>
-    <div>
-      <div class="challenge-title">${c.title}</div>
-      <div class="challenge-instructions">${c.instructions}</div>
-    </div>
-    <div class="challenge-question">${c.question}</div>
+  document.getElementById('challengeContent').innerHTML = `
+    <div class="question-text" id="questionText">${c.question}</div>
+    <div class="timer-row ok" id="timerRow">⏳ ${c.time_limit || 45}s remaining</div>
     ${answerHtml}
-    <div class="hint-box" id="hintBox">💡 ${c.hint || ''}</div>
-    <div class="result-msg" id="resultMsg"></div>
-    <div class="action-row">
-      <button class="btn-hint" onclick="showHint()">💡 Hint</button>
-      <button class="btn-snooze" onclick="snooze()">😴 Snooze</button>
-      <button class="btn-submit" id="submitBtn" onclick="submitAnswer()">Submit Answer</button>
-    </div>
-    <button class="btn-next" id="nextBtn" onclick="loadChallenge()">Try Another Challenge →</button>
-    <div class="score-row">Score: <span class="score-val" id="scoreDisplay">${score}</span></div>
+    <div class="result-feedback" id="resultFeedback"></div>
+    <button class="btn-submit" id="submitBtn" onclick="submitAnswer()">Submit</button>
+    <div class="footer-text">Solve 3 in a row correctly to dismiss the alarm</div>
   `;
 
   startTime = Date.now();
 }
 
-// ── Option selection ─────────────────────────────────────────
+// ── Option select ─────────────────────────────────────────────
 function selectOption(btn, val) {
   document.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
   selectedOption = val;
 }
 
-// ── Submit answer ────────────────────────────────────────────
+// ── Submit ────────────────────────────────────────────────────
 async function submitAnswer() {
   if (!currentChallenge) return;
-
   const submitBtn = document.getElementById('submitBtn');
-  const resultMsg = document.getElementById('resultMsg');
-  const nextBtn   = document.getElementById('nextBtn');
+  const feedback  = document.getElementById('resultFeedback');
   submitBtn.disabled = true;
 
   let userAnswer = '';
   if (currentChallenge.input_type === 'choice') {
     userAnswer = selectedOption || '';
-    if (!userAnswer) {
-      submitBtn.disabled = false;
-      resultMsg.style.display = 'block';
-      resultMsg.className = 'result-msg fail';
-      resultMsg.textContent = 'Please select an option first.';
-      return;
-    }
+    if (!userAnswer) { submitBtn.disabled = false; return; }
   } else {
     const inp = document.getElementById('answerInput');
-    userAnswer = inp ? inp.value.trim() : '';
-    if (!userAnswer) {
-      submitBtn.disabled = false;
-      resultMsg.style.display = 'block';
-      resultMsg.className = 'result-msg fail';
-      resultMsg.textContent = 'Please enter your answer.';
-      return;
-    }
+    userAnswer = inp?.value.trim() || '';
+    if (!userAnswer) { submitBtn.disabled = false; return; }
   }
 
-  const timeTaken = (Date.now() - startTime) / 1000;
   stopTimer();
-  attempts++;
+  const timeTaken = (Date.now() - startTime) / 1000;
 
   try {
-    const res = await fetch(`${API}/challenges/verify`, {
+    const res  = await fetch(`${API}/challenges/verify`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -518,74 +452,56 @@ async function submitAnswer() {
     });
     const data = await res.json();
 
-    resultMsg.style.display = 'block';
-    score += data.score || 0;
-    const scoreEl = document.getElementById('scoreDisplay');
-    if (scoreEl) scoreEl.textContent = score;
+    // Mark options
+    document.querySelectorAll('.opt-btn').forEach(b => {
+      const t = b.textContent.trim();
+      if (t === currentChallenge.answer_key) b.classList.add('correct');
+      else if (t === userAnswer)             b.classList.add('wrong');
+    });
+
+    feedback.style.display = 'block';
 
     if (data.success) {
-      resultMsg.className = 'result-msg success';
-      resultMsg.textContent = data.message;
-      // Mark correct option
-      document.querySelectorAll('.opt-btn').forEach(b => {
-        if (b.textContent.trim() === currentChallenge.answer_key) b.classList.add('correct');
-      });
-      nextBtn.style.display = 'block';
-      nextBtn.textContent   = '✅ Alarm Dismissed — Back to Dashboard';
-      nextBtn.onclick = () => { window.location.href = 'dashboard.html'; };
+      feedback.className = 'result-feedback success';
+      feedback.textContent = '✅ Correct! ' + data.message;
+      correctStreak++;
+      updateProgress();
+
+      if (correctStreak >= 3) {
+        // Alarm dismissed
+        setTimeout(() => {
+          document.getElementById('challengeContent').style.display = 'none';
+          document.getElementById('dismissedScreen').style.display  = 'flex';
+        }, 900);
+      } else {
+        setTimeout(loadChallenge, 1200);
+      }
     } else {
-      resultMsg.className = 'result-msg fail';
-      resultMsg.textContent = data.message;
-      // Mark wrong/correct options
-      document.querySelectorAll('.opt-btn').forEach(b => {
-        const t = b.textContent.trim();
-        if (t === currentChallenge.answer_key) b.classList.add('correct');
-        else if (t === userAnswer)             b.classList.add('wrong');
-      });
-      nextBtn.style.display = 'block';
-      nextBtn.textContent   = '🔄 Try Another Challenge';
-      nextBtn.onclick = loadChallenge;
-      submitBtn.disabled = false;
+      feedback.className = 'result-feedback fail';
+      feedback.textContent = '❌ Wrong! ' + data.message;
+      correctStreak = 0;   // reset streak
+      updateProgress();
+      setTimeout(loadChallenge, 1800);
     }
-  } catch (err) {
-    resultMsg.style.display = 'block';
-    resultMsg.className = 'result-msg fail';
-    resultMsg.textContent = 'Cannot connect to server.';
+
+  } catch {
+    feedback.style.display = 'block';
+    feedback.className = 'result-feedback fail';
+    feedback.textContent = 'Cannot connect to server.';
     submitBtn.disabled = false;
   }
 }
 
-// ── Hint ─────────────────────────────────────────────────────
-function showHint() {
-  const h = document.getElementById('hintBox');
-  if (h) h.style.display = h.style.display === 'flex' ? 'none' : 'flex';
-}
-
-// ── Snooze ───────────────────────────────────────────────────
-function snooze() {
-  if (confirm('Snooze for 5 minutes? The alarm will remind you again.')) {
-    stopTimer();
-    document.getElementById('challengeBody').innerHTML = `
-      <div class="loading">😴 Snoozed! Returning to dashboard...<br><br>
-      <small>Your alarm will fire again in 5 minutes.</small></div>`;
-    setTimeout(() => { window.location.href = 'dashboard.html'; }, 2000);
-  }
-}
-
-// ── Timer ────────────────────────────────────────────────────
+// ── Timer ─────────────────────────────────────────────────────
 function startTimer(seconds) {
   stopTimer();
   timeLeft  = seconds;
   totalTime = seconds;
   updateTimerUI();
-
   timerInterval = setInterval(() => {
     timeLeft--;
     updateTimerUI();
-    if (timeLeft <= 0) {
-      stopTimer();
-      timeExpired();
-    }
+    if (timeLeft <= 0) { stopTimer(); timeExpired(); }
   }, 1000);
 }
 
@@ -594,37 +510,28 @@ function stopTimer() {
 }
 
 function updateTimerUI() {
-  const countEl = document.getElementById('timerCount');
-  const fillEl  = document.getElementById('timerFill');
-  if (!countEl || !fillEl) return;
-
-  const pct = (timeLeft / totalTime) * 100;
-  countEl.textContent = timeLeft + 's';
-  fillEl.style.width  = pct + '%';
-
-  const cls = timeLeft <= 10 ? 'danger' : timeLeft <= 20 ? 'warning' : '';
-  countEl.className = 'timer-count ' + cls;
-  fillEl.className  = 'timer-fill '  + cls;
+  const row = document.getElementById('timerRow');
+  if (!row) return;
+  row.textContent = `⏳ ${timeLeft}s remaining`;
+  row.className   = `timer-row ${timeLeft <= 10 ? 'danger' : timeLeft <= 20 ? '' : 'ok'}`;
 }
 
 function timeExpired() {
-  const resultMsg = document.getElementById('resultMsg');
-  const nextBtn   = document.getElementById('nextBtn');
-  const submitBtn = document.getElementById('submitBtn');
-  if (resultMsg) {
-    resultMsg.style.display = 'block';
-    resultMsg.className = 'result-msg fail';
-    resultMsg.textContent = '⏰ Time\'s up! The correct answer was: ' + (currentChallenge?.answer_key || '');
+  const fb = document.getElementById('resultFeedback');
+  if (fb) {
+    fb.style.display = 'block';
+    fb.className = 'result-feedback fail';
+    fb.textContent = `⏰ Time\'s up! Answer was: ${currentChallenge?.answer_key || ''}`;
   }
-  if (submitBtn) submitBtn.disabled = true;
-  if (nextBtn) {
-    nextBtn.style.display = 'block';
-    nextBtn.textContent   = '🔄 Try Another Challenge';
-    nextBtn.onclick = loadChallenge;
-  }
+  const sb = document.getElementById('submitBtn');
+  if (sb) sb.disabled = true;
+  correctStreak = 0;
+  updateProgress();
+  setTimeout(loadChallenge, 2000);
 }
 
-// ── Init ─────────────────────────────────────────────────────
+// ── Init ──────────────────────────────────────────────────────
+updateProgress();
 loadChallenge();
 </script>
 </body>
