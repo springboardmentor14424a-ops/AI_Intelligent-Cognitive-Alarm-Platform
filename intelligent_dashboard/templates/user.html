@@ -673,16 +673,12 @@
         }
 
         function submitFinalDisarmForm() {
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/api/alarm/simulate/${currentSolvedAlarmId}`;
-            const hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'outcome';
-            hidden.value = 'success';
-            form.appendChild(hidden);
-            document.body.appendChild(form);
-            form.submit();
+            // Use fetch — NO page reload so triggeredAlarmsSet stays intact
+            const fd = new FormData();
+            fd.append('outcome', 'success');
+            fetch(`/api/alarm/simulate/${currentSolvedAlarmId}`, { method: 'POST', body: fd })
+                .then(() => showToast('Alarm solved! Great job!', 'success'))
+                .catch(() => showToast('Alarm solved!', 'success'));
         }
 
         function snoozeFromModal() {
@@ -691,37 +687,35 @@
             const alarmId = document.getElementById('challenge-alarm-id').value;
             if (!alarmId) return;
 
-            // Post snooze outcome
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = `/api/alarm/simulate/${alarmId}`;
-            const hidden = document.createElement('input');
-            hidden.type = 'hidden';
-            hidden.name = 'outcome';
-            hidden.value = 'snooze';
-            form.appendChild(hidden);
-            document.body.appendChild(form);
-            form.submit();
+            // Use fetch — NO page reload so triggeredAlarmsSet stays intact
+            const fd = new FormData();
+            fd.append('outcome', 'snooze');
+            fetch(`/api/alarm/simulate/${alarmId}`, { method: 'POST', body: fd })
+                .then(() => {})
+                .catch(() => {});
 
-            // Re-ring after 5 minutes by clearing the triggered key
-            // so checkAlarmClock can fire it again
-            const snoozeMs = 5 * 60 * 1000;
-            showToast('Snoozed for 5 minutes. Alarm will ring again!', 'warning');
+            showToast('Snoozed 5 min. Alarm will ring again!', 'warning');
+
+            // After 5 min: clear this alarm's key so it can re-ring
             setTimeout(() => {
-                // Remove all keys for this alarm so it can retrigger
                 for (const key of [...triggeredAlarmsSet]) {
                     if (key.startsWith(alarmId + '_')) {
                         triggeredAlarmsSet.delete(key);
                     }
                 }
-                // Re-enable alarm in activeUserAlarms list
+                saveTriggeredKeys(triggeredAlarmsSet);
                 for (const a of activeUserAlarms) {
                     if (String(a.id) === String(alarmId)) {
                         a.status = true;
-                        a._snoozed = true;
                     }
                 }
-            }, snoozeMs);
+                showToast('Snooze over! Alarm ringing again!', 'danger');
+                startAlarmSound();
+                openChallengeModal(alarmId,
+                    activeUserAlarms.find(x => String(x.id) === String(alarmId))?.challenge || 'Math Problems',
+                    activeUserAlarms.find(x => String(x.id) === String(alarmId))?.difficulty || 'Medium'
+                );
+            }, 5 * 60 * 1000);
         }
 
         // =====================================================================
@@ -773,7 +767,30 @@
             {% endfor %}
         ];
 
-        const triggeredAlarmsSet = new Set();
+        // Use sessionStorage so triggered keys survive page reloads (snooze/submit cause reloads)
+        function getTriggeredKeys() {
+            try { return new Set(JSON.parse(sessionStorage.getItem('triggered_alarms') || '[]')); }
+            catch(e) { return new Set(); }
+        }
+        function saveTriggeredKeys(s) {
+            try { sessionStorage.setItem('triggered_alarms', JSON.stringify([...s])); } catch(e) {}
+        }
+        // Clean up old keys (older than current minute) to avoid stale entries
+        function cleanTriggeredKeys(s) {
+            const now = new Date();
+            const curMin = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+            for (const key of [...s]) {
+                const parts = key.split('_');
+                const keyMin = parts[parts.length - 1];
+                // Remove keys from previous minutes (not snooze keys which have _snooze suffix)
+                if (!key.includes('_snooze') && keyMin && keyMin !== curMin) {
+                    s.delete(key);
+                }
+            }
+            return s;
+        }
+
+        let triggeredAlarmsSet = getTriggeredKeys();
         let alarmDisarmed = false;
 
         function checkAlarmClock() {
@@ -782,18 +799,22 @@
             const m = String(now.getMinutes()).padStart(2, '0');
             const currentHHMM = `${h}:${m}`;
 
+            triggeredAlarmsSet = cleanTriggeredKeys(triggeredAlarmsSet);
+
             for (const a of activeUserAlarms) {
                 const alarmKey = `${a.id}_${currentHHMM}`;
+                // Skip if already triggered this minute OR marked as disarmed in session
                 if (a.status && a.time === currentHHMM && !triggeredAlarmsSet.has(alarmKey)) {
                     triggeredAlarmsSet.add(alarmKey);
+                    saveTriggeredKeys(triggeredAlarmsSet);
                     alarmDisarmed = false;
 
-                    // Once alarm: disable after triggering so it never fires again
+                    // Once alarm: disable so it never fires again
                     if (a.type === 'once' || a.type === 'One-Time') {
                         a.status = false;
                     }
 
-                    // Start ringing — NO auto-stop. Stops only when user solves or snoozes.
+                    // Ring continuously — stops ONLY on correct answer or snooze
                     startAlarmSound();
 
                     openChallengeModal(a.id, a.challenge, a.difficulty);
