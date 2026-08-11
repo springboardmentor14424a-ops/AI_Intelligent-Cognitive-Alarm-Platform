@@ -2,15 +2,6 @@ import os
 import random
 import json
 import re
-
-# =====================================================================
-# COGNITIVE CHALLENGE GENERATOR ENGINE
-# Supports Gemini LLM integration with dynamic fallback logic
-# Challenge Types: Math Problems, Logic Puzzles, Memory Challenges,
-#                  Word Games, Pattern Recognition, Riddles, Quick Quizzes
-# Difficulties: Easy, Medium, Hard
-# =====================================================================
-
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
 
 def generate_with_gemini(challenge_type: str, difficulty: str):
@@ -19,7 +10,6 @@ def generate_with_gemini(challenge_type: str, difficulty: str):
         return None
     
     try:
-        # Try google-genai or google-generativeai
         import google.generativeai as genai
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel('gemini-1.5-flash')
@@ -292,8 +282,7 @@ def verify_challenge_answer(expected: str, user_input: str):
     
     if exp_clean == user_clean:
         return True
-    
-    # Allow numerical tolerance or substring inclusion for text answers
+
     if exp_clean in user_clean or user_clean in exp_clean:
         return True
         
