@@ -13,7 +13,29 @@ const getApiBaseUrl = () => {
     return 'http://localhost:8000';
 };
 
-const API_BASE_URL = getApiBaseUrl();
+
+function getRelativePath(targetPath) {
+    const pathname = window.location.pathname;
+    const isSubfolder = pathname.includes('/user/') || pathname.includes('/admin/') || pathname.includes('/coach/');
+
+    if (targetPath === 'login.html') {
+        return isSubfolder ? '../login.html' : 'login.html';
+    }
+
+    if (targetPath === 'dashboard-user.html') {
+        if (pathname.includes('/user/')) return 'dashboard-user.html';
+        return isSubfolder ? '../user/dashboard-user.html' : 'user/dashboard-user.html';
+    }
+    if (targetPath === 'dashboard-coach.html') {
+        if (pathname.includes('/coach/')) return 'dashboard-coach.html';
+        return isSubfolder ? '../coach/dashboard-coach.html' : 'coach/dashboard-coach.html';
+    }
+    if (targetPath === 'dashboard-admin.html') {
+        if (pathname.includes('/admin/')) return 'dashboard-admin.html';
+        return isSubfolder ? '../admin/dashboard-admin.html' : 'admin/dashboard-admin.html';
+    }
+    return targetPath;
+}
 
 /**
  * Validates session and roles to prevent unauthorized dashboard navigation
@@ -24,7 +46,7 @@ function protectPage(requiredRole) {
 
     if (!sessionUser || !sessionUser.accessToken) {
         // No active session or missing token, redirect to login page
-        window.location.href = 'login.html';
+        window.location.href = getRelativePath('login.html');
         return;
     }
 
@@ -34,13 +56,13 @@ function protectPage(requiredRole) {
     if (userRole !== targetRole) {
         // User role does not match page requirements, redirect to correct dashboard
         if (userRole === 'user') {
-            window.location.href = 'dashboard-user.html';
+            window.location.href = getRelativePath('dashboard-user.html');
         } else if (userRole === 'coach') {
-            window.location.href = 'dashboard-coach.html';
+            window.location.href = getRelativePath('dashboard-coach.html');
         } else if (userRole === 'admin') {
-            window.location.href = 'dashboard-admin.html';
+            window.location.href = getRelativePath('dashboard-admin.html');
         } else {
-            window.location.href = 'login.html';
+            window.location.href = getRelativePath('login.html');
         }
     }
 }
@@ -74,9 +96,9 @@ async function attemptLoginAsync(email, password) {
         }
 
         if (!response.ok) {
-            return { 
-                success: false, 
-                message: data.detail || 'Invalid email or password.' 
+            return {
+                success: false,
+                message: data.detail || 'Invalid email or password.'
             };
         }
 
@@ -92,17 +114,17 @@ async function attemptLoginAsync(email, password) {
             loggedInAt: new Date().toISOString()
         }));
 
-        return { 
-            success: true, 
-            user: user, 
+        return {
+            success: true,
+            user: user,
             token: data.access_token,
-            message: `Logged in successfully as ${user.name}!` 
+            message: `Logged in successfully as ${user.name}!`
         };
     } catch (error) {
         console.error('Database API Login Error:', error);
-        return { 
-            success: false, 
-            message: `Could not connect to backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/login). Verify backend server is running.` 
+        return {
+            success: false,
+            message: `Could not connect to backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/login). Verify backend server is running.`
         };
     }
 }
@@ -142,22 +164,22 @@ async function registerUserAsync(name, email, password, role = 'USER', provider 
         }
 
         if (!response.ok) {
-            return { 
-                success: false, 
-                message: data.detail || 'Registration failed.' 
+            return {
+                success: false,
+                message: data.detail || 'Registration failed.'
             };
         }
 
-        return { 
-            success: true, 
-            data: data.data, 
-            message: data.message || 'User registered in Database successfully!' 
+        return {
+            success: true,
+            data: data.data,
+            message: data.message || 'User registered in Database successfully!'
         };
     } catch (error) {
         console.error('Database API Registration Error:', error);
-        return { 
-            success: false, 
-            message: `Could not connect to backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/register). Verify backend server is running.` 
+        return {
+            success: false,
+            message: `Could not connect to backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/register). Verify backend server is running.`
         };
     }
 }
@@ -187,9 +209,9 @@ async function loginWithGoogleAsync(googleData) {
         }
 
         if (!response.ok) {
-            return { 
-                success: false, 
-                message: data.detail || 'Google OAuth authentication failed.' 
+            return {
+                success: false,
+                message: data.detail || 'Google OAuth authentication failed.'
             };
         }
 
@@ -204,17 +226,17 @@ async function loginWithGoogleAsync(googleData) {
             loggedInAt: new Date().toISOString()
         }));
 
-        return { 
-            success: true, 
-            user: user, 
+        return {
+            success: true,
+            user: user,
             token: data.access_token,
-            message: `Authenticated with Google as ${user.name}!` 
+            message: `Authenticated with Google as ${user.name}!`
         };
     } catch (error) {
         console.error('Google OAuth API Error:', error);
-        return { 
-            success: false, 
-            message: `Could not connect to Google OAuth backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/google). Verify backend server is running.` 
+        return {
+            success: false,
+            message: `Could not connect to Google OAuth backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/google). Verify backend server is running.`
         };
     }
 }
@@ -224,7 +246,7 @@ async function loginWithGoogleAsync(googleData) {
  */
 function logout() {
     localStorage.removeItem('sessionUser');
-    window.location.href = 'login.html';
+    window.location.href = getRelativePath('login.html');
 }
 
 /**
@@ -282,7 +304,7 @@ function updateHeaderUserInfo() {
         const hour = new Date().getHours();
         const timeGreeting = hour < 12 ? 'Good Morning' : (hour < 18 ? 'Good Afternoon' : 'Good Evening');
         const role = (sessionUser.role || '').toLowerCase();
-        
+
         if (role === 'admin') {
             greetingText.innerHTML = `System Cockpit, <span class="grad-text">${name}</span>`;
         } else if (role === 'coach') {
@@ -297,7 +319,7 @@ function updateHeaderUserInfo() {
     if (profileNameInput && !profileNameInput.value) {
         profileNameInput.value = name;
     }
-    
+
     const profileEmailInput = document.getElementById('profile-email');
     if (profileEmailInput && sessionUser.email && !profileEmailInput.value) {
         profileEmailInput.value = sessionUser.email;
@@ -367,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const addLogoutModal = () => {
         if (document.getElementById('logout-modal')) return;
-        
+
         const logoutModalHTML = `
             <div id="logout-modal" class="modal-overlay">
                 <div class="modal-container" style="max-width: 400px;">
@@ -386,7 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
         document.body.insertAdjacentHTML('beforeend', logoutModalHTML);
-        
+
         const confirmBtn = document.getElementById('confirm-logout-btn');
         if (confirmBtn) {
             confirmBtn.addEventListener('click', () => {

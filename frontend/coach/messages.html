@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages Log - WakeWise Coach</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-theme="dark">
+    <div class="db-wrapper">
+        <aside class="db-sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>WakeWise Coach</span>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item"><a href="dashboard-coach.html#dashboard"><i class="fas fa-chart-pie"></i> <span>Dashboard</span></a></li>
+                <li class="sidebar-menu-item"><a href="reports.html"><i class="fas fa-file-invoice"></i> <span>User Reports</span></a></li>
+                <li class="sidebar-menu-item"><a href="trends.html"><i class="fas fa-moon"></i> <span>Sleep Trends</span></a></li>
+                <li class="sidebar-menu-item"><a href="analytics.html"><i class="fas fa-heartbeat"></i> <span>Habit Analytics</span></a></li>
+                <li class="sidebar-menu-item"><a href="recommendations.html"><i class="fas fa-comment-medical"></i> <span>Recommendations</span></a></li>
+                <li class="sidebar-menu-item active"><a href="messages.html"><i class="fas fa-envelope"></i> <span>Messages Log</span></a></li>
+            </ul>
+        </aside>
+
+        <main class="db-main" style="padding: 24px;">
+            <div class="glass-card accent-hover" style="margin-bottom: 30px;">
+                <h3>Recommendations Dispatch Log</h3>
+                <div class="table-responsive" style="margin-top: 20px;">
+                    <table class="custom-table" id="messages-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Recipient</th>
+                                <th>Recommendation Details</th>
+                                <th>Delivery Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script Sources -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/utils.js?v=1.0.6"></script>
+    <script src="../js/auth.js?v=1.0.6"></script>
+    <script>protectPage('coach');</script>
+    <script src="../js/coach.js"></script>
+</body>
+</html>

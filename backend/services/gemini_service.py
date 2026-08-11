@@ -1,0 +1,201 @@
+import os
+import json
+import logging
+import requests
+from config import settings
+from services.fallback_challenges import get_fallback_challenge
+
+logger = logging.getLogger(__name__)
+
+ALLOWED_TYPES = [
+    "Math Problems",
+    "Logic Puzzles",
+    "Memory Challenges",
+    "Word Games",
+    "Pattern Recognition",
+    "Riddles",
+    "Quick Quizzes"
+]
+
+ALLOWED_DIFFICULTIES = ["Easy", "Medium", "Hard"]
+
+def map_challenge_type(input_type: str) -> str:
+    """Normalize input challenge types or shortcuts to standard types."""
+    if not input_type:
+        return "Math Problems"
+    
+    mapping = {
+        "math": "Math Problems",
+        "logic": "Logic Puzzles",
+        "memory": "Memory Challenges",
+        "word": "Word Games",
+        "pattern": "Pattern Recognition",
+        "riddle": "Riddles",
+        "quiz": "Quick Quizzes",
+        "tap": "Logic Puzzles",
+        "none": "Math Problems"
+    }
+    
+    val = input_type.strip()
+    if val in ALLOWED_TYPES:
+        return val
+    
+    lower_val = val.lower()
+    if lower_val in mapping:
+        return mapping[lower_val]
+    
+    for allowed in ALLOWED_TYPES:
+        if allowed.lower() in lower_val or lower_val in allowed.lower():
+            return allowed
+            
+    return "Math Problems"
+
+def build_gemini_prompt(challenge_type: str, difficulty: str) -> str:
+    """
+    Constructs a strong prompt for Gemini to generate a wake-up cognitive challenge.
+    """
+    difficulty_instructions = {
+        "Easy": "Simple calculations, basic patterns, direct riddles, or simple memory tasks that kickstart alertness.",
+        "Medium": "Multi-step reasoning, moderate arithmetic, complex word/pattern matching, or multi-item memory tasks.",
+        "Hard": "Challenging multi-step logic, complex math equations, deep pattern recognition, or multi-element recall."
+    }
+
+    diff_desc = difficulty_instructions.get(difficulty, difficulty_instructions["Medium"])
+
+    prompt = f"""
+You are an AI Cognitive Engine for WakeWise AI, an intelligent alarm platform.
+Your task is to generate ONE single WAKE-UP cognitive challenge to help a user wake up and overcome sleep inertia.
+
+Requirements:
+- Challenge Type: {challenge_type}
+- Difficulty Level: {difficulty} ({diff_desc})
+- The question must be unambiguous, clear, appropriate for waking up, and have exactly ONE correct answer.
+- Do NOT generate offensive, impossible, or trick questions.
+- Provide 4 multiple-choice options in the "options" array whenever suitable (e.g. for Math, Logic, Quizzes, Patterns, Word Games, Memory). Make sure the exact correct answer is included in the options list!
+- For open-ended riddles where options aren't necessary, "options" can be an empty array [].
+- For Memory Challenges: Include the items to be memorized clearly inside the question (e.g., "Memorize this list: APPLE, RIVER, CLOCK, MOUNTAIN, GUITAR. What was the 3rd item?").
+
+You MUST return strictly a JSON object with NO markdown wrapping, matching this exact schema:
+{{
+    "type": "{challenge_type}",
+    "difficulty": "{difficulty}",
+    "question": "<string>",
+    "options": ["<option1>", "<option2>", "<option3>", "<option4>"],
+    "answer": "<string exact match of the correct answer or choice>",
+    "explanation": "<short clear explanation of the solution>"
+}}
+"""
+    return prompt.strip()
+
+def generate_cognitive_challenge(challenge_type: str, difficulty: str) -> dict:
+    """
+    Generates a cognitive challenge via Gemini API.
+    If Gemini API key is missing, or request fails/times out, returns a local fallback challenge.
+    """
+    normalized_type = map_challenge_type(challenge_type)
+    normalized_diff = difficulty.title() if difficulty and difficulty.title() in ALLOWED_DIFFICULTIES else "Medium"
+
+    api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
+
+    if not api_key:
+        logger.info("GEMINI_API_KEY is not configured. Serving local fallback challenge.")
+        return get_fallback_challenge(normalized_type, normalized_diff)
+
+    prompt = build_gemini_prompt(normalized_type, normalized_diff)
+
+    models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+    response = None
+    last_error_text = ""
+
+    for model_name in models_to_try:
+        endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "response_mime_type": "application/json",
+                "temperature": 0.7
+            }
+        }
+
+        # Try up to 2 attempts per model if hit by 503 (high demand)
+        for attempt in range(2):
+            try:
+                res = requests.post(endpoint, json=payload, timeout=12.0)
+                if res.status_code == 200:
+                    response = res
+                    break
+                elif res.status_code == 503 and attempt == 0:
+                    logger.warning(f"Gemini model {model_name} 503 high demand spike. Retrying in 1.5s...")
+                    import time
+                    time.sleep(1.5)
+                    continue
+                else:
+                    last_error_text = f"{model_name} status {res.status_code}: {res.text}"
+                    logger.warning(f"Gemini API model {model_name} returned non-200: {last_error_text}")
+                    break
+            except Exception as e:
+                logger.warning(f"Error calling Gemini API model {model_name}: {e}")
+                break
+
+        if response and response.status_code == 200:
+            break
+
+    if not response or response.status_code != 200:
+        logger.warning(f"Gemini API model unavailable due to temporary Google API load (503). Serving instant local fallback challenge.")
+        return get_fallback_challenge(normalized_type, normalized_diff)
+
+    try:
+        res_data = response.json()
+        candidates = res_data.get("candidates", [])
+        if not candidates:
+            logger.error("Gemini API response contained no candidates.")
+            return get_fallback_challenge(normalized_type, normalized_diff)
+
+        content_parts = candidates[0].get("content", {}).get("parts", [])
+        if not content_parts:
+            logger.error("Gemini API candidate contained no text parts.")
+            return get_fallback_challenge(normalized_type, normalized_diff)
+
+        raw_text = content_parts[0].get("text", "").strip()
+
+        # Clean potential markdown wrapping if present
+        if raw_text.startswith("```json"):
+            raw_text = raw_text[7:]
+        if raw_text.startswith("```"):
+            raw_text = raw_text[3:]
+        if raw_text.endswith("```"):
+            raw_text = raw_text[:-3]
+        raw_text = raw_text.strip()
+
+        challenge_obj = json.loads(raw_text)
+
+        # Validate required keys
+        required_keys = ["type", "difficulty", "question", "options", "answer", "explanation"]
+        for k in required_keys:
+            if k not in challenge_obj:
+                logger.error(f"Missing required key '{k}' in Gemini JSON response.")
+                return get_fallback_challenge(normalized_type, normalized_diff)
+
+        # Ensure correct type/difficulty values are set
+        challenge_obj["type"] = normalized_type
+        challenge_obj["difficulty"] = normalized_diff
+        
+        # Ensure options is a list
+        if not isinstance(challenge_obj["options"], list):
+            challenge_obj["options"] = []
+            
+        challenge_obj["answer"] = str(challenge_obj["answer"]).strip()
+        challenge_obj["explanation"] = str(challenge_obj["explanation"]).strip()
+
+        logger.info(f"Successfully generated Gemini cognitive challenge for '{normalized_type}' ({normalized_diff})")
+        return challenge_obj
+
+    except Exception as e:
+        logger.error(f"Error parsing Gemini API response: {e}", exc_info=True)
+        return get_fallback_challenge(normalized_type, normalized_diff)

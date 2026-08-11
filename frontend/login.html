@@ -344,11 +344,11 @@
                     const targetRole = result.user ? result.user.role.toLowerCase() : 'user';
                     setTimeout(() => {
                         if (targetRole === 'coach') {
-                            window.location.href = 'dashboard-coach.html';
+                            window.location.href = getRelativePath('dashboard-coach.html');
                         } else if (targetRole === 'admin') {
-                            window.location.href = 'dashboard-admin.html';
+                            window.location.href = getRelativePath('dashboard-admin.html');
                         } else {
-                            window.location.href = 'dashboard-user.html';
+                            window.location.href = getRelativePath('dashboard-user.html');
                         }
                     }, 1000);
                 } else {

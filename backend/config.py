@@ -1,5 +1,8 @@
 import os
+from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+
+load_dotenv()
 
 class Settings(BaseSettings):
     APP_NAME: str = "AI Alarm Platform API"
@@ -20,6 +23,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "1234567890-demo.apps.googleusercontent.com")
     
     ALLOWED_ORIGINS: str = "*"
+
+    # Gemini API Key
+    GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
     class Config:
         env_file = ".env"

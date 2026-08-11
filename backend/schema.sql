@@ -28,3 +28,25 @@ VALUES (
     'LOCAL'
 )
 ON CONFLICT (email) DO NOTHING;
+
+-- Step 2: Create Alarms Table matching SQL/DB Specification
+CREATE TABLE IF NOT EXISTS alarms (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(100) NOT NULL,
+    alarm_time VARCHAR(50) NOT NULL,
+    alarm_type VARCHAR(50) NOT NULL DEFAULT 'One-Time',
+    repeat_days VARCHAR(100) NOT NULL DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    challenge VARCHAR(50) NOT NULL DEFAULT 'None',
+    difficulty_level VARCHAR(50) NOT NULL DEFAULT 'Medium',
+    sound VARCHAR(100) NOT NULL DEFAULT 'Radar',
+    vibration VARCHAR(50) NOT NULL DEFAULT 'Standard',
+    snooze_duration INTEGER NOT NULL DEFAULT 5,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index on user_id for rapid querying
+CREATE INDEX IF NOT EXISTS idx_alarms_user_id ON alarms(user_id);
+

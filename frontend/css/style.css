@@ -1047,6 +1047,18 @@ body.sidebar-collapsed .db-sidebar .sidebar-menu-item a i {
     font-size: 1.3rem;
 }
 
+/* Tabbed Dashboard Sections */
+.tab-content-section {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.tab-content-section.active {
+    display: block;
+    opacity: 1;
+}
+
 /* Top Navbar Style */
 .db-navbar {
     height: var(--navbar-height);
@@ -2050,4 +2062,18 @@ input:checked + .slider:before {
     .btn {
         width: 100%;
     }
+}
+
+
+/* Fix dropdown options */
+select,
+.form-select {
+    color: #ffffff;
+    background-color: #1b1d3a;
+}
+
+select option,
+.form-select option {
+    color: #ffffff;
+    background-color: #1b1d3a;
 }

@@ -1,12 +1,14 @@
 import os
 import logging
+import asyncio
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from config import settings
 from database import engine, Base
-from routes import auth
+from routes import auth, alarms, challenges
+from scheduler import alarm_scheduler_loop
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,11 +34,15 @@ app.add_middleware(
 
 # Include Authentication Router
 app.include_router(auth.router)
+# Include Alarms Router
+app.include_router(alarms.router)
+# Include Challenges Router
+app.include_router(challenges.router)
 
 @app.on_event("startup")
-def startup_db_client():
+async def startup_event():
     """
-    Creates tables in Database on application startup if they do not exist.
+    Creates tables in Database and starts background scheduler service on application startup.
     """
     try:
         logger.info("Initializing Database tables...")
@@ -45,22 +51,26 @@ def startup_db_client():
     except Exception as e:
         logger.error(f"Warning during DB table initialization: {e}")
 
+    # Launch the background alarm scheduler loop
+    asyncio.create_task(alarm_scheduler_loop())
+
+
 @app.get("/api/health", tags=["Health Check"])
 def health_check():
     return {"status": "healthy", "app": settings.APP_NAME}
 
 # Mount static frontend directory if present
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_root = os.path.join(project_root, "frontend")
+assets_root = os.path.join(project_root, "assets")
 
-@app.get("/", tags=["Frontend"])
-def serve_index():
-    index_path = os.path.join(project_root, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"status": "online", "app": settings.APP_NAME, "docs": "/docs"}
+# Serve static frontend pages from the frontend folder.
+# Mounting at root handles all non-/api routes automatically.
+if os.path.exists(assets_root):
+    app.mount("/assets", StaticFiles(directory=assets_root), name="assets")
 
-if os.path.exists(project_root):
-    app.mount("/", StaticFiles(directory=project_root, html=True), name="frontend")
+if os.path.exists(frontend_root):
+    app.mount("/", StaticFiles(directory=frontend_root, html=True), name="frontend")
 
 if __name__ == "__main__":
     import uvicorn

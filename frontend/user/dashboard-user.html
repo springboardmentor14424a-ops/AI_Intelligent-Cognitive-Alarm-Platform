@@ -7,8 +7,14 @@
     <title>User Dashboard - WakeWise AI</title>
     <!-- CSS Dependencies -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="../css/style.css">
+    
 </head>
+
+<audio id="alarm-audio" loop preload="auto">
+    <source src="../assets/sounds/radar.mp3" type="audio/mpeg">
+    <source src="/assets/sounds/radar.mp3" type="audio/mpeg">
+</audio>
 
 <body data-theme="dark">
     <!-- Loader Mask -->
@@ -32,25 +38,25 @@
 
             <ul class="sidebar-menu">
                 <li class="sidebar-menu-item active" data-tab="tab-dashboard">
-                    <a href="#"><i class="fas fa-th-large"></i> <span>Dashboard</span></a>
+                    <a href="#dashboard"><i class="fas fa-th-large"></i> <span>Dashboard</span></a>
                 </li>
                 <li class="sidebar-menu-item" data-tab="tab-alarms">
-                    <a href="#"><i class="fas fa-clock"></i> <span>My Alarms</span></a>
+                    <a href="#alarms"><i class="fas fa-clock"></i> <span>My Alarms</span></a>
                 </li>
                 <li class="sidebar-menu-item" data-tab="tab-challenges">
-                    <a href="#"><i class="fas fa-puzzle-piece"></i> <span>Challenges</span></a>
+                    <a href="#challenges"><i class="fas fa-puzzle-piece"></i> <span>Challenges</span></a>
                 </li>
                 <li class="sidebar-menu-item" data-tab="tab-habits">
-                    <a href="#"><i class="fas fa-tasks"></i> <span>Habit Tracker</span></a>
+                    <a href="#habits"><i class="fas fa-tasks"></i> <span>Habit Tracker</span></a>
                 </li>
                 <li class="sidebar-menu-item" data-tab="tab-analytics">
-                    <a href="#"><i class="fas fa-chart-line"></i> <span>Analytics</span></a>
+                    <a href="#analytics"><i class="fas fa-chart-line"></i> <span>Analytics</span></a>
                 </li>
                 <li class="sidebar-menu-item" data-tab="tab-notifications">
-                    <a href="#"><i class="fas fa-bell"></i> <span>Notifications</span></a>
+                    <a href="#notifications"><i class="fas fa-bell"></i> <span>Notifications</span></a>
                 </li>
                 <li class="sidebar-menu-item" data-tab="tab-profile">
-                    <a href="#"><i class="fas fa-user-cog"></i> <span>Profile</span></a>
+                    <a href="#profile"><i class="fas fa-user-cog"></i> <span>Profile</span></a>
                 </li>
             </ul>
 
@@ -105,35 +111,35 @@
 
             <!-- Dashboard Content Container -->
             <div class="db-content">
-                <!-- Greeting Header summary -->
-                <div class="db-header-summary">
-                    <div class="db-greeting">
-                        <h1 id="greeting-text">Good morning, <span class="grad-text">Alex</span>!</h1>
-                        <p>Your sleep cycle is in alignment. Today is a great day to challenge your mind.</p>
-                    </div>
-                    <div class="db-time-widget">
-                        <div class="time">--:--:-- --</div>
-                        <div class="date">Loading Today...</div>
-                    </div>
-                </div>
-
-                <!-- PROGRESS BAR FOR DAILY GOALS -->
-                <div class="daily-goal-panel glass-card secondary-hover">
-                    <div class="goal-progress-header">
-                        <h3>Daily Cognitive & Habit Progress</h3>
-                        <span class="goal-percent-bubble" id="goal-percent">0% Completed</span>
-                    </div>
-                    <div class="progress-bar-container">
-                        <div class="progress-bar-fill" id="goal-bar"></div>
-                    </div>
-                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
-                        Complete morning routine tasks (Log sleep hours, challenge prefrontal cortex, update habits
-                        checklist) to reach 100%!
-                    </p>
-                </div>
-
                 <!-- ================= TAB: DASHBOARD (MAIN) ================= -->
                 <div id="tab-dashboard" class="tab-content-section active">
+                    <!-- Greeting Header summary -->
+                    <div class="db-header-summary">
+                        <div class="db-greeting">
+                            <h1 id="greeting-text">Good morning, <span class="grad-text">Alex</span>!</h1>
+                            <p>Your sleep cycle is in alignment. Today is a great day to challenge your mind.</p>
+                        </div>
+                        <div class="db-time-widget">
+                            <div class="time">--:--:-- --</div>
+                            <div class="date">Loading Today...</div>
+                        </div>
+                    </div>
+
+                    <!-- PROGRESS BAR FOR DAILY GOALS -->
+                    <div class="daily-goal-panel glass-card secondary-hover">
+                        <div class="goal-progress-header">
+                            <h3>Daily Cognitive & Habit Progress</h3>
+                            <span class="goal-percent-bubble" id="goal-percent">0% Completed</span>
+                        </div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="goal-bar"></div>
+                        </div>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
+                            Complete morning routine tasks (Log sleep hours, challenge prefrontal cortex, update habits
+                            checklist) to reach 100%!
+                        </p>
+                    </div>
+
                     <!-- Stats Grid -->
                     <div class="stats-grid">
                         <div class="glass-card primary-hover stat-card">
@@ -450,13 +456,14 @@
 
     <!-- MODAL: ADD ALARM -->
     <div id="add-alarm-modal" class="modal-overlay">
-        <div class="modal-container">
+        <div class="modal-container" style="max-width: 500px;">
             <div class="modal-header">
-                <h3>Set Cognitive Alarm</h3>
+                <h3 id="alarm-modal-title">Set Cognitive Alarm</h3>
                 <button class="modal-close-btn"><i class="fas fa-times"></i></button>
             </div>
             <form id="add-alarm-form">
-                <div class="modal-body">
+                <input type="hidden" id="edit-alarm-id" value="">
+                <div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding-right: 8px;">
                     <div class="form-group" style="margin-bottom: 16px;">
                         <label for="alarm-label">Alarm Label</label>
                         <input type="text" id="alarm-label" class="form-control" placeholder="e.g. Work Rise" required>
@@ -466,38 +473,83 @@
                         <input type="time" id="alarm-time" class="form-control" required>
                     </div>
                     <div class="form-group" style="margin-bottom: 16px;">
-                        <label for="alarm-challenge">Wakeup Challenge Obstacle</label>
-                        <select id="alarm-challenge" class="form-control form-select">
-                            <option value="math">Mental Arithmetic Formulas</option>
-                            <option value="tap">Rapid Precision Taps</option>
-                            <option value="none">Standard Alarm Tone</option>
+                        <label for="alarm-type">Alarm Type</label>
+                        <select id="alarm-type" class="form-control form-select" required>
+                            <option value="One-Time">One-Time</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Weekdays">Weekdays</option>
+                            <option value="Weekends">Weekends</option>
+                            <option value="Custom">Custom</option>
+                            <option value="Smart Adaptive">Smart Adaptive (Circadian Optimization)</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div id="custom-days-container" class="form-group" style="margin-bottom: 16px; display: none;">
                         <label>Repeat Days</label>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" checked value="Mon"> Mon</label>
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" checked value="Tue"> Tue</label>
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" checked value="Wed"> Wed</label>
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" checked value="Thu"> Thu</label>
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" checked value="Fri"> Fri</label>
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" value="Sat"> Sat</label>
-                            <label
-                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input
-                                    type="checkbox" value="Sun"> Sun</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Mon"> Mon
+                            </label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Tue"> Tue
+                            </label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Wed"> Wed
+                            </label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Thu"> Thu
+                            </label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Fri"> Fri
+                            </label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Sat"> Sat
+                            </label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                                <input type="checkbox" value="Sun"> Sun
+                            </label>
                         </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-challenge">Wakeup Challenge Obstacle</label>
+                        <select id="alarm-challenge" class="form-control form-select">
+                            <option value="Math Problems" selected>Math Problems</option>
+                            <option value="Logic Puzzles">Logic Puzzles</option>
+                            <option value="Memory Challenges">Memory Challenges</option>
+                            <option value="Word Games">Word Games</option>
+                            <option value="Pattern Recognition">Pattern Recognition</option>
+                            <option value="Riddles">Riddles</option>
+                            <option value="Quick Quizzes">Quick Quizzes</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-difficulty">Challenge Difficulty</label>
+                        <select id="alarm-difficulty" class="form-control form-select">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-sound">Alarm Sound</label>
+                        <select id="alarm-sound" class="form-control form-select">
+                            <option value="Radar">Radar (Classic)</option>
+                            <option value="Chimes">Chimes (Gentle)</option>
+                            <option value="Forest Bird">Forest Bird (Circadian)</option>
+                            <option value="WakeUp Dj">WakeUp Dj (Energetic)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-vibration">Vibration Pattern</label>
+                        <select id="alarm-vibration" class="form-control form-select">
+                            <option value="Standard">Standard Pulse</option>
+                            <option value="Rapid">Rapid Alert</option>
+                            <option value="Heartbeat">Heartbeat</option>
+                            <option value="None">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-snooze">Snooze Duration (minutes)</label>
+                        <input type="number" id="alarm-snooze" class="form-control" min="1" max="60" value="5" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -510,38 +562,47 @@
 
     <!-- MODAL: ACTIVE COGNITIVE CHALLENGE WAKEUP DRILL -->
     <div id="challenge-modal" class="modal-overlay">
-        <div class="modal-container" style="max-width: 440px;">
+        <div class="modal-container" style="max-width: 480px;">
             <div class="modal-header">
-                <h3><i class="fas fa-brain grad-text"></i> Prefrontal Awakening Test</h3>
+                <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening Drill</span></h3>
                 <button class="modal-close-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center;">
-                    Solve the following calculations to silence the mockup wake alarm!
-                </p>
-                <div class="challenge-math-question" id="challenge-question">8 x 7 + 12</div>
-                <div class="form-group">
-                    <input type="number" id="challenge-answer" class="form-control" placeholder="Enter answer here..."
-                        required style="text-align: center; font-size: 1.2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
+                    <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
                 </div>
-                <div class="challenge-feedback" id="challenge-feedback"></div>
+                <p id="challenge-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
+                    Solve the challenge to silence the wake-up alarm!
+                </p>
+                <div class="challenge-math-question" id="challenge-question" style="font-size: 1.1rem; padding: 14px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight:600; line-height: 1.4;">8 x 7 + 12</div>
+                
+                <!-- Dynamic Options Container for Multiple Choice -->
+                <div id="challenge-options-container" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;"></div>
+
+                <!-- Text Input Container -->
+                <div class="form-group" id="challenge-input-group">
+                    <input type="text" id="challenge-answer" class="form-control" placeholder="Enter answer here..."
+                        required style="text-align: center; font-size: 1.1rem;">
+                </div>
+                <div class="challenge-feedback" id="challenge-feedback" style="margin-top: 10px; font-weight: 600; text-align: center; min-height: 24px;"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">Verify
-                    Formula</button>
+                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">SUBMIT ANSWER</button>
             </div>
         </div>
     </div>
 
     <!-- Script Sources -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="js/utils.js"></script>
-    <script src="js/auth.js"></script>
+    <script src="../js/config.js?v=1.0.6"></script>
+    <script src="../js/utils.js?v=1.0.6"></script>
+    <script src="../js/auth.js?v=1.0.6"></script>
     <script>
         // Protect user page
         protectPage('user');
     </script>
-    <script src="js/user.js"></script>
+    <script src="../js/user.js?v=1.0.6"></script>
 </body>
 
 </html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Alarms - WakeWise AI</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body data-theme="dark">
+    <div class="db-wrapper">
+        <aside class="db-sidebar">
+            <div class="sidebar-brand">
+                <div class="logo">
+                    <i class="fas fa-brain"></i>
+                    <span>WakeWise AI</span>
+                </div>
+            </div>
+            <ul class="sidebar-menu">
+                <li class="sidebar-menu-item"><a href="dashboard-user.html#dashboard"><i class="fas fa-th-large"></i> <span>Dashboard</span></a></li>
+                <li class="sidebar-menu-item active"><a href="dashboard-user.html#alarms"><i class="fas fa-clock"></i> <span>My Alarms</span></a></li>
+                <li class="sidebar-menu-item"><a href="dashboard-user.html#challenges"><i class="fas fa-puzzle-piece"></i> <span>Challenges</span></a></li>
+                <li class="sidebar-menu-item"><a href="dashboard-user.html#habits"><i class="fas fa-tasks"></i> <span>Habit Tracker</span></a></li>
+                <li class="sidebar-menu-item"><a href="dashboard-user.html#analytics"><i class="fas fa-chart-line"></i> <span>Analytics</span></a></li>
+                <li class="sidebar-menu-item"><a href="dashboard-user.html#notifications"><i class="fas fa-bell"></i> <span>Notifications</span></a></li>
+                <li class="sidebar-menu-item"><a href="dashboard-user.html#profile"><i class="fas fa-user-cog"></i> <span>Profile</span></a></li>
+            </ul>
+        </aside>
+
+        <main class="db-main" style="padding: 24px;">
+            <div class="card" style="margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+                    <div>
+                        <h2 style="margin:0;">My Alarms</h2>
+                        <p style="margin:6px 0 0; color:var(--text-secondary);">Create and manage your alarms without opening the full dashboard.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="Modal.open('add-alarm-modal')"><i class="fas fa-plus"></i> Add Alarm</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <table class="custom-table" id="alarms-manager-table">
+                    <thead>
+                        <tr>
+                            <th>Alarm</th>
+                            <th>Time</th>
+                            <th>Challenge</th>
+                            <th>Schedule</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <div id="add-alarm-modal" class="modal-overlay">
+        <div class="modal-container" style="max-width: 560px;">
+            <div class="modal-header">
+                <h3 id="alarm-modal-title">Set Cognitive Alarm</h3>
+                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="add-alarm-form">
+                <input type="hidden" id="edit-alarm-id" value="">
+                <div class="modal-body">
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-label">Alarm Title</label>
+                        <input type="text" id="alarm-label" class="form-control" placeholder="e.g. Morning Wakeup" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-time">Time</label>
+                        <input type="time" id="alarm-time" class="form-control" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-type">Alarm Type / Schedule</label>
+                        <select id="alarm-type" class="form-control form-select">
+                            <option value="One-Time">One-Time Alarm</option>
+                            <option value="Daily" selected>Daily</option>
+                            <option value="Weekdays">Weekdays</option>
+                            <option value="Weekends">Weekends</option>
+                            <option value="Custom">Custom</option>
+                            <option value="Smart Adaptive">Smart Adaptive</option>
+                        </select>
+                    </div>
+                    <div id="custom-days-container" class="form-group" style="margin-bottom: 16px; display: none;">
+                        <label>Repeat Days</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Mon"> Mon</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Tue"> Tue</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Wed"> Wed</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Thu"> Thu</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Fri"> Fri</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Sat"> Sat</label>
+                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;"><input type="checkbox" value="Sun"> Sun</label>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-challenge">Wakeup Challenge Obstacle</label>
+                        <select id="alarm-challenge" class="form-control form-select">
+                            <option value="Math Problems" selected>Math Problems</option>
+                            <option value="Logic Puzzles">Logic Puzzles</option>
+                            <option value="Memory Challenges">Memory Challenges</option>
+                            <option value="Word Games">Word Games</option>
+                            <option value="Pattern Recognition">Pattern Recognition</option>
+                            <option value="Riddles">Riddles</option>
+                            <option value="Quick Quizzes">Quick Quizzes</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-difficulty">Challenge Difficulty</label>
+                        <select id="alarm-difficulty" class="form-control form-select">
+                            <option value="Easy">Easy</option>
+                            <option value="Medium" selected>Medium</option>
+                            <option value="Hard">Hard</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-sound">Alarm Sound</label>
+                        <select id="alarm-sound" class="form-control form-select">
+                            <option value="Radar" selected>Radar (Classic)</option>
+                            <option value="Chimes">Chimes (Gentle)</option>
+                            <option value="Forest Bird">Forest Bird (Circadian)</option>
+                            <option value="WakeUp Dj">WakeUp Dj (Energetic)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-vibration">Vibration Pattern</label>
+                        <select id="alarm-vibration" class="form-control form-select">
+                            <option value="Standard" selected>Standard Pulse</option>
+                            <option value="Rapid">Rapid Alert</option>
+                            <option value="Heartbeat">Heartbeat</option>
+                            <option value="None">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-snooze">Snooze Duration (minutes)</label>
+                        <input type="number" id="alarm-snooze" class="form-control" min="1" max="60" value="5" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-cancel-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Alarm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="challenge-modal" class="modal-overlay">
+        <div class="modal-container" style="max-width:480px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening Drill</span></h3>
+                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
+                    <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
+                </div>
+                <p id="challenge-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
+                    Solve the challenge to silence the wake-up alarm!
+                </p>
+                <div class="challenge-math-question" id="challenge-question" style="font-size: 1.1rem; padding: 14px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight:600; line-height: 1.4;">8 x 7 + 12</div>
+                
+                <!-- Dynamic Options Container for Multiple Choice -->
+                <div id="challenge-options-container" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;"></div>
+
+                <!-- Text Input Container -->
+                <div class="form-group" id="challenge-input-group">
+                    <input type="text" id="challenge-answer" class="form-control" placeholder="Enter answer here..."
+                        required style="text-align: center; font-size: 1.1rem;">
+                </div>
+                <div class="challenge-feedback" id="challenge-feedback" style="margin-top: 10px; font-weight: 600; text-align: center; min-height: 24px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">SUBMIT ANSWER</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="alarm-audio" loop preload="auto">
+        <source src="../assets/sounds/radar.mp3" type="audio/mpeg">
+        <source src="/assets/sounds/radar.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="../js/config.js?v=1.0.6"></script>
+    <script src="../js/utils.js?v=1.0.6"></script>
+    <script src="../js/auth.js?v=1.0.6"></script>
+    <script>protectPage('user');</script>
+    <script src="../js/user.js?v=1.0.6"></script>
+</body>
+</html>

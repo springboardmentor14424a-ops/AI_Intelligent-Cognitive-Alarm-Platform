@@ -36,19 +36,21 @@ window.switchTab = (tabId) => {
         crumbText.textContent = item ? item.textContent : 'Profile';
     }
 
+    if (typeof window.setDashboardActiveTab === 'function') {
+        window.setDashboardActiveTab(tabId);
+    }
+
     document.body.classList.remove('sidebar-open');
 };
 
-document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTab(item.dataset.tab);
-    });
+window.addEventListener('DOMContentLoaded', () => {
+    if (typeof window.restoreDashboardActiveTab === 'function') {
+        window.restoreDashboardActiveTab();
+    }
 });
 
 // 3. User Database Operations & Table Renderers
 async function renderUsers() {
-    const API_BASE_URL = typeof window !== 'undefined' && window.location.port === '8000' ? '' : 'http://localhost:8000';
 
     try {
         // Cache-busting query parameter forces browser to get fresh PostgreSQL user list
@@ -74,7 +76,7 @@ async function renderUsers() {
 
     const dashboardUsersTable = document.getElementById('admin-users-table')?.querySelector('tbody');
     const consoleUsersTable = document.getElementById('all-users-console-table')?.querySelector('tbody');
-    
+
     // Calculate breakdown numbers
     const totalAccounts = usersList.length;
     const studentsCount = usersList.filter(u => u.role === 'user' || u.role === 'student').length;
@@ -147,7 +149,6 @@ window.deleteUserAccount = async (email, role) => {
         return;
     }
 
-    const API_BASE_URL = typeof window !== 'undefined' && window.location.port === '8000' ? '' : 'http://localhost:8000';
     try {
         const response = await fetch(`${API_BASE_URL}/api/auth/users/${encodeURIComponent(email)}`, {
             method: 'DELETE'
@@ -350,7 +351,7 @@ END OF FILE BACKUP.`;
         a.click();
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
-        
+
         Toast.show('Backup Complete', 'The ledger text backup file was downloaded.', 'success', 2500);
     }, 1500);
 };

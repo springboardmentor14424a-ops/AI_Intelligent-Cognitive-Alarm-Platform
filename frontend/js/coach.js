@@ -43,15 +43,24 @@ window.switchTab = (tabId) => {
         crumbText.textContent = item ? item.textContent : 'Profile';
     }
 
+    if (typeof window.setDashboardActiveTab === 'function') {
+        window.setDashboardActiveTab(tabId);
+    }
+
     document.body.classList.remove('sidebar-open');
 };
 
-document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchTab(item.dataset.tab);
-    });
-});
+const restoreCoachDashboardTab = () => {
+    if (typeof window.restoreDashboardActiveTab === 'function') {
+        window.restoreDashboardActiveTab();
+    }
+};
+
+if (document.readyState !== 'loading') {
+    restoreCoachDashboardTab();
+} else {
+    window.addEventListener('DOMContentLoaded', restoreCoachDashboardTab);
+}
 
 // 3. Render Dashboard Metric Cards & Tables
 function renderHelpList() {

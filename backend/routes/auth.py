@@ -1,6 +1,8 @@
 import logging
 import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from typing import List
@@ -244,3 +246,31 @@ def delete_user_by_email(email: str, db: Session = Depends(get_db)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
             detail="Database connection error during user deletion."
         )
+
+# JWT Authentication Dependency matching spec
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    if not token:
+        # Fallback to check if Bearer token was passed in the request headers manually
+        # (in case the browser didn't use tokenUrl form structure)
+        raise credentials_exception
+
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    
+    user = db.query(User).filter(User.email == email.lower()).first()
+    if user is None:
+        raise credentials_exception
+    return user
+
