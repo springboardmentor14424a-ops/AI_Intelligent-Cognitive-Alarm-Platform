@@ -1,0 +1,10 @@
+{
+  "info": {"name": "BrainOS Module 3 — Alarms", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "variable": [{"key": "baseUrl", "value": "http://localhost:8000"}, {"key": "token", "value": "paste-jwt-here"}],
+  "item": [
+    {"name": "Create alarm", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"}], "url": "{{baseUrl}}/alarms", "body": {"mode": "raw", "raw": "{\n  \"title\": \"Morning focus\",\n  \"alarm_time\": \"07:00\",\n  \"alarm_type\": \"WEEKDAY\",\n  \"difficulty\": \"MEDIUM\",\n  \"sound\": \"Neural Dawn\",\n  \"vibration\": true,\n  \"snooze_minutes\": 5\n}"}}},
+    {"name": "List alarms", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": "{{baseUrl}}/alarms"}},
+    {"name": "Disable alarm", "request": {"method": "PATCH", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": "{{baseUrl}}/alarms/1/disable"}},
+    {"name": "Next alarm", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": "{{baseUrl}}/alarms/check-next"}}
+  ]
+}

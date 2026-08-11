@@ -51,3 +51,16 @@ Copy the generated client ID and client secret into `backend/.env`. The login pa
 - `POST /alarm`, `GET /alarms` — protected alarm operations
 
 Set `VITE_API_URL` in a frontend `.env` file if the API is not running at `http://localhost:8000`.
+
+## Module 3 — Alarm Scheduling
+
+Alarm APIs are JWT-protected and support multiple alarms, `DAILY`, `WEEKDAY`, `WEEKEND`, `ONE_TIME`, and `SMART_ADAPTIVE` types. Each alarm has a label, sound, vibration option, snooze duration, mission difficulty, and active/disabled status.
+
+- `POST /alarms`, `GET /alarms`, `GET /alarms/{id}`
+- `PUT /alarms/{id}`, `DELETE /alarms/{id}`
+- `PATCH /alarms/{id}/enable`, `PATCH /alarms/{id}/disable`
+- `GET /alarms/today`, `GET /alarms/upcoming`, `POST /alarms/check-next`
+
+APScheduler checks active alarms every minute. For development it logs a fired alarm; connect that hook to FCM or a mobile local-notification service when deploying a client app. Run scheduling tests with `pytest backend/tests` (after installing `pytest`). Import `backend/postman/brainos-alarms.postman_collection.json` into Postman for API checks.
+
+For Dockerized API + PostgreSQL, run `docker compose up --build`.
