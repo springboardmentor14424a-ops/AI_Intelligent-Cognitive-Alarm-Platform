@@ -9,13 +9,20 @@ import { FormInput } from '../components/FormInput';
 import { LoadingButton } from '../components/LoadingButton';
 import { UserRole } from '../types';
 import { FiUser, FiMail, FiLock, FiActivity, FiShield } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 
-const registerSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().min(1, 'Email is required').email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  role: z.enum(['user', 'coach', 'admin'] as const),
-});
+const registerSchema = z
+  .object({
+    name: z.string().min(2, 'Name must be at least 2 characters'),
+    email: z.string().min(1, 'Email is required').email('Invalid email address'),
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+    role: z.enum(['user', 'coach', 'admin'] as const),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
 
 type RegisterFormData = z.infer<typeof registerSchema>;
 
@@ -36,6 +43,7 @@ export const Register: React.FC = () => {
       name: '',
       email: '',
       password: '',
+      confirmPassword: '',
       role: 'user',
     },
   });
@@ -51,7 +59,8 @@ export const Register: React.FC = () => {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      const userRole = await registerAuth(data);
+      const { confirmPassword, ...payload } = data;
+      const userRole = await registerAuth(payload);
       toast.success('Account Created!', `Registered successfully as ${userRole.toUpperCase()}`);
       navigate(getRoleRedirectPath(userRole), { replace: true });
     } catch (error: any) {
@@ -73,7 +82,7 @@ export const Register: React.FC = () => {
           </Link>
         </div>
         <h2 className="mt-4 text-center text-3xl font-extrabold text-white tracking-tight">
-          Create Account
+          Sign Up
         </h2>
         <p className="mt-2 text-center text-sm text-slate-400">
           Join the Intelligent Cognitive Alarm Platform
@@ -82,7 +91,7 @@ export const Register: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
         <div className="glass-panel py-8 px-6 shadow-2xl rounded-2xl sm:px-10 border border-slate-800 space-y-6">
-          <form className="space-y-5" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <form className="space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
             <FormInput
               label="Full Name"
               placeholder="John Doe"
@@ -109,8 +118,17 @@ export const Register: React.FC = () => {
               error={errors.password?.message}
             />
 
+            <FormInput
+              label="Confirm Password"
+              isPassword
+              placeholder="••••••••"
+              icon={<FiLock className="w-5 h-5" />}
+              registration={register('confirmPassword')}
+              error={errors.confirmPassword?.message}
+            />
+
             {/* Role Selection Tabs */}
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 pt-1">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                 <FiShield className="w-4 h-4 text-indigo-400" />
                 Select Account Role
@@ -144,16 +162,35 @@ export const Register: React.FC = () => {
                 loadingText="Registering..."
                 className="w-full mt-2"
               >
-                Register Account
+                Sign Up
               </LoadingButton>
             </div>
           </form>
+
+          {/* Divider */}
+          <div className="relative flex items-center justify-center my-4">
+            <div className="border-t border-slate-800 w-full" />
+            <span className="bg-slate-950 px-3 text-xs font-semibold uppercase text-slate-500 tracking-wider absolute">
+              or
+            </span>
+          </div>
+
+          {/* Google OAuth Button at Bottom */}
+          <div>
+            <a
+              href={`/api/auth/google?role=${currentRole}`}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 font-semibold border border-slate-700 hover:border-slate-600 transition-all shadow-md group"
+            >
+              <FcGoogle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span>Continue with Google</span>
+            </a>
+          </div>
 
           <div className="mt-6 text-center border-t border-slate-800/80 pt-5">
             <p className="text-sm text-slate-400">
               Already have an account?{' '}
               <Link to="/login" className="font-semibold text-blue-400 hover:text-blue-300 transition-colors">
-                Sign In
+                Login
               </Link>
             </p>
           </div>
@@ -162,3 +199,4 @@ export const Register: React.FC = () => {
     </div>
   );
 };
+

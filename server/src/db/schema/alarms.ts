@@ -1,5 +1,5 @@
 import { pgTable, uuid, varchar, boolean, timestamp, pgEnum } from 'drizzle-orm/pg-core';
-import { users } from './users.js';
+import { users } from './users';
 
 export const repeatTypeEnum = pgEnum('repeat_type', ['daily', 'weekdays', 'weekend', 'one_time']);
 

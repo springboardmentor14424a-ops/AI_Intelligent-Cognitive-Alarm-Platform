@@ -9,6 +9,7 @@ import { FormInput } from '../components/FormInput';
 import { LoadingButton } from '../components/LoadingButton';
 import { UserRole } from '../types';
 import { FiMail, FiLock, FiActivity, FiShield } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 
 const loginSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),
@@ -135,11 +136,30 @@ export const Login: React.FC = () => {
             </div>
           </form>
 
+          {/* Divider */}
+          <div className="relative flex items-center justify-center my-4">
+            <div className="border-t border-slate-800 w-full" />
+            <span className="bg-slate-950 px-3 text-xs font-semibold uppercase text-slate-500 tracking-wider absolute">
+              or
+            </span>
+          </div>
+
+          {/* Google OAuth Login Button at Bottom */}
+          <div>
+            <a
+              href={`/api/auth/google?role=${selectedRole}`}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-100 font-semibold border border-slate-700 hover:border-slate-600 transition-all shadow-md group"
+            >
+              <FcGoogle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+              <span>Continue with Google</span>
+            </a>
+          </div>
+
           <div className="mt-6 text-center border-t border-slate-800/80 pt-5">
             <p className="text-sm text-slate-400">
               Don't have an account?{' '}
               <Link to="/register" className="font-semibold text-blue-400 hover:text-blue-300 transition-colors">
-                Create Account
+                Sign Up
               </Link>
             </p>
           </div>

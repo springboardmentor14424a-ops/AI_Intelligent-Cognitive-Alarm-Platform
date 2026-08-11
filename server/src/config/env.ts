@@ -10,6 +10,9 @@ const envSchema = z.object({
   JWT_SECRET: z.string().default('super_secret_jwt_key_intelligent_cognitive_alarm_2026'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   CLIENT_URL: z.string().default('http://localhost:5173'),
+  GOOGLE_CLIENT_ID: z.string().optional().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
+  GOOGLE_CALLBACK_URL: z.string().optional().default('http://localhost:5000/api/auth/google/callback'),
 });
 
 const parsed = envSchema.safeParse(process.env);

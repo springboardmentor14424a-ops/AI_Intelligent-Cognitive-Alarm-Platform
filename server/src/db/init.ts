@@ -35,17 +35,18 @@ export const initializeDatabase = async (): Promise<boolean> => {
       END $$;
     `);
 
-    // 2. Create Users Table
+    // 2. Create Users Table & Ensure Nullable password_hash for OAuth
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name VARCHAR(100) NOT NULL,
         email VARCHAR(255) NOT NULL UNIQUE,
-        password_hash TEXT NOT NULL,
+        password_hash TEXT,
         role user_role DEFAULT 'user' NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
+      ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
     `);
 
     // 3. Create Profiles Table

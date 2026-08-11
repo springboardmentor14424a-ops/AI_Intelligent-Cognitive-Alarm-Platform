@@ -11,6 +11,7 @@ import { CoachDashboard } from './pages/CoachDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ProfilePage } from './pages/Profile';
 import { SettingsPage } from './pages/Settings';
+import { AuthCallback } from './pages/AuthCallback';
 import { AccessDenied } from './pages/AccessDenied';
 import { NotFound } from './pages/NotFound';
 
@@ -24,6 +25,7 @@ export const App: React.FC = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/unauthorized" element={<AccessDenied />} />
 
             {/* Protected Routes: User, Coach, Admin */}
