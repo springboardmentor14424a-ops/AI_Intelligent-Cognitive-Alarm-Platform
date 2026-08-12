@@ -53,6 +53,7 @@
                 <nav style="display: flex; flex-direction: column; gap: 6px;">
                     <button onclick="setTab('overview-tab', this)" class="nav-btn active">📊 Overview</button>
                     <button onclick="setTab('alarms-tab', this)" class="nav-btn">⏰ Alarm Centre</button>
+                    <button onclick="setTab('challenges-tab', this)" class="nav-btn">🧠 Challenges</button>
                     <button onclick="setTab('analytics-tab', this)" class="nav-btn">📈 Sleep Analytics</button>
                     <button onclick="setTab('profile-tab', this)" class="nav-btn">⚙ Profile Settings</button>
                 </nav>
@@ -113,6 +114,16 @@
                         <div>
                             <span style="font-size: 12px; color: var(--text-secondary);">Sleep Duration</span>
                             <h3 style="font-size: 20px; font-weight: bold;">{{ profile.sleep_duration if profile else 8.0 }} hrs</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card" style="display: flex; align-items: center; gap: 16px;">
+                        <div style="font-size: 24px; background: rgba(245, 158, 11, 0.1); width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 12px; color: var(--warning);">🧠</div>
+                        <div>
+                            <span style="font-size: 12px; color: var(--text-secondary);">Puzzles Solved</span>
+                            {% set total_score = performances | sum(attribute='score') if performances else 0 %}
+                            {% set solved = performances | selectattr('is_correct') | list | length if performances else 0 %}
+                            <h3 style="font-size: 20px; font-weight: bold;">{{ solved }} Solved</h3>
+                            <span style="font-size: 11px; color: var(--success);">{{ '%.0f'|format(total_score) }} pts earned</span>
                         </div>
                     </div>
                 </div>
@@ -220,7 +231,133 @@
                 </div>
             </div>
 
-            <!-- TAB 3: SLEEP ANALYTICS -->
+            <!-- TAB 3: COGNITIVE CHALLENGES HUB -->
+            <div id="challenges-tab" class="switch-tab">
+
+                <!-- Section Header -->
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(59,130,246,0.10) 100%);">
+                    <h2 style="font-size: 20px; margin-bottom: 6px;">🧠 Cognitive Challenge Hub</h2>
+                    <p style="color: var(--text-secondary); font-size: 13px;">Your personalized challenge history. Each alarm you solve is tracked here — difficulty adapts automatically based on your performance.</p>
+                </div>
+
+                <!-- Performance Stats KPIs -->
+                {% set total_done = performances | length if performances else 0 %}
+                {% set total_correct = performances | selectattr('is_correct') | list | length if performances else 0 %}
+                {% set total_score_ch = performances | sum(attribute='score') if performances else 0 %}
+                {% set avg_accuracy_ch = (performances | sum(attribute='accuracy') / total_done) if total_done > 0 else 0 %}
+                {% set last_diff = performances[0].difficulty if performances else 'Medium' %}
+                <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;">
+                    <div class="glass-card" style="text-align:center; padding: 16px 10px;">
+                        <div style="font-size: 28px;">🎯</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Total Solved</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--success);">{{ total_correct }}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">of {{ total_done }} attempts</div>
+                    </div>
+                    <div class="glass-card" style="text-align:center; padding: 16px 10px;">
+                        <div style="font-size: 28px;">⭐</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Total Score</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--warning);">{{ '%.0f'|format(total_score_ch) }}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">cumulative pts</div>
+                    </div>
+                    <div class="glass-card" style="text-align:center; padding: 16px 10px;">
+                        <div style="font-size: 28px;">📊</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Avg Accuracy</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--primary);">{{ '%.0f'|format(avg_accuracy_ch) }}%</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">across all types</div>
+                    </div>
+                    <div class="glass-card" style="text-align:center; padding: 16px 10px;">
+                        <div style="font-size: 28px;">📈</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Current Level</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #a78bfa;">{{ last_diff }}</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">adaptive difficulty</div>
+                    </div>
+                    <div class="glass-card" style="text-align:center; padding: 16px 10px;">
+                        <div style="font-size: 28px;">🔥</div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Win Rate</div>
+                        <div style="font-size: 22px; font-weight: 800; color: var(--success);">{{ '%.0f'|format((total_correct / total_done * 100) if total_done > 0 else 0) }}%</div>
+                        <div style="font-size: 10px; color: var(--text-secondary);">correct answers</div>
+                    </div>
+                </div>
+
+                <!-- Full Performance History Table -->
+                <div class="glass-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <h3>📋 Challenge Performance History</h3>
+                        <span style="font-size:12px; color:var(--text-secondary);">{{ total_done }} records total</span>
+                    </div>
+                    {% if performances and performances | length > 0 %}
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid var(--border-card); color: var(--text-secondary); font-size:11px;">
+                                        <th style="padding: 10px 8px;">#</th>
+                                        <th style="padding: 10px 8px;">Date &amp; Time</th>
+                                        <th style="padding: 10px 8px;">Challenge Type</th>
+                                        <th style="padding: 10px 8px;">Difficulty</th>
+                                        <th style="padding: 10px 8px;">Correct?</th>
+                                        <th style="padding: 10px 8px;">Time (s)</th>
+                                        <th style="padding: 10px 8px;">Attempts</th>
+                                        <th style="padding: 10px 8px;">Accuracy</th>
+                                        <th style="padding: 10px 8px;">Score</th>
+                                        <th style="padding: 10px 8px;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in performances %}
+                                    <tr style="border-bottom: 1px solid var(--border-card); transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+                                        <td style="padding: 8px; color: var(--text-secondary);">{{ loop.index }}</td>
+                                        <td style="padding: 8px;">{{ p.created_at.strftime('%d %b %H:%M') if p.created_at else 'Now' }}</td>
+                                        <td style="padding: 8px; font-weight: 600;">{{ p.challenge_type }}</td>
+                                        <td style="padding: 8px;">
+                                            {% if p.difficulty == 'Expert' %}
+                                                <span class="badge" style="background:rgba(239,68,68,0.2);color:#f87171;">Expert</span>
+                                            {% elif p.difficulty == 'Hard' %}
+                                                <span class="badge badge-suspended">Hard</span>
+                                            {% elif p.difficulty == 'Medium' %}
+                                                <span class="badge badge-warning">Medium</span>
+                                            {% elif p.difficulty == 'Easy' %}
+                                                <span class="badge badge-active">Easy</span>
+                                            {% else %}
+                                                <span class="badge badge-info">{{ p.difficulty }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="padding: 8px; text-align:center; font-size:16px;">{{ '✅' if p.is_correct else '❌' }}</td>
+                                        <td style="padding: 8px;">{{ '%.1f'|format(p.time_taken) }}</td>
+                                        <td style="padding: 8px; text-align:center;">{{ p.failed_attempts }}</td>
+                                        <td style="padding: 8px; font-weight: bold; color: {{ 'var(--success)' if p.accuracy >= 80 else ('var(--warning)' if p.accuracy >= 50 else 'var(--danger)') }};">{{ '%.0f'|format(p.accuracy) }}%</td>
+                                        <td style="padding: 8px; font-weight: bold; color: var(--warning);">{{ '%.1f'|format(p.score or 0) }}</td>
+                                        <td style="padding: 8px;">
+                                            {% if p.status == 'success' %}
+                                                <span class="badge badge-active">✅ SUCCESS</span>
+                                            {% elif p.status == 'timeout' %}
+                                                <span class="badge" style="background:rgba(245,158,11,0.2);color:#fbbf24;">⏱ TIMEOUT</span>
+                                            {% elif p.status == 'snooze' %}
+                                                <span class="badge badge-warning">💤 SNOOZE</span>
+                                            {% else %}
+                                                <span class="badge badge-suspended">❌ FAILED</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr style="border-top: 2px solid var(--border-card); font-weight: bold; color: var(--text-secondary); font-size:11px;">
+                                        <td colspan="8" style="padding: 10px 8px;">Totals</td>
+                                        <td style="padding: 10px 8px; color: var(--warning);">{{ '%.1f'|format(total_score_ch) }} pts</td>
+                                        <td style="padding: 10px 8px; color: var(--success);">{{ total_correct }}/{{ total_done }} correct</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div style="text-align:center; padding: 50px 20px; color: var(--text-secondary);">
+                            <div style="font-size:52px; margin-bottom:14px;">🧠</div>
+                            <p style="font-size:15px; font-weight:600; margin-bottom:8px;">No challenge records yet!</p>
+                            <p style="font-size:13px;">Go to <strong>Alarm Centre</strong>, click <strong>Solve</strong> on any alarm to attempt a cognitive challenge. Your score, accuracy and difficulty will be tracked here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
             <div id="analytics-tab" class="switch-tab">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                     <div class="glass-card">
@@ -241,12 +378,14 @@
                             <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
                                 <thead>
                                     <tr style="border-bottom: 1px solid var(--border-card); color: var(--text-secondary);">
-                                        <th style="padding: 8px;">Date & Time</th>
+                                        <th style="padding: 8px;">Date &amp; Time</th>
                                         <th style="padding: 8px;">Challenge Type</th>
                                         <th style="padding: 8px;">Difficulty</th>
                                         <th style="padding: 8px;">Time Taken</th>
-                                        <th style="padding: 8px;">Failed Attempts</th>
+                                        <th style="padding: 8px;">Attempts</th>
                                         <th style="padding: 8px;">Accuracy</th>
+                                        <th style="padding: 8px;">Score</th>
+                                        <th style="padding: 8px;">Correct</th>
                                         <th style="padding: 8px;">Status</th>
                                     </tr>
                                 </thead>
@@ -259,6 +398,8 @@
                                             <td style="padding: 8px;">{{ '%.1f' | format(p.time_taken) }}s</td>
                                             <td style="padding: 8px;">{{ p.failed_attempts }}</td>
                                             <td style="padding: 8px; font-weight: bold; color: {{ 'var(--success)' if p.accuracy > 70 else 'var(--warning)' }};">{{ '%.0f' | format(p.accuracy) }}%</td>
+                                            <td style="padding: 8px; font-weight: bold; color: var(--warning);">{{ '%.1f' | format(p.score or 0) }}</td>
+                                            <td style="padding: 8px; text-align:center;">{{ '✅' if p.is_correct else '❌' }}</td>
                                             <td style="padding: 8px;">
                                                 <span class="badge {{ 'badge-active' if p.status == 'success' else ('badge-warning' if p.status == 'snooze' else 'badge-suspended') }}">
                                                     {{ p.status | upper }}
@@ -447,9 +588,10 @@
                 <span id="challenge-diff-badge" class="badge badge-active" style="font-size: 11px;">Medium</span>
                 <span id="challenge-source-badge" class="badge" style="font-size: 11px; background: rgba(139, 92, 246, 0.2); color: #a78bfa;">Gemini AI</span>
             </div>
-            <div style="display: flex; justify-content: space-around; margin: 10px auto; font-size: 12px; font-weight: bold; background: rgba(255, 255, 255, 0.05); padding: 8px 16px; border-radius: 8px; border: 1px dashed var(--border-card); max-width: 320px;">
+            <div style="display: flex; justify-content: space-around; margin: 10px auto; font-size: 12px; font-weight: bold; background: rgba(255, 255, 255, 0.05); padding: 8px 16px; border-radius: 8px; border: 1px dashed var(--border-card); max-width: 380px;">
                 <span style="color: var(--primary);">⏱️ Timer: <span id="challenge-timer-sec">60</span>s</span>
                 <span style="color: var(--warning);">❌ Failed: <span id="challenge-attempts-count">0</span></span>
+                <span style="color: #4ade80;">⭐ Score: <span id="challenge-live-score">--</span></span>
             </div>
             <h2 id="challenge-title" style="margin-bottom: 8px;">⏰ ALARM IS RINGING!</h2>
             <p id="challenge-desc" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Solve the cognitive challenge below to disarm the alarm.</p>
@@ -473,6 +615,19 @@
                 </div>
                 <button type="submit" class="btn btn-success" style="width: 100%; padding: 12px; font-size: 15px; margin-top: 10px;">Disarm & Turn Off Alarm 🎉</button>
             </form>
+
+            <!-- Challenge Completion Analysis Result Box -->
+            <div id="challenge-result-box" style="display:none; margin-top:14px; padding:14px 18px; border-radius:12px; background: rgba(74,222,128,0.08); border:1px solid rgba(74,222,128,0.3); text-align:left;">
+                <div style="font-size:13px; font-weight:700; color:#4ade80; margin-bottom:8px;">✅ Challenge Analysis</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:12px; color:var(--text-secondary);">
+                    <span>🎯 Score: <strong id="result-score" style="color:#f8fafc;">0</strong></span>
+                    <span>📊 Accuracy: <strong id="result-accuracy" style="color:#f8fafc;">0%</strong></span>
+                    <span>⏱️ Time: <strong id="result-time" style="color:#f8fafc;">0s</strong></span>
+                    <span>❌ Failed Attempts: <strong id="result-failed" style="color:#f8fafc;">0</strong></span>
+                    <span>📈 Difficulty: <strong id="result-difficulty" style="color:#f8fafc;">—</strong></span>
+                    <span>🚀 Next Level: <strong id="result-next-diff" style="color:#a78bfa;">—</strong></span>
+                </div>
+            </div>
             
             <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px;">
                 <button type="button" onclick="stopAlarmSound(); showToast('Audio Muted', 'warning');" class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;">🔇 Mute Audio</button>
@@ -593,6 +748,7 @@
         let challengeTimeLimit = 60;
         let challengeCurrentSeconds = 60;
         let currentChallengeDifficulty = 'Medium';
+        let challengeExpectedAnswer = '';
 
         function toggleHint() {
             const el = document.getElementById('challenge-hint-text');
@@ -643,17 +799,22 @@
             typeBadge.innerText = currentSolvedChallengeType;
             diffBadge.innerText = difficulty;
 
-            // Fetch dynamically generated challenge from backend API (Gemini LLM / Rule Engine)
-            // PASS alarm_id to backend so it can load history and determine personalized/adapted difficulty
+            // Hide any previous result box
+            const resultBox = document.getElementById('challenge-result-box');
+            if (resultBox) resultBox.style.display = 'none';
+            document.getElementById('challenge-live-score').innerText = '--';
+
+            // Fetch dynamically generated challenge — backend applies personalized adaptive difficulty
             fetch(`/api/challenges/generate?type=${encodeURIComponent(currentSolvedChallengeType)}&difficulty=${encodeURIComponent(difficulty)}&alarm_id=${alarmId}`)
                 .then(r => r.json())
                 .then(data => {
                     labelEl.innerText = data.question || 'Solve to disarm alarm:';
-                    document.getElementById('challenge-expected').value = data.expected_answer || '';
+                    challengeExpectedAnswer = data.expected_answer || '';
+                    document.getElementById('challenge-expected').value = challengeExpectedAnswer;
                     hintEl.innerText = `💡 Hint: ${data.hint || 'Read carefully!'}`;
                     sourceBadge.innerText = data.source === 'gemini' ? 'Gemini AI' : 'Cognitive Engine';
-                    
-                    // Update badges and diff variables with adapted difficulty
+
+                    // Update badges with adapted difficulty from backend
                     currentChallengeDifficulty = data.difficulty || difficulty;
                     diffBadge.innerText = currentChallengeDifficulty;
 
@@ -664,10 +825,25 @@
                         if (challengeCurrentSeconds <= 0) {
                             clearInterval(challengeTimerInterval);
                             challengeTimerInterval = null;
+                            const timeTaken = challengeStartTime ? Math.round((new Date() - challengeStartTime) / 1000) : 60;
+                            // Submit timeout performance to backend
+                            fetch('/api/challenges/submit', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    alarm_id: alarmId ? parseInt(alarmId) : null,
+                                    challenge_type: currentSolvedChallengeType,
+                                    difficulty: currentChallengeDifficulty,
+                                    expected_answer: challengeExpectedAnswer,
+                                    user_answer: '',
+                                    time_taken: timeTaken,
+                                    failed_attempts: challengeFailedAttempts,
+                                    time_limit_exceeded: true
+                                })
+                            }).catch(() => {});
                             challengeFailedAttempts++;
                             document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
                             showToast('⏳ Time is up! Fetching a new challenge...', 'warning');
-                            // Load a new challenge (resets timer but preserves failed attempts)
                             openChallengeModal(alarmId, challengeType, difficulty, true);
                         }
                     }, 1000);
@@ -686,8 +862,9 @@
                         });
                     }
                 })
-                .catch(err => {
+                .catch(() => {
                     labelEl.innerText = 'What is 15 + 27?';
+                    challengeExpectedAnswer = '42';
                     document.getElementById('challenge-expected').value = '42';
                     hintEl.innerText = '💡 Hint: Add 15 and 27.';
                 });
@@ -699,49 +876,91 @@
             e.preventDefault();
             const inputVal = document.getElementById('challenge-input').value.trim();
             const expectedVal = document.getElementById('challenge-expected').value.trim();
+            const alarmId = document.getElementById('challenge-alarm-id').value;
 
             if (!inputVal) {
                 showToast('Please enter or select an answer!', 'warning');
                 return;
             }
 
-            // Inline verify to handle offline too
-            function handleVerifyResult(isCorrect) {
-                if (isCorrect) {
-                    // CORRECT — stop alarm permanently
-                    stopAlarmSound();
-                    alarmDisarmed = true;
-                    if (challengeTimerInterval) {
-                        clearInterval(challengeTimerInterval);
-                        challengeTimerInterval = null;
-                    }
-                    closeModal('challenge-modal');
-                    document.getElementById('weekly-pref-text').innerText = `Correct answer! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
-                    openModal('weekly-pref-modal');
-                } else {
-                    // WRONG — keep alarm ringing, shake input, clear field, increment attempts
-                    challengeFailedAttempts++;
-                    document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
-                    showToast('Wrong answer! Try again.', 'danger');
-                    // Ring again if sound stopped
-                    if (!alarmAudioInterval) startAlarmSound();
-                    document.getElementById('challenge-input').value = '';
-                    document.getElementById('challenge-input').focus();
-                }
-            }
+            const timeTaken = challengeStartTime ? Math.round((new Date() - challengeStartTime) / 1000) : 0;
 
-            fetch('/api/challenges/verify', {
+            // Submit to /api/challenges/submit — validation + tracking + completion analysis
+            fetch('/api/challenges/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ expected: expectedVal, user_answer: inputVal })
+                body: JSON.stringify({
+                    alarm_id: alarmId ? parseInt(alarmId) : null,
+                    challenge_type: currentSolvedChallengeType,
+                    difficulty: currentChallengeDifficulty,
+                    expected_answer: expectedVal,
+                    user_answer: inputVal,
+                    time_taken: timeTaken,
+                    failed_attempts: challengeFailedAttempts,
+                    time_limit_exceeded: false
+                })
             })
             .then(r => r.json())
-            .then(res => handleVerifyResult(res.success))
+            .then(res => handleSubmitResult(res))
             .catch(() => {
                 // Offline fallback: local compare
                 const ok = inputVal.trim().toLowerCase() === expectedVal.trim().toLowerCase();
-                handleVerifyResult(ok);
+                handleSubmitResult({
+                    success: ok,
+                    completion_status: ok ? 'success' : 'failed',
+                    score: 0,
+                    accuracy: ok ? 100 : 0,
+                    time_taken: timeTaken,
+                    failed_attempts: challengeFailedAttempts,
+                    current_difficulty: currentChallengeDifficulty,
+                    next_adapted_difficulty: currentChallengeDifficulty
+                });
             });
+        }
+
+        function handleSubmitResult(res) {
+            if (res.success) {
+                // CORRECT — show score, update next difficulty badge, stop alarm
+                stopAlarmSound();
+                alarmDisarmed = true;
+                if (challengeTimerInterval) {
+                    clearInterval(challengeTimerInterval);
+                    challengeTimerInterval = null;
+                }
+                // Show challenge-result-box with completion analysis
+                const resultBox = document.getElementById('challenge-result-box');
+                document.getElementById('result-score').innerText = res.score || 0;
+                document.getElementById('result-accuracy').innerText = (res.accuracy || 0) + '%';
+                document.getElementById('result-time').innerText = (res.time_taken || 0) + 's';
+                document.getElementById('result-failed').innerText = res.failed_attempts || 0;
+                document.getElementById('result-difficulty').innerText = res.current_difficulty || currentChallengeDifficulty;
+                document.getElementById('result-next-diff').innerText = res.next_adapted_difficulty || currentChallengeDifficulty;
+                document.getElementById('challenge-live-score').innerText = res.score || 0;
+                if (resultBox) resultBox.style.display = 'block';
+
+                // Update diff badge to show next adapted difficulty
+                const diffBadge = document.getElementById('challenge-diff-badge');
+                if (diffBadge && res.next_adapted_difficulty) {
+                    diffBadge.innerText = res.next_adapted_difficulty + ' (next)';
+                }
+
+                // Allow user to see result, then show weekly pref modal
+                setTimeout(() => {
+                    closeModal('challenge-modal');
+                    document.getElementById('weekly-pref-text').innerText = `🎉 Score: ${res.score}! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
+                    openModal('weekly-pref-modal');
+                }, 2200);
+
+            } else {
+                // WRONG — keep alarm ringing, shake input, clear field, increment attempts
+                challengeFailedAttempts++;
+                document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
+                showToast(`❌ Wrong answer! ${challengeFailedAttempts} failed attempt(s). Try again!`, 'danger');
+                if (!alarmAudioInterval) startAlarmSound();
+                document.getElementById('challenge-input').value = '';
+                document.querySelectorAll('.opt-btn').forEach(b => b.style.borderColor = 'var(--border-card)');
+                document.getElementById('challenge-input').focus();
+            }
         }
 
         function confirmWeeklyPreference(agreed) {
@@ -766,7 +985,7 @@
         }
 
         function submitFinalDisarmForm() {
-            // Calculate final performance stats
+            // Notify alarm simulation endpoint (updates streak, habit score, alarm status)
             const timeTaken = challengeStartTime ? Math.round((new Date() - challengeStartTime) / 1000) : 0;
             const fd = new FormData();
             fd.append('outcome', 'success');
@@ -776,7 +995,7 @@
             fd.append('challenge_type', currentSolvedChallengeType);
 
             fetch(`/api/alarm/simulate/${currentSolvedAlarmId}`, { method: 'POST', body: fd })
-                .then(() => showToast('Alarm disarmed! Performance logged.', 'success'))
+                .then(() => showToast('🎉 Alarm disarmed! Performance & score logged.', 'success'))
                 .catch(() => showToast('Alarm disarmed!', 'success'));
         }
 

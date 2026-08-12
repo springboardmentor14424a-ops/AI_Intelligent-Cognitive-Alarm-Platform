@@ -527,19 +527,31 @@ def simulate_alarm_form(
 
     # Log to ChallengePerformance table
     acc = 0.0
-    if outcome == "success":
-        fa = failed_attempts or 0
+    is_correct = (outcome == "success")
+    calculated_score = 0.0
+    fa = failed_attempts or 0
+    tt = time_taken or 10.0
+    diff_val = difficulty or alarm.difficulty_level or "Medium"
+
+    if is_correct:
         acc = round((1.0 / (fa + 1)) * 100, 1)
+        base_scores = {"Beginner": 30, "Easy": 50, "Medium": 100, "Hard": 150, "Expert": 200}
+        base_score = base_scores.get(diff_val, 100)
+        time_multiplier = max(0.5, 1.0 - (tt / 120.0))
+        attempt_multiplier = max(0.3, 1.0 - (fa * 0.15))
+        calculated_score = round(base_score * (acc / 100.0) * time_multiplier * attempt_multiplier, 1)
     
     perf = ChallengePerformance(
         user_id=current_user.id,
         alarm_id=alarm_id,
         challenge_type=challenge_type or alarm.challenge_required or "Math Problems",
-        difficulty=difficulty or alarm.difficulty_level or "Medium",
+        difficulty=diff_val,
         accuracy=acc,
-        time_taken=time_taken or 0.0,
-        failed_attempts=failed_attempts or 0,
-        status=outcome
+        time_taken=tt,
+        failed_attempts=fa,
+        status=outcome,
+        is_correct=is_correct,
+        score=calculated_score
     )
     db.add(perf)
     db.commit()
@@ -551,6 +563,56 @@ def simulate_alarm_form(
 # COGNITIVE CHALLENGE GENERATION & WEEKLY PREFERENCE ENDPOINTS
 # ==============================================================================
 
+# ==============================================================================
+# COGNITIVE CHALLENGE GENERATION & WEEKLY PREFERENCE ENDPOINTS
+# ==============================================================================
+
+def calculate_adapted_difficulty(user_id: int, challenge_type: str, base_difficulty: str, db: Session) -> str:
+    """Personalized Challenge Selection logic based on performance history."""
+    levels = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
+    
+    # 1. Fetch latest 5 attempts for this challenge type or overall
+    history = (
+        db.query(ChallengePerformance)
+        .filter(ChallengePerformance.user_id == user_id, ChallengePerformance.challenge_type == challenge_type)
+        .order_by(ChallengePerformance.created_at.desc())
+        .limit(5)
+        .all()
+    )
+    
+    if not history:
+        history = (
+            db.query(ChallengePerformance)
+            .filter(ChallengePerformance.user_id == user_id)
+            .order_by(ChallengePerformance.created_at.desc())
+            .limit(5)
+            .all()
+        )
+        
+    if not history:
+        return base_difficulty if base_difficulty in levels else "Medium"
+        
+    success_count = sum(1 for p in history if p.status == "success" or p.is_correct)
+    total_attempts = len(history)
+    avg_accuracy = sum(p.accuracy for p in history) / total_attempts
+    avg_time = sum(p.time_taken for p in history) / total_attempts
+    total_failed_attempts = sum(p.failed_attempts for p in history)
+    
+    try:
+        idx = levels.index(base_difficulty if base_difficulty in levels else "Medium")
+    except ValueError:
+        idx = 2  # Medium
+        
+    # Increase difficulty on strong performance (>=80% acc, <30s time, <=2 failed attempts)
+    if success_count >= 2 and avg_accuracy >= 80 and avg_time < 35 and total_failed_attempts <= 2:
+        idx = min(len(levels) - 1, idx + 1)
+    # Decrease difficulty on poor performance (<=1 success, <60% acc, >60s time, >3 failed attempts)
+    elif success_count <= 1 or avg_accuracy < 60 or avg_time > 60 or total_failed_attempts > 3:
+        idx = max(0, idx - 1)
+        
+    return levels[idx]
+
+
 @router.get("/challenges/generate", response_class=JSONResponse)
 @router.get("/api/challenges/generate", response_class=JSONResponse)
 def get_generated_challenge(
@@ -560,59 +622,16 @@ def get_generated_challenge(
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):
-    """GET /api/challenges/generate — Generates a cognitive challenge powered by Gemini LLM / Dynamic Generator with adaptive selection."""
-    adapted_difficulty = difficulty
-    if alarm_id and current_user:
-        levels = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
-        
-        # 1. Fetch latest 3 attempts for this challenge type
-        history = (
-            db.query(ChallengePerformance)
-            .filter(ChallengePerformance.user_id == current_user.id, ChallengePerformance.challenge_type == type)
-            .order_by(ChallengePerformance.created_at.desc())
-            .limit(3)
-            .all()
-        )
-        
-        if not history:
-            # Fallback to overall history
-            history = (
-                db.query(ChallengePerformance)
-                .filter(ChallengePerformance.user_id == current_user.id)
-                .order_by(ChallengePerformance.created_at.desc())
-                .limit(3)
-                .all()
-            )
+    """GET /api/challenges/generate — Generates a personalized cognitive challenge based on user performance history."""
+    base_diff = difficulty
+    if alarm_id:
+        alarm = db.query(Alarm).filter(Alarm.id == alarm_id).first()
+        if alarm and alarm.difficulty_level:
+            base_diff = alarm.difficulty_level
             
-        if history:
-            success_count = sum(1 for p in history if p.status == "success")
-            total_attempts = len(history)
-            avg_accuracy = sum(p.accuracy for p in history) / total_attempts
-            avg_time = sum(p.time_taken for p in history) / total_attempts
-            total_failed_attempts = sum(p.failed_attempts for p in history)
-            
-            # Base difficulty
-            base_diff = difficulty
-            alarm = db.query(Alarm).filter(Alarm.id == alarm_id).first()
-            if alarm and alarm.difficulty_level:
-                base_diff = alarm.difficulty_level
-                
-            try:
-                idx = levels.index(base_diff)
-            except ValueError:
-                idx = 2  # Medium
-                
-            # Increase difficulty if performance is excellent (>=80% acc, <30s time, <=2 failed attempts)
-            if success_count >= 2 and avg_accuracy >= 80 and avg_time < 30 and total_failed_attempts <= 2:
-                idx = min(len(levels) - 1, idx + 1)
-            # Decrease difficulty if performance is poor (<=1 success, <60% acc, >60s time, >4 failed attempts)
-            elif success_count <= 1 or avg_accuracy < 60 or avg_time > 60 or total_failed_attempts > 4:
-                idx = max(0, idx - 1)
-                
-            adapted_difficulty = levels[idx]
+    adapted_difficulty = calculate_adapted_difficulty(current_user.id, type, base_diff, db)
 
     challenge = generate_cognitive_challenge(challenge_type=type, difficulty=adapted_difficulty)
-    # Ensure difficulty is returned in the payload so client can update the UI badge
     challenge["difficulty"] = adapted_difficulty
     return challenge
 
@@ -630,6 +649,109 @@ def verify_challenge(
     """POST /api/challenges/verify — Verifies answer submitted for cognitive challenge."""
     is_correct = verify_challenge_answer(data.expected, data.user_answer)
     return {"success": is_correct, "message": "Correct answer!" if is_correct else "Incorrect answer, try again!"}
+
+
+class ChallengeSubmitSchema(BaseModel):
+    alarm_id: Optional[int] = None
+    challenge_type: str
+    difficulty: str
+    expected_answer: str
+    user_answer: str
+    time_taken: float = 0.0
+    failed_attempts: int = 0
+    time_limit_exceeded: bool = False
+
+@router.post("/challenges/submit", response_class=JSONResponse)
+@router.post("/api/challenges/submit", response_class=JSONResponse)
+def submit_challenge(
+    data: ChallengeSubmitSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """
+    POST /api/challenges/submit —
+    Validates answer, calculates score & accuracy, records performance in DB,
+    runs completion analysis, and updates user difficulty level for future challenges.
+    """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+        
+    is_correct = verify_challenge_answer(data.expected_answer, data.user_answer)
+    
+    if data.time_limit_exceeded:
+        status_code = "timeout"
+        is_correct = False
+    elif is_correct:
+        status_code = "success"
+    else:
+        status_code = "failed"
+        
+    # Calculate accuracy
+    accuracy = 0.0
+    if is_correct:
+        accuracy = round((1.0 / (data.failed_attempts + 1)) * 100, 1)
+        
+    # Calculate Score
+    base_scores = {"Beginner": 30, "Easy": 50, "Medium": 100, "Hard": 150, "Expert": 200}
+    base_score = base_scores.get(data.difficulty, 100)
+    time_multiplier = max(0.5, 1.0 - (data.time_taken / 120.0))
+    attempt_multiplier = max(0.3, 1.0 - (data.failed_attempts * 0.15))
+    
+    calculated_score = 0.0
+    if is_correct:
+        calculated_score = round(base_score * (accuracy / 100.0) * time_multiplier * attempt_multiplier, 1)
+
+    # 1. Performance Tracking: Store in DB
+    perf = ChallengePerformance(
+        user_id=current_user.id,
+        alarm_id=data.alarm_id,
+        challenge_type=data.challenge_type,
+        difficulty=data.difficulty,
+        accuracy=accuracy,
+        time_taken=data.time_taken,
+        failed_attempts=data.failed_attempts,
+        status=status_code,
+        score=calculated_score,
+        is_correct=is_correct
+    )
+    db.add(perf)
+    
+    # Update profile streak / habit score if alarm_id is provided
+    profile = current_user.profile
+    if not profile:
+        profile = UserProfile(user_id=current_user.id)
+        db.add(profile)
+        
+    if is_correct:
+        profile.streak += 1
+        profile.habit_score = min(100, profile.habit_score + 3)
+    else:
+        profile.habit_score = max(0, profile.habit_score - 2)
+        
+    db.commit()
+    db.refresh(perf)
+
+    # 2. Completion Analysis & Updating User's Difficulty Level for future challenges
+    next_difficulty = calculate_adapted_difficulty(current_user.id, data.challenge_type, data.difficulty, db)
+    
+    # Update Alarm's difficulty level if associated
+    if data.alarm_id:
+        alarm = db.query(Alarm).filter(Alarm.id == data.alarm_id, Alarm.user_id == current_user.id).first()
+        if alarm:
+            alarm.difficulty_level = next_difficulty
+            db.commit()
+
+    return {
+        "success": is_correct,
+        "completion_status": status_code,
+        "score": calculated_score,
+        "accuracy": accuracy,
+        "time_taken": data.time_taken,
+        "failed_attempts": data.failed_attempts,
+        "current_difficulty": data.difficulty,
+        "next_adapted_difficulty": next_difficulty,
+        "message": f"Challenge {'completed successfully!' if is_correct else 'failed or timed out.'}"
+    }
 
 
 @router.post("/user/weekly-preference", response_class=JSONResponse)

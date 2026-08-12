@@ -368,17 +368,36 @@ def generate_cognitive_challenge(challenge_type: str = "Math Problems", difficul
     return res
 
 
-def verify_challenge_answer(expected: str, user_input: str):
-    """Case-insensitive and whitespace-flexible answer verification."""
-    if not expected or not user_input:
+def verify_challenge_answer(expected: str, user_input: str) -> bool:
+    """Case-insensitive, whitespace-flexible, and numeric-aware answer verification."""
+    if expected is None or user_input is None:
         return False
-    exp_clean = str(expected).strip().lower()
-    user_clean = str(user_input).strip().lower()
     
-    if exp_clean == user_clean:
+    exp_str = str(expected).strip().lower()
+    user_str = str(user_input).strip().lower()
+    
+    if not exp_str or not user_str:
+        return False
+        
+    if exp_str == user_str:
         return True
 
-    if exp_clean in user_clean or user_clean in exp_clean:
+    # Numeric check
+    try:
+        if abs(float(exp_str) - float(user_str)) < 1e-4:
+            return True
+    except ValueError:
+        pass
+        
+    # Strip non-alphanumeric for text checks
+    exp_alpha = re.sub(r'[^a-z0-9]', '', exp_str)
+    user_alpha = re.sub(r'[^a-z0-9]', '', user_str)
+    if exp_alpha and user_alpha and exp_alpha == user_alpha:
         return True
         
+    # Substring check for multi-word or descriptive answers (only if length > 2)
+    if len(exp_alpha) > 2 and len(user_alpha) > 2:
+        if exp_alpha in user_alpha or user_alpha in exp_alpha:
+            return True
+            
     return False

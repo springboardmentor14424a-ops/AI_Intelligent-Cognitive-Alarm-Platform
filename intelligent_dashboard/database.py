@@ -177,10 +177,49 @@ class ChallengePerformance(Base):
     time_taken = Column(Float, nullable=False)
     failed_attempts = Column(Integer, default=0)
     status = Column(String(20), nullable=False)
+    score = Column(Float, default=0.0)
+    is_correct = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", backref="performances")
     alarm = relationship("Alarm", backref="performances")
+
+def ensure_db_schema():
+    Base.metadata.create_all(bind=engine)
+    try:
+        from sqlalchemy import inspect, text
+        inspector = inspect(engine)
+        if "challenge_performances" in inspector.get_table_names():
+            columns = [c["name"] for c in inspector.get_columns("challenge_performances")]
+            with engine.connect() as conn:
+                if "score" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN score FLOAT DEFAULT 0.0"))
+                if "is_correct" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN is_correct BOOLEAN DEFAULT 1"))
+                
+                # Backfill is_correct flag
+                conn.execute(text("UPDATE challenge_performances SET is_correct = 1 WHERE status = 'success'"))
+                conn.execute(text("UPDATE challenge_performances SET is_correct = 0 WHERE status != 'success'"))
+
+                # Backfill score for all solved challenges with 0 score
+                conn.execute(text("""
+                    UPDATE challenge_performances 
+                    SET score = ROUND(
+                        CASE 
+                            WHEN LOWER(difficulty) = 'easy' THEN 50.0
+                            WHEN LOWER(difficulty) = 'hard' THEN 150.0
+                            WHEN LOWER(difficulty) = 'beginner' THEN 30.0
+                            WHEN LOWER(difficulty) = 'expert' THEN 200.0
+                            ELSE 100.0
+                        END * CASE WHEN accuracy > 0 THEN (accuracy / 100.0) ELSE 1.0 END, 1
+                    )
+                    WHERE (score IS NULL OR score = 0.0) AND (is_correct = 1 OR status = 'success')
+                """))
+                conn.commit()
+    except Exception as e:
+        print(f"Schema migration notice: {e}")
+
+ensure_db_schema()
 
 def get_db():
     db = SessionLocal()
