@@ -3,7 +3,7 @@ from typing import Optional, List, Any, Union
 
 class ChallengeRequest(BaseModel):
     challenge_type: str = Field(default="math", description="math, logic, memory, word, pattern, riddle, quiz, random")
-    difficulty: str = Field(default="medium", description="easy, medium, hard")
+    difficulty: str = Field(default="medium", description="beginner, easy, medium, hard, expert")
 
 class ChallengeResponse(BaseModel):
     challenge_id: str
@@ -19,7 +19,11 @@ class ChallengeResponse(BaseModel):
     answer_key: str  # Encrypted or plain text string representation for verification
 
 class ChallengeVerifyRequest(BaseModel):
+    user_id: Optional[int] = None
+    alarm_id: Optional[int] = None
     challenge_id: str
+    challenge_type: Optional[str] = "math"
+    difficulty: Optional[str] = "medium"
     answer_key: str
     user_answer: str
     time_taken_seconds: float = 0.0

@@ -5,14 +5,14 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 try:
-    from database import get_db
-    from models import User, Alarm, ChallengeLog
+    from database import get_db, engine
+    from models import User, Alarm, ChallengeLog, Base
     from schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse
     from challenge_generator import generate_cognitive_challenge
     from auth import hash_password, verify_password, create_token
 except ImportError:
-    from backend.database import get_db
-    from backend.models import User, Alarm, ChallengeLog
+    from backend.database import get_db, engine
+    from backend.models import User, Alarm, ChallengeLog, Base
     from backend.schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse
     from backend.challenge_generator import generate_cognitive_challenge
     from backend.auth import hash_password, verify_password, create_token
@@ -22,6 +22,7 @@ import traceback
 import os
 
 app = FastAPI(title="Wellspring API")
+Base.metadata.create_all(bind=engine)
 
 # ── Middleware ───────────────────────────────────────────────
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme"))
@@ -150,6 +151,8 @@ class AlarmCreate(BaseModel):
     sound: str = "default"
     vibration: bool = True
     snooze_enabled: bool = True
+    snooze_duration: int = 5
+    max_snooze_count: int = 3
 
 class AlarmUpdate(BaseModel):
     title: str
@@ -160,24 +163,30 @@ class AlarmUpdate(BaseModel):
     sound: str = "default"
     vibration: bool = True
     snooze_enabled: bool = True
+    snooze_duration: int = 5
+    max_snooze_count: int = 3
+    current_snooze_count: Optional[int] = 0
 
 
 def alarm_to_dict(a: Alarm) -> dict:
     return {
-        "id":               a.id,
-        "user_id":          a.user_id,
-        "title":            a.title,
-        "alarm_time":       str(a.alarm_time),
-        "alarm_type":       a.alarm_type,
-        "repeat_days":      a.repeat_days,
-        "is_active":        a.is_active,
-        "difficulty_level": a.difficulty_level,
-        "challenge":        a.challenge,
-        "sound":            a.sound,
-        "vibration":        a.vibration,
-        "snooze_enabled":   a.snooze_enabled,
-        "created_at":       str(a.created_at),
-        "updated_at":       str(a.updated_at),
+        "id":                   a.id,
+        "user_id":              a.user_id,
+        "title":                a.title,
+        "alarm_time":           str(a.alarm_time),
+        "alarm_type":           a.alarm_type,
+        "repeat_days":          a.repeat_days,
+        "is_active":            a.is_active,
+        "difficulty_level":     a.difficulty_level,
+        "challenge":            a.challenge,
+        "sound":                a.sound,
+        "vibration":            a.vibration,
+        "snooze_enabled":       a.snooze_enabled,
+        "snooze_duration":      getattr(a, "snooze_duration", 5),
+        "max_snooze_count":     getattr(a, "max_snooze_count", 3),
+        "current_snooze_count": getattr(a, "current_snooze_count", 0),
+        "created_at":           str(a.created_at),
+        "updated_at":           str(a.updated_at),
     }
 
 
@@ -194,6 +203,9 @@ def create_alarm(data: AlarmCreate, db: Session = Depends(get_db)):
         sound=data.sound,
         vibration=data.vibration,
         snooze_enabled=data.snooze_enabled,
+        snooze_duration=data.snooze_duration,
+        max_snooze_count=data.max_snooze_count,
+        current_snooze_count=0
     )
     db.add(alarm)
     db.commit()
@@ -221,6 +233,10 @@ def update_alarm(alarm_id: int, data: AlarmUpdate, db: Session = Depends(get_db)
     alarm.sound            = data.sound
     alarm.vibration        = data.vibration
     alarm.snooze_enabled   = data.snooze_enabled
+    alarm.snooze_duration  = data.snooze_duration
+    alarm.max_snooze_count = data.max_snooze_count
+    if data.current_snooze_count is not None:
+        alarm.current_snooze_count = data.current_snooze_count
     db.commit()
     db.refresh(alarm)
     return alarm_to_dict(alarm)
@@ -234,6 +250,24 @@ def toggle_alarm(alarm_id: int, db: Session = Depends(get_db)):
     alarm.is_active = not alarm.is_active
     db.commit()
     return {"alarm_id": alarm.id, "is_active": alarm.is_active}
+
+
+class AlarmSnoozeUpdate(BaseModel):
+    increment: bool = True
+    reset: bool = False
+
+@app.patch("/alarms/{alarm_id}/snooze")
+def update_alarm_snooze(alarm_id: int, data: AlarmSnoozeUpdate, db: Session = Depends(get_db)):
+    alarm = db.query(Alarm).filter(Alarm.id == alarm_id).first()
+    if not alarm:
+        raise HTTPException(status_code=404, detail="Alarm not found")
+    if data.reset:
+        alarm.current_snooze_count = 0
+    elif data.increment:
+        alarm.current_snooze_count = getattr(alarm, "current_snooze_count", 0) + 1
+    db.commit()
+    db.refresh(alarm)
+    return alarm_to_dict(alarm)
 
 
 @app.delete("/alarms/{alarm_id}")
@@ -262,7 +296,7 @@ def get_challenge_types():
             {"id": "riddle", "name": "Riddles", "description": "Lateral thinking & cognitive brain-teasers"},
             {"id": "quiz", "name": "Quick Quizzes", "description": "General knowledge & analytical trivia"}
         ],
-        "difficulties": ["easy", "medium", "hard"]
+        "difficulties": ["beginner", "easy", "medium", "hard", "expert"]
     }
 
 
@@ -300,9 +334,10 @@ def verify_challenge(data: ChallengeVerifyRequest, db: Session = Depends(get_db)
     # Log to DB
     try:
         log = ChallengeLog(
-            user_id=None,  # Optional user tracking
-            challenge_type="verify",
-            difficulty="medium",
+            user_id=data.user_id,
+            alarm_id=data.alarm_id,
+            challenge_type=data.challenge_type or "math",
+            difficulty=data.difficulty or "medium",
             success=is_correct,
             score=score,
             time_taken_seconds=data.time_taken_seconds
@@ -318,6 +353,90 @@ def verify_challenge(data: ChallengeVerifyRequest, db: Session = Depends(get_db)
         correct_answer=data.answer_key,
         score=score
     )
+
+
+@app.get("/challenges/personalized/{user_id}", response_model=ChallengeResponse)
+def get_personalized_challenge(user_id: int, type: str = "math", db: Session = Depends(get_db)):
+    """Personalized Challenge Selection algorithm based on user history in DB:
+    - Previous performance (accuracy %, total score)
+    - Average time taken
+    - Difficulty level completed
+    - Failed attempt count
+    Adaptive Rule: High performance (>80% accuracy) -> Level Up. Low performance (<40% accuracy) -> Level Down."""
+    
+    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).limit(10).all()
+    
+    levels = ["beginner", "easy", "medium", "hard", "expert"]
+    target_difficulty = "medium"
+    
+    if logs:
+        total = len(logs)
+        success_count = sum(1 for l in logs if l.success)
+        accuracy = (success_count / total) * 100
+        recent_difficulty = logs[0].difficulty if logs[0].difficulty in levels else "medium"
+        curr_idx = levels.index(recent_difficulty)
+        
+        # Adaptive Rule
+        if accuracy >= 80 and total >= 3:
+            target_difficulty = levels[min(curr_idx + 1, len(levels) - 1)]
+        elif accuracy <= 40 and total >= 3:
+            target_difficulty = levels[max(curr_idx - 1, 0)]
+        else:
+            target_difficulty = recent_difficulty
+
+    return generate_cognitive_challenge(challenge_type=type, difficulty=target_difficulty)
+
+
+@app.get("/challenges/performance/{user_id}")
+def get_user_performance(user_id: int, db: Session = Depends(get_db)):
+    """Returns analytics for Dashboard Challenge Performance Card."""
+    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).all()
+    
+    if not logs:
+        return {
+            "total_attempts": 0,
+            "success_rate": 0,
+            "total_score": 0,
+            "avg_time_seconds": 0,
+            "recommended_difficulty": "medium",
+            "recent_logs": []
+        }
+    
+    total = len(logs)
+    successes = sum(1 for l in logs if l.success)
+    accuracy = round((successes / total) * 100, 1)
+    total_score = sum(l.score for l in logs)
+    avg_time = round(sum(l.time_taken_seconds for l in logs) / total, 1)
+    
+    levels = ["beginner", "easy", "medium", "hard", "expert"]
+    recent_diff = logs[0].difficulty if logs[0].difficulty in levels else "medium"
+    curr_idx = levels.index(recent_diff)
+    
+    if accuracy >= 80 and total >= 3:
+        recommended = levels[min(curr_idx + 1, len(levels) - 1)]
+    elif accuracy <= 40 and total >= 3:
+        recommended = levels[max(curr_idx - 1, 0)]
+    else:
+        recommended = recent_diff
+
+    return {
+        "total_attempts": total,
+        "success_rate": accuracy,
+        "total_score": total_score,
+        "avg_time_seconds": avg_time,
+        "recommended_difficulty": recommended,
+        "recent_logs": [
+            {
+                "id": l.id,
+                "type": l.challenge_type,
+                "difficulty": l.difficulty,
+                "success": l.success,
+                "score": l.score,
+                "time_taken": l.time_taken_seconds,
+                "timestamp": str(l.created_at)
+            } for l in logs[:5]
+        ]
+    }
 
 
 @app.get("/challenges/history")

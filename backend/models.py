@@ -39,8 +39,11 @@ class Alarm(Base):
     difficulty_level = Column(String(20), nullable=False, default="medium")
     challenge        = Column(String(50), nullable=False, default="math")
     sound            = Column(String(100), nullable=False, default="default")
-    vibration        = Column(Boolean, nullable=False, default="True")
-    snooze_enabled   = Column(Boolean, nullable=False, default="True")
+    vibration        = Column(Boolean, nullable=False, default=True)
+    snooze_enabled   = Column(Boolean, nullable=False, default=True)
+    snooze_duration  = Column(Integer, nullable=False, default=5)
+    max_snooze_count = Column(Integer, nullable=False, default=3)
+    current_snooze_count = Column(Integer, nullable=False, default=0)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -52,6 +55,7 @@ class ChallengeLog(Base):
 
     id                 = Column(Integer, primary_key=True, index=True)
     user_id            = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    alarm_id           = Column(Integer, ForeignKey("alarms.id", ondelete="SET NULL"), nullable=True)
     challenge_type     = Column(String(50), nullable=False)
     difficulty         = Column(String(20), nullable=False)
     success            = Column(Boolean, nullable=False)
