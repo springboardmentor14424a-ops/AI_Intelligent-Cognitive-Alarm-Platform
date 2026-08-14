@@ -212,6 +212,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const diffVal = document.getElementById('alarm-difficulty')?.value || 'medium';
       const soundVal = document.getElementById('alarm-sound')?.value || 'default';
       const snoozeVal = document.getElementById('alarm-snooze')?.checked ?? true;
+      const snoozeMinVal = parseInt(document.getElementById('alarm-snooze-min')?.value || '5');
+      const maxSnoozeVal = parseInt(document.getElementById('alarm-max-snooze')?.value || '3');
 
       const challengeSelect = document.getElementById('alarm-challenge');
       const challengeText = (challengeSelect && challengeSelect.selectedIndex >= 0 && challengeSelect.options[challengeSelect.selectedIndex]) 
@@ -241,7 +243,9 @@ document.addEventListener('DOMContentLoaded', () => {
             difficulty_level: diffVal,
             sound:            soundVal,
             vibration:        true,
-            snooze_enabled:   snoozeVal
+            snooze_enabled:   snoozeVal,
+            snooze_duration:  snoozeMinVal,
+            max_snooze_count: maxSnoozeVal
           })
         });
         if (res.ok) {
@@ -263,7 +267,10 @@ document.addEventListener('DOMContentLoaded', () => {
           challenge: challengeVal,
           difficulty_level: diffVal,
           sound: soundVal,
-          is_active: true
+          is_active: true,
+          snooze_duration: snoozeMinVal,
+          max_snooze_count: maxSnoozeVal,
+          current_snooze_count: 0
         };
       }
 
@@ -807,13 +814,16 @@ function formatAlarmTime(timeStr) {
 
 function getChallengeBadge(challenge) {
   const map = {
-    math: { icon: '', label: 'Math Puzzle', class: 'badge-challenge' },
+    math: { icon: '', label: 'Math Problems', class: 'badge-challenge' },
+    logic: { icon: '', label: 'Logic Puzzles', class: 'badge-challenge' },
+    memory: { icon: '', label: 'Memory Challenges', class: 'badge-challenge' },
+    word: { icon: '', label: 'Word Games', class: 'badge-challenge' },
+    pattern: { icon: '', label: 'Pattern Recognition', class: 'badge-challenge' },
+    riddle: { icon: '', label: 'Riddles', class: 'badge-challenge' },
+    quiz: { icon: '', label: 'Quick Quizzes', class: 'badge-challenge' },
     shake: { icon: '', label: 'Shake to Dismiss', class: 'badge-challenge' },
     none: { icon: '', label: 'No Challenge', class: 'badge-challenge-none' },
-    qr: { icon: '', label: 'QR Scan', class: 'badge-challenge' },
-    logic: { icon: '', label: 'Logic Puzzle', class: 'badge-challenge' },
-    memory: { icon: '', label: 'Memory Game', class: 'badge-challenge' },
-    word: { icon: '', label: 'Word Game', class: 'badge-challenge' }
+    qr: { icon: '', label: 'QR Scan', class: 'badge-challenge' }
   };
   return map[challenge] || { icon: '', label: challenge || 'Challenge', class: 'badge-challenge' };
 }
@@ -956,6 +966,10 @@ function renderMyAlarms(filter = currentAlarmFilter) {
         </div>
 
         <div class="alarm-card-controls">
+          <button type="button" class="btn-test-challenge" onclick="testMyAlarmCard(${alarm.id})" title="Test Cognitive Challenge">
+            🧠 Test Challenge
+          </button>
+
           <button type="button" class="btn-icon-box" onclick="editMyAlarmCard(${alarm.id})" title="Edit Alarm">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -998,6 +1012,214 @@ function toggleMyAlarmCard(id, checkbox) {
   }
 }
 
+function testMyAlarmCard(id) {
+  const alarm = myAlarmsList.find(a => a.id === id);
+  const type = alarm ? (alarm.challenge || 'math') : 'math';
+  const diff = alarm ? (alarm.difficulty_level || 'medium') : 'medium';
+  const title = alarm ? (alarm.title || 'Alarm Test') : 'Alarm Test';
+  openChallengeModal(type, diff, title);
+}
+
+// ── COGNITIVE CHALLENGE MODAL CONTROLLER ─────────────────────
+let cmCurrentChallenge = null;
+let cmStartTime = 0;
+let cmTimerInterval = null;
+let cmTimeLeft = 45;
+
+async function openChallengeModal(type = 'math', diff = 'medium', title = 'Cognitive Challenge') {
+  const overlay = document.getElementById('challengeModalOverlay');
+  if (!overlay) return;
+
+  document.getElementById('cm-title').textContent = title;
+  document.getElementById('cm-badge-type').textContent = getChallengeBadge(type).label;
+  document.getElementById('cm-badge-diff').textContent = diff.charAt(0).toUpperCase() + diff.slice(1);
+  
+  document.getElementById('cm-challenge-body').style.display = 'block';
+  document.getElementById('cm-success-body').style.display = 'none';
+  document.getElementById('cm-feedback').style.display = 'none';
+  document.getElementById('cm-question-text').textContent = 'Loading dynamic AI challenge...';
+  document.getElementById('cm-options-container').innerHTML = '';
+  document.getElementById('cm-input-container').style.display = 'none';
+  document.getElementById('cm-hint-box').style.display = 'none';
+  
+  overlay.classList.add('open');
+
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+  
+  try {
+    const res = await fetch(`http://localhost:8000/challenges/personalized/${userId}?type=${type}`);
+    if (!res.ok) throw new Error('API Error');
+    cmCurrentChallenge = await res.json();
+  } catch (e) {
+    try {
+      const res = await fetch(`http://localhost:8000/challenges/generate?type=${type}&difficulty=${diff}`);
+      cmCurrentChallenge = await res.json();
+    } catch (err) {
+      cmCurrentChallenge = {
+        challenge_id: 'math_fallback',
+        type: 'math',
+        difficulty: diff,
+        title: 'Math Puzzle',
+        question: 'Solve: 12 + 15 = ?',
+        input_type: 'choice',
+        options: ['25', '27', '29', '30'],
+        answer_key: '27',
+        hint: '12 plus 15',
+        time_limit_seconds: 45
+      };
+    }
+  }
+
+  renderCMChallenge();
+}
+
+function renderCMChallenge() {
+  if (!cmCurrentChallenge) return;
+  
+  document.getElementById('cm-question-text').textContent = cmCurrentChallenge.question;
+  
+  const optionsDiv = document.getElementById('cm-options-container');
+  const inputDiv = document.getElementById('cm-input-container');
+  const hintDiv = document.getElementById('cm-hint-box');
+  
+  optionsDiv.innerHTML = '';
+  
+  if (cmCurrentChallenge.input_type === 'choice' && cmCurrentChallenge.options?.length) {
+    optionsDiv.style.display = 'flex';
+    inputDiv.style.display = 'none';
+    cmCurrentChallenge.options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'opt-btn-modal';
+      btn.style.cssText = 'padding:12px 16px;border-radius:10px;border:1.5px solid #cbd5e1;background:#fff;font-weight:600;color:#1e293b;cursor:pointer;text-align:left;transition:all 0.2s;';
+      btn.textContent = opt;
+      btn.onclick = () => {
+        document.querySelectorAll('.opt-btn-modal').forEach(b => {
+          b.style.borderColor = '#cbd5e1';
+          b.style.background = '#fff';
+          delete b.dataset.selected;
+        });
+        btn.style.borderColor = '#2563eb';
+        btn.style.background = '#eff6ff';
+        btn.dataset.selected = 'true';
+      };
+      optionsDiv.appendChild(btn);
+    });
+  } else {
+    optionsDiv.style.display = 'none';
+    inputDiv.style.display = 'block';
+    const inp = document.getElementById('cm-user-input');
+    inp.value = '';
+    inp.focus();
+  }
+
+  if (cmCurrentChallenge.hint) {
+    hintDiv.textContent = `💡 Hint: ${cmCurrentChallenge.hint}`;
+    hintDiv.style.display = 'block';
+  } else {
+    hintDiv.style.display = 'none';
+  }
+
+  cmStartTime = Date.now();
+  startCMTimer(cmCurrentChallenge.time_limit_seconds || 45);
+}
+
+function startCMTimer(seconds) {
+  if (cmTimerInterval) clearInterval(cmTimerInterval);
+  cmTimeLeft = seconds;
+  const display = document.getElementById('cm-timer-display');
+  display.textContent = `⏳ ${cmTimeLeft}s remaining`;
+  
+  cmTimerInterval = setInterval(() => {
+    cmTimeLeft--;
+    display.textContent = `⏳ ${cmTimeLeft}s remaining`;
+    if (cmTimeLeft <= 0) {
+      clearInterval(cmTimerInterval);
+      display.textContent = `⏰ Time's up!`;
+      const fb = document.getElementById('cm-feedback');
+      fb.style.display = 'block';
+      fb.style.background = '#fef2f2';
+      fb.style.color = '#dc2626';
+      fb.textContent = `⏰ Time expired! Answer was: ${cmCurrentChallenge?.answer_key || ''}`;
+    }
+  }, 1000);
+}
+
+async function submitChallengeModalAnswer() {
+  if (!cmCurrentChallenge) return;
+
+  let userAnswer = '';
+  if (cmCurrentChallenge.input_type === 'choice') {
+    const selected = document.querySelector('.opt-btn-modal[data-selected="true"]');
+    if (!selected) {
+      alert('Please select an option first!');
+      return;
+    }
+    userAnswer = selected.textContent.trim();
+  } else {
+    userAnswer = document.getElementById('cm-user-input')?.value.trim() || '';
+    if (!userAnswer) {
+      alert('Please enter your answer!');
+      return;
+    }
+  }
+
+  if (cmTimerInterval) clearInterval(cmTimerInterval);
+  const timeTaken = (Date.now() - cmStartTime) / 1000;
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+
+  try {
+    const res = await fetch(`http://localhost:8000/challenges/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        challenge_id: cmCurrentChallenge.challenge_id,
+        challenge_type: cmCurrentChallenge.type || 'math',
+        difficulty: cmCurrentChallenge.difficulty || 'medium',
+        answer_key: cmCurrentChallenge.answer_key,
+        user_answer: userAnswer,
+        time_taken_seconds: timeTaken
+      })
+    });
+    
+    const data = await res.json();
+    const fb = document.getElementById('cm-feedback');
+    fb.style.display = 'block';
+
+    if (data.success) {
+      fb.style.background = '#f0fdf4';
+      fb.style.color = '#16a34a';
+      fb.textContent = `✅ ${data.message}`;
+
+      // 1 Question solved correctly -> Dismiss Alarm Immediately!
+      setTimeout(() => {
+        document.getElementById('cm-challenge-body').style.display = 'none';
+        document.getElementById('cm-success-body').style.display = 'flex';
+        loadCognitivePerformance();
+      }, 700);
+    } else {
+      fb.style.background = '#fef2f2';
+      fb.style.color = '#dc2626';
+      fb.textContent = `❌ ${data.message}`;
+      
+      // Load next question on wrong answer
+      setTimeout(() => {
+        openChallengeModal(cmCurrentChallenge.type || 'math', cmCurrentChallenge.difficulty || 'medium', 'Cognitive Challenge');
+      }, 1600);
+    }
+  } catch (e) {
+    console.error('Challenge verify error:', e);
+    closeChallengeModal();
+  }
+}
+
+function closeChallengeModal() {
+  if (cmTimerInterval) clearInterval(cmTimerInterval);
+  const overlay = document.getElementById('challengeModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+}
+
 function deleteMyAlarmCard(id) {
   if (!confirm('Are you sure you want to delete this alarm?')) return;
   myAlarmsList = myAlarmsList.filter(a => a.id !== id);
@@ -1034,47 +1256,430 @@ function editMyAlarmCard(id) {
   renderMyAlarms();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  renderMyAlarms();
-});
+async function loadCognitivePerformance() {
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+  try {
+    const res = await fetch(`http://localhost:8000/challenges/performance/${userId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    
+    const accEl = document.getElementById('perf-accuracy');
+    const scoreEl = document.getElementById('perf-score');
+    const totalEl = document.getElementById('perf-total');
+    const timeEl = document.getElementById('perf-avg-time');
+    const recEl = document.getElementById('perf-recommended');
+    const badgeEl = document.getElementById('perf-rec-badge');
+    
+    if (accEl) accEl.textContent = `${data.success_rate ?? 0}%`;
+    if (scoreEl) scoreEl.textContent = `${data.total_score ?? 0} pts`;
+    if (totalEl) totalEl.textContent = `${data.total_attempts ?? 0}`;
+    if (timeEl) timeEl.textContent = data.avg_time_seconds ? `${data.avg_time_seconds}s` : '0s';
+    if (recEl) recEl.textContent = data.recommended_difficulty || 'medium';
+    if (badgeEl) badgeEl.textContent = `Adaptive: ${(data.recommended_difficulty || 'medium').toUpperCase()}`;
+  } catch (e) {
+    // Show zeros on error instead of leaving --
+    const ids = ['perf-accuracy', 'perf-score', 'perf-total', 'perf-avg-time'];
+    const defaults = ['0%', '0 pts', '0', '0s'];
+    ids.forEach((id, i) => { const el = document.getElementById(id); if (el) el.textContent = defaults[i]; });
+  }
+}
 
+// ── Web Audio Synth Engine for Dynamic Sound Synthesis ────
+class AlarmAudioEngine {
+  constructor() {
+    this.ctx = null;
+    this.isPlaying = false;
+    this.osc = null;
+    this.gain = null;
+    this.timer = null;
+  }
 
-// ── Alarm polling — checks every minute if an alarm is due ────
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) this.ctx = new AudioCtx();
+    }
+  }
+
+  start(soundType = 'default') {
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    this.isPlaying = true;
+
+    let freq1 = 880;
+    let freq2 = 1760;
+    if (soundType === 'beep') { freq1 = 900; freq2 = 1200; }
+    else if (soundType === 'chime') { freq1 = 523.25; freq2 = 659.25; }
+    else if (soundType === 'bell') { freq1 = 440; freq2 = 880; }
+
+    const playTone = () => {
+      if (!this.isPlaying) return;
+      try {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = soundType === 'chime' ? 'sine' : 'square';
+        osc.frequency.setValueAtTime(freq1, this.ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq2, this.ctx.currentTime + 0.15);
+
+        gain.gain.setValueAtTime(0.15, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.4);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        osc.stop(this.ctx.currentTime + 0.45);
+      } catch (e) {}
+    };
+
+    playTone();
+    this.timer = setInterval(playTone, 800);
+  }
+
+  stop() {
+    this.isPlaying = false;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+  }
+}
+
+const alarmAudioEngine = new AlarmAudioEngine();
+
+function triggerVibration() {
+  if (navigator.vibrate) {
+    navigator.vibrate([400, 200, 400, 200, 800]);
+  }
+}
+
+// Global state for active alarm trigger modal
+let currentActiveAlarm = null;
+let activeAlarmChallengeData = null;
+let activeAlarmTimer = null;
+let activeAlarmSecondsLeft = 45;
+let activeAlarmSnoozeCountdown = null;
+let activeAlarmStartTime = null;
+let selectedActiveAlarmAnswer = '';
+let triggeredAlarmsMap = new Set();
+
+function triggerActiveAlarm(alarm) {
+  currentActiveAlarm = alarm;
+  activeAlarmStartTime = Date.now();
+  selectedActiveAlarmAnswer = '';
+  alarmAudioEngine.start(alarm.sound || 'default');
+  if (alarm.vibration !== false) triggerVibration();
+
+  const overlay = document.getElementById('alarmTriggerModalOverlay');
+  if (!overlay) return;
+
+  // Set header info
+  const timeDisp = document.getElementById('at-time-display');
+  const titleDisp = document.getElementById('at-title-display');
+  const typeBadge = document.getElementById('at-badge-type');
+  const diffBadge = document.getElementById('at-badge-diff');
+  const snoozeBadge = document.getElementById('at-badge-snooze');
+  const emergencyBanner = document.getElementById('at-emergency-banner');
+
+  const hh = alarm.alarm_time.substring(0, 2);
+  const mm = alarm.alarm_time.substring(3, 5);
+  const hr = parseInt(hh) % 12 || 12;
+  const ap = parseInt(hh) >= 12 ? 'PM' : 'AM';
+  if (timeDisp) timeDisp.textContent = `${String(hr).padStart(2,'0')}:${mm} ${ap}`;
+  if (titleDisp) titleDisp.textContent = alarm.title || 'Morning Wake-up Alarm';
+
+  const maxSnoozes = alarm.max_snooze_count || 3;
+  const currentSnoozes = alarm.current_snooze_count || 0;
+  if (snoozeBadge) snoozeBadge.textContent = `Snooze ${currentSnoozes} / ${maxSnoozes}`;
+
+  // Check emergency fallback condition: max snoozes exhausted
+  if (currentSnoozes >= maxSnoozes) {
+    alarm.difficulty_level = 'beginner';
+    if (emergencyBanner) emergencyBanner.style.display = 'block';
+  } else {
+    if (emergencyBanner) emergencyBanner.style.display = 'none';
+  }
+
+  if (typeBadge) typeBadge.textContent = (alarm.challenge || 'math').toUpperCase();
+  if (diffBadge) diffBadge.textContent = (alarm.difficulty_level || 'medium').toUpperCase();
+
+  // Show challenge section, hide snooze & success
+  document.getElementById('at-challenge-section').style.display = 'block';
+  document.getElementById('at-snooze-section').style.display = 'none';
+  document.getElementById('at-success-section').style.display = 'none';
+
+  overlay.classList.add('open');
+  loadActiveAlarmChallenge(alarm.challenge || 'math', alarm.difficulty_level || 'medium');
+}
+
+async function loadActiveAlarmChallenge(type, diff) {
+  const qText = document.getElementById('at-question-text');
+  const optBox = document.getElementById('at-options-container');
+  const inpBox = document.getElementById('at-input-container');
+  const fbBox = document.getElementById('at-feedback');
+  if (fbBox) fbBox.style.display = 'none';
+
+  if (qText) qText.textContent = "Generating cognitive challenge...";
+  if (optBox) optBox.innerHTML = "";
+
+  try {
+    const res = await fetch(`http://localhost:8000/challenges/generate?type=${type}&difficulty=${diff}`);
+    if (res.ok) {
+      activeAlarmChallengeData = await res.json();
+    } else {
+      throw new Error();
+    }
+  } catch (e) {
+    activeAlarmChallengeData = {
+      challenge_id: "local_" + Date.now(),
+      type: type,
+      difficulty: diff,
+      question: "What is 14 + 27?",
+      options: ["39", "41", "43", "37"],
+      answer_key: "41",
+      input_type: "choice",
+      time_limit: 45
+    };
+  }
+
+  renderActiveAlarmChallenge();
+}
+
+function renderActiveAlarmChallenge() {
+  const data = activeAlarmChallengeData;
+  if (!data) return;
+
+  const qText = document.getElementById('at-question-text');
+  const optBox = document.getElementById('at-options-container');
+  const inpBox = document.getElementById('at-input-container');
+
+  if (qText) qText.textContent = typeof data.question === 'string' ? data.question : JSON.stringify(data.question);
+
+  if (data.input_type === 'choice' && data.options && data.options.length > 0) {
+    if (optBox) optBox.style.display = 'grid';
+    if (inpBox) inpBox.style.display = 'none';
+    optBox.innerHTML = data.options.map(opt => `
+      <button type="button" class="at-opt-btn" onclick="selectActiveAlarmOption('${opt}', this)">
+        ${opt}
+      </button>
+    `).join('');
+  } else {
+    if (optBox) optBox.style.display = 'none';
+    if (inpBox) inpBox.style.display = 'block';
+    const inp = document.getElementById('at-user-input');
+    if (inp) { inp.value = ''; inp.focus(); }
+  }
+
+  startActiveAlarmTimer(data.time_limit || 45);
+}
+
+function selectActiveAlarmOption(val, btn) {
+  selectedActiveAlarmAnswer = val;
+  document.querySelectorAll('.at-opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function startActiveAlarmTimer(seconds) {
+  if (activeAlarmTimer) clearInterval(activeAlarmTimer);
+  activeAlarmSecondsLeft = seconds;
+  const timerDisp = document.getElementById('at-timer-display');
+
+  activeAlarmTimer = setInterval(() => {
+    activeAlarmSecondsLeft--;
+    if (timerDisp) timerDisp.textContent = `⏳ ${activeAlarmSecondsLeft}s`;
+
+    if (activeAlarmSecondsLeft <= 0) {
+      clearInterval(activeAlarmTimer);
+      handleActiveAlarmFailure("Time expired! Challenge failed.");
+    }
+  }, 1000);
+}
+
+async function submitActiveAlarmAnswer() {
+  let userAns = selectedActiveAlarmAnswer;
+  const inp = document.getElementById('at-user-input');
+  if (inp && inp.style.display !== 'none') {
+    userAns = inp.value;
+  }
+
+  if (!userAns) {
+    const fbBox = document.getElementById('at-feedback');
+    if (fbBox) {
+      fbBox.style.display = 'block';
+      fbBox.style.background = '#fef2f2';
+      fbBox.style.color = '#dc2626';
+      fbBox.textContent = 'Please select or type an answer.';
+    }
+    return;
+  }
+
+  clearInterval(activeAlarmTimer);
+  alarmAudioEngine.stop();
+
+  const timeTaken = (Date.now() - (activeAlarmStartTime || Date.now())) / 1000;
+  const data = activeAlarmChallengeData;
+
+  let verifyRes = null;
+  try {
+    const userId = (user && user.id) ? parseInt(user.id) : 1;
+    const res = await fetch('http://localhost:8000/challenges/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        alarm_id: currentActiveAlarm ? currentActiveAlarm.id : null,
+        challenge_id: data ? data.challenge_id : "1",
+        challenge_type: currentActiveAlarm ? currentActiveAlarm.challenge : "math",
+        difficulty: currentActiveAlarm ? currentActiveAlarm.difficulty_level : "medium",
+        answer_key: data ? String(data.answer_key) : "",
+        user_answer: String(userAns),
+        time_taken_seconds: timeTaken
+      })
+    });
+    if (res.ok) verifyRes = await res.json();
+  } catch (e) {}
+
+  if (!verifyRes) {
+    const isCorrect = String(userAns).trim().toLowerCase() === String(data.answer_key).trim().toLowerCase();
+    verifyRes = {
+      success: isCorrect,
+      message: isCorrect ? 'Correct! Alarm dismissed.' : `Incorrect. Answer was: ${data.answer_key}`,
+      score: isCorrect ? 120 : 0
+    };
+  }
+
+  if (verifyRes.success) {
+    // Reset snooze count on backend
+    if (currentActiveAlarm && currentActiveAlarm.id) {
+      fetch(`http://localhost:8000/alarms/${currentActiveAlarm.id}/snooze`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: true })
+      }).catch(() => {});
+    }
+
+    document.getElementById('at-challenge-section').style.display = 'none';
+    document.getElementById('at-success-section').style.display = 'block';
+    const successMsg = document.getElementById('at-success-msg');
+    if (successMsg) successMsg.textContent = `${verifyRes.message} Attempt logged to challenge logs.`;
+    // Refresh performance card after successful challenge
+    setTimeout(() => loadCognitivePerformance(), 500);
+
+  } else {
+    handleActiveAlarmFailure(verifyRes.message);
+  }
+}
+
+function handleActiveAlarmFailure(msg) {
+  alarmAudioEngine.stop();
+  if (currentActiveAlarm && currentActiveAlarm.id) {
+    fetch(`http://localhost:8000/alarms/${currentActiveAlarm.id}/snooze`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ increment: true })
+    }).then(r => r.json()).then(updated => {
+      if (updated && currentActiveAlarm) {
+        currentActiveAlarm.current_snooze_count = updated.current_snooze_count;
+      }
+    }).catch(() => {
+      if (currentActiveAlarm) {
+        currentActiveAlarm.current_snooze_count = (currentActiveAlarm.current_snooze_count || 0) + 1;
+      }
+    });
+  }
+
+  document.getElementById('at-challenge-section').style.display = 'none';
+  document.getElementById('at-snooze-section').style.display = 'block';
+
+  const snoozeMsg = document.getElementById('at-snooze-msg');
+  if (snoozeMsg) snoozeMsg.textContent = `${msg} Alarm going into snooze retry loop.`;
+
+  const snoozeMins = (currentActiveAlarm && currentActiveAlarm.snooze_duration) ? currentActiveAlarm.snooze_duration : 5;
+  startSnoozeCountdown(snoozeMins * 60);
+}
+
+let snoozeTimeRemaining = 0;
+function startSnoozeCountdown(totalSeconds) {
+  if (activeAlarmSnoozeCountdown) clearInterval(activeAlarmSnoozeCountdown);
+  snoozeTimeRemaining = totalSeconds;
+  updateSnoozeTimerDisplay();
+
+  activeAlarmSnoozeCountdown = setInterval(() => {
+    snoozeTimeRemaining--;
+    updateSnoozeTimerDisplay();
+    if (snoozeTimeRemaining <= 0) {
+      clearInterval(activeAlarmSnoozeCountdown);
+      if (currentActiveAlarm) {
+        triggerActiveAlarm(currentActiveAlarm);
+      }
+    }
+  }, 1000);
+}
+
+function updateSnoozeTimerDisplay() {
+  const disp = document.getElementById('at-snooze-timer');
+  if (!disp) return;
+  const m = Math.floor(snoozeTimeRemaining / 60);
+  const s = snoozeTimeRemaining % 60;
+  disp.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function fastForwardSnooze() {
+  if (activeAlarmSnoozeCountdown) clearInterval(activeAlarmSnoozeCountdown);
+  if (currentActiveAlarm) {
+    triggerActiveAlarm(currentActiveAlarm);
+  }
+}
+
+function closeActiveAlarmModal() {
+  alarmAudioEngine.stop();
+  if (activeAlarmTimer) clearInterval(activeAlarmTimer);
+  if (activeAlarmSnoozeCountdown) clearInterval(activeAlarmSnoozeCountdown);
+  const overlay = document.getElementById('alarmTriggerModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+  loadMyAlarms();
+}
+
+// ── Alarm Polling Loop ────
 let cachedAlarms = [];
 
 function startAlarmPolling() {
-  if (!user || !user.id) return;
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
 
-  // Load alarms into memory for polling
-  fetch(`http://localhost:8000/alarms/${user.id}`)
-    .then(r => r.json())
-    .then(alarms => { cachedAlarms = alarms; })
-    .catch(() => {});
+  const fetchLatestAlarms = () => {
+    fetch(`http://localhost:8000/alarms/${userId}`)
+      .then(r => r.json())
+      .then(alarms => { cachedAlarms = alarms; })
+      .catch(() => {});
+  };
 
-  // Check every 30 seconds
+  fetchLatestAlarms();
+
   setInterval(() => {
-    const now   = new Date();
-    const hh    = String(now.getHours()).padStart(2, '0');
-    const mm    = String(now.getMinutes()).padStart(2, '0');
-    const nowStr = `${hh}:${mm}:00`;
+    fetchLatestAlarms();
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const nowHHMM = `${hh}:${mm}`;
 
     cachedAlarms.forEach(alarm => {
       if (!alarm.is_active) return;
-      // alarm_time comes as "HH:MM:SS" from backend
-      const alarmHHMM = alarm.alarm_time.substring(0, 5) + ':00';
-      if (alarmHHMM === nowStr) {
-        // Format time for display
-        const hr = parseInt(hh) % 12 || 12;
-        const ap = parseInt(hh) >= 12 ? 'PM' : 'AM';
-        const displayTime = `${String(hr).padStart(2,'0')}:${mm} ${ap}`;
-        window.location.href =
-          `challenge.html?alarm_id=${alarm.id}&type=${alarm.challenge}&difficulty=${alarm.difficulty_level}&time=${encodeURIComponent(displayTime)}&label=${encodeURIComponent(alarm.title)}`;
+      const alarmHHMM = (alarm.alarm_time || "").substring(0, 5);
+      const key = `${alarm.id}_${nowHHMM}`;
+
+      if (alarmHHMM === nowHHMM && !triggeredAlarmsMap.has(key)) {
+        triggeredAlarmsMap.add(key);
+        triggerActiveAlarm(alarm);
       }
     });
-  }, 30000);
+  }, 5000);
 }
 
-// Start polling after page loads
 document.addEventListener('DOMContentLoaded', () => {
+  renderMyAlarms();
+  loadCognitivePerformance();
   startAlarmPolling();
 });
