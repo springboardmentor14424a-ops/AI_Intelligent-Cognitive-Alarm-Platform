@@ -1501,8 +1501,10 @@ function startActiveAlarmTimer(seconds) {
 async function submitActiveAlarmAnswer() {
   let userAns = selectedActiveAlarmAnswer;
   const inp = document.getElementById('at-user-input');
-  if (inp && inp.style.display !== 'none') {
-    userAns = inp.value;
+  const inpBox = document.getElementById('at-input-container');
+  // Only use text input value if it is actually visible
+  if (inp && inpBox && inpBox.style.display === 'block') {
+    userAns = inp.value.trim();
   }
 
   if (!userAns) {
