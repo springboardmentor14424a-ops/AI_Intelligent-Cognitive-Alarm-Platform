@@ -19,7 +19,6 @@
             <ul class="sidebar-menu">
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#dashboard"><i class="fas fa-th-large"></i> <span>Dashboard</span></a></li>
                 <li class="sidebar-menu-item active"><a href="dashboard-user.html#alarms"><i class="fas fa-clock"></i> <span>My Alarms</span></a></li>
-                <li class="sidebar-menu-item"><a href="dashboard-user.html#challenges"><i class="fas fa-puzzle-piece"></i> <span>Challenges</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#habits"><i class="fas fa-tasks"></i> <span>Habit Tracker</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#analytics"><i class="fas fa-chart-line"></i> <span>Analytics</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#notifications"><i class="fas fa-bell"></i> <span>Notifications</span></a></li>
@@ -111,9 +110,11 @@
                     <div class="form-group" style="margin-bottom: 16px;">
                         <label for="alarm-difficulty">Challenge Difficulty</label>
                         <select id="alarm-difficulty" class="form-control form-select">
-                            <option value="Easy">Easy</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="Hard">Hard</option>
+                            <option value="Beginner">Beginner (Gentle)</option>
+                            <option value="Easy">Easy (Simple)</option>
+                            <option value="Medium" selected>Medium (Standard)</option>
+                            <option value="Difficult">Difficult (Challenging)</option>
+                            <option value="Advanced">Advanced (High Intensity)</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 16px;">
@@ -151,12 +152,16 @@
         <div class="modal-container" style="max-width:480px;">
             <div class="modal-header">
                 <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening Drill</span></h3>
-                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
                     <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
                     <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
+                    <span class="badge badge-primary" id="challenge-attempt-badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4);">Attempt 1</span>
+                </div>
+                <div id="challenge-timer-container" style="margin-bottom: 14px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;"><i class="fas fa-clock" style="color: #f59e0b; margin-right: 6px;"></i>Time Remaining:</span>
+                    <span id="challenge-timer-display" style="font-size: 1.1rem; font-weight: 700; color: #f59e0b; font-family: monospace;">00:20</span>
                 </div>
                 <p id="challenge-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
                     Solve the challenge to silence the wake-up alarm!

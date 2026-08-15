@@ -76,7 +76,7 @@ function protectPage(requiredRole) {
  */
 async function attemptLoginAsync(email, password) {
     try {
-        const endpoint = `${API_BASE_URL}/api/auth/login`;
+        const endpoint = `${window.API_BASE_URL}/api/auth/login`;
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -124,7 +124,7 @@ async function attemptLoginAsync(email, password) {
         console.error('Database API Login Error:', error);
         return {
             success: false,
-            message: `Could not connect to backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/login). Verify backend server is running.`
+            message: `Could not connect to backend endpoint (${window.API_BASE_URL || window.location.origin}/api/auth/login). Verify backend server is running.`
         };
     }
 }
@@ -141,7 +141,7 @@ async function attemptLoginAsync(email, password) {
  */
 async function registerUserAsync(name, email, password, role = 'USER', provider = 'LOCAL') {
     try {
-        const endpoint = `${API_BASE_URL}/api/auth/register`;
+        const endpoint = `${window.API_BASE_URL}/api/auth/register`;
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -179,7 +179,7 @@ async function registerUserAsync(name, email, password, role = 'USER', provider 
         console.error('Database API Registration Error:', error);
         return {
             success: false,
-            message: `Could not connect to backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/register). Verify backend server is running.`
+            message: `Could not connect to backend endpoint (${window.API_BASE_URL || window.location.origin}/api/auth/register). Verify backend server is running.`
         };
     }
 }
@@ -192,7 +192,7 @@ async function registerUserAsync(name, email, password, role = 'USER', provider 
  */
 async function loginWithGoogleAsync(googleData) {
     try {
-        const endpoint = `${API_BASE_URL}/api/auth/google`;
+        const endpoint = `${window.API_BASE_URL}/api/auth/google`;
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -236,7 +236,7 @@ async function loginWithGoogleAsync(googleData) {
         console.error('Google OAuth API Error:', error);
         return {
             success: false,
-            message: `Could not connect to Google OAuth backend endpoint (${API_BASE_URL || window.location.origin}/api/auth/google). Verify backend server is running.`
+            message: `Could not connect to Google OAuth backend endpoint (${window.API_BASE_URL || window.location.origin}/api/auth/google). Verify backend server is running.`
         };
     }
 }

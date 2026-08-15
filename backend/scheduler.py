@@ -1,11 +1,14 @@
 import asyncio
 import datetime
 import logging
+import uuid
 from sqlalchemy.orm import Session
 from database import SessionLocal
 from models import Alarm, User
 
-from services.gemini_service import generate_cognitive_challenge
+from services.gemini_service import generate_cognitive_challenge, map_challenge_type
+from services.challenge_store import add_session, find_session_by_alarm
+from services.personalization_service import calculate_personalized_difficulty, get_time_limit_for_difficulty
 
 logger = logging.getLogger("alarm_scheduler")
 
@@ -121,12 +124,25 @@ async def alarm_scheduler_loop():
                 if current_time_str == target_time and cache_key not in triggered_cache:
                     triggered_cache.add(cache_key)
                     
-                    diff_level = adaptive_info["difficulty"] if adaptive_info else alarm.difficulty_level
+                    if alarm.alarm_type == "Smart Adaptive":
+                        diff_level = adaptive_info["difficulty"] if adaptive_info else (alarm.difficulty_level or "Medium")
+                    else:
+                        diff_level = alarm.difficulty_level or "Medium"
                     ch_type = alarm.challenge if (alarm.challenge and alarm.challenge.lower() != "none") else "Math Problems"
-                    
-                    # Generate challenge ONCE for this alarm trigger
-                    logger.info(f"Generating cognitive challenge '{ch_type}' ({diff_level}) for Alarm ID {alarm.id}")
-                    challenge_payload = generate_cognitive_challenge(ch_type, diff_level)
+                    normalized_type = map_challenge_type(ch_type)
+
+                    existing = find_session_by_alarm(alarm.id, alarm.user_id)
+                    if existing:
+                        challenge_payload = existing
+                    else:
+                        challenge_payload = generate_cognitive_challenge(normalized_type, diff_level)
+                        session_id = f"chal_{uuid.uuid4().hex[:12]}"
+                        challenge_payload["id"] = session_id
+                        challenge_payload["user_id"] = alarm.user_id
+                        challenge_payload["recommended_difficulty"] = diff_level
+                        challenge_payload["alarm_id"] = alarm.id
+                        challenge_payload["time_limit"] = get_time_limit_for_difficulty(diff_level)
+                        add_session(session_id, challenge_payload)
 
                     triggered_alarms.append({
                         "id": alarm.id,
@@ -146,15 +162,15 @@ async def alarm_scheduler_loop():
                     print(f"Trigger Time: {target_time} (Configured: {alarm.alarm_time})")
                     print(f"Customization: Sound={alarm.sound if not adaptive_info else adaptive_info['sound']}, "
                           f"Vibration={alarm.vibration}, Difficulty={diff_level}")
-                    print(f"Cognitive Challenge Generated: Type='{challenge_payload.get('type')}', Question='{challenge_payload.get('question')}'")
-                    
+                    print(f"Cognitive Challenge Attached: ID='{challenge_payload.get('id')}', Type='{challenge_payload.get('type')}', Question='{challenge_payload.get('question')}'")
+
                     if adaptive_info:
                         print("Smart Adaptive Rules Applied:")
                         for rule in adaptive_info["rules_applied"]:
                             print(f"  - {rule}")
                     print("="*80 + "\n")
 
-                    logger.info(f"Alarm '{alarm.title}' (ID: {alarm.id}) triggered for User {alarm.user_id} at {target_time}")
+                    logger.info(f"Alarm '{alarm.title}' (ID: {alarm.id}) triggered with challenge for User {alarm.user_id} at {target_time}")
 
             db.close()
         except Exception as e:

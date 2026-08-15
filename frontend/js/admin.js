@@ -54,7 +54,7 @@ async function renderUsers() {
 
     try {
         // Cache-busting query parameter forces browser to get fresh PostgreSQL user list
-        const response = await fetch(`${API_BASE_URL}/api/auth/users?t=${Date.now()}`);
+        const response = await fetch(`${window.API_BASE_URL}/api/auth/users?t=${Date.now()}`);
         if (response.ok) {
             const data = await response.json();
             usersList = data.map(u => ({
@@ -150,7 +150,7 @@ window.deleteUserAccount = async (email, role) => {
     }
 
     try {
-        const response = await fetch(`${API_BASE_URL}/api/auth/users/${encodeURIComponent(email)}`, {
+        const response = await fetch(`${window.API_BASE_URL}/api/auth/users/${encodeURIComponent(email)}`, {
             method: 'DELETE'
         });
         const data = await response.json();

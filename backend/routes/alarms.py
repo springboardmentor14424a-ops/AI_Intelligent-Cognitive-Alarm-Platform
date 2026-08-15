@@ -1,13 +1,24 @@
 import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
+from fastapi.security import OAuth2PasswordBearer
 
 from database import get_db
 from models import Alarm, User
 from schemas import AlarmCreate, AlarmUpdate, AlarmResponse, CheckNextRequest, CheckNextResponse
 from routes.auth import get_current_user
 from scheduler import triggered_alarms
+
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
+
+def get_optional_user(token: Optional[str] = Depends(oauth2_scheme_optional), db: Session = Depends(get_db)) -> Optional[User]:
+    if not token:
+        return None
+    try:
+        return get_current_user(token=token, db=db)
+    except Exception:
+        return None
 
 
 router = APIRouter(prefix="/api/alarms", tags=["Alarms"])
@@ -113,12 +124,14 @@ def get_upcoming_alarms(db: Session = Depends(get_db), current_user: User = Depe
     return sorted_alarms
 
 @router.get("/triggered")
-def get_triggered_alarms():
-    global triggered_alarms
-
-    alarms = triggered_alarms.copy()
-    triggered_alarms.clear()
-
+def get_triggered_alarms(current_user: Optional[User] = Depends(get_optional_user)):
+    import scheduler
+    if current_user:
+        alarms = [a for a in scheduler.triggered_alarms if a.get("user_id") == current_user.id or a.get("user_id") is None]
+        scheduler.triggered_alarms = [a for a in scheduler.triggered_alarms if not (a.get("user_id") == current_user.id or a.get("user_id") is None)]
+    else:
+        alarms = list(scheduler.triggered_alarms)
+        scheduler.triggered_alarms.clear()
     return alarms
 
 @router.post("/check-next", response_model=CheckNextResponse)

@@ -76,10 +76,16 @@ class AlarmBase(BaseModel):
     @field_validator("difficulty_level")
     @classmethod
     def validate_difficulty(cls, v):
-        valid_difficulties = {"Easy", "Medium", "Hard"}
-        if v not in valid_difficulties:
+        # Accept common aliases (e.g. 'Hard') and normalize to the canonical set
+        if v is None:
+            return v
+        normalized = v.title().strip()
+        if normalized == "Hard":
+            normalized = "Difficult"
+        valid_difficulties = {"Beginner", "Easy", "Medium", "Difficult", "Advanced"}
+        if normalized not in valid_difficulties:
             raise ValueError(f"difficulty_level must be one of {valid_difficulties}")
-        return v
+        return normalized
 
 class AlarmCreate(AlarmBase):
     pass
@@ -116,9 +122,14 @@ class AlarmUpdate(BaseModel):
     @classmethod
     def validate_difficulty(cls, v):
         if v is not None:
-            valid_difficulties = {"Easy", "Medium", "Hard"}
-            if v not in valid_difficulties:
+            # Accept common aliases (e.g. 'Hard') and normalize to the canonical set
+            normalized = v.title().strip()
+            if normalized == "Hard":
+                normalized = "Difficult"
+            valid_difficulties = {"Beginner", "Easy", "Medium", "Difficult", "Advanced"}
+            if normalized not in valid_difficulties:
                 raise ValueError(f"difficulty_level must be one of {valid_difficulties}")
+            return normalized
         return v
 
 class AlarmResponse(AlarmBase):
@@ -152,17 +163,57 @@ class ChallengeResponse(BaseModel):
     options: List[str] = []
     answer: Optional[str] = None
     explanation: str
+    time_limit: int = 30
+    recommended_difficulty: Optional[str] = None
+    alarm_id: Optional[int] = None
 
 class ChallengeValidateRequest(BaseModel):
     challenge_id: Optional[str] = None
-    user_answer: str
+    user_answer: str = ""
     correct_answer: Optional[str] = None
     challenge_type: Optional[str] = None
+    difficulty: Optional[str] = None
+    question: Optional[str] = None
+    alarm_id: Optional[int] = None
+    attempt_number: Optional[int] = 1
+    time_taken: Optional[float] = 0.0
+    time_limit: Optional[int] = 30
+    is_timeout: Optional[bool] = False
 
 class ChallengeValidateResponse(BaseModel):
     correct: bool
     message: str
     explanation: str
+    attempt_number: int = 1
+    next_recommended_difficulty: Optional[str] = None
+    next_challenge: Optional[ChallengeResponse] = None
+
+class ChallengeAttemptResponse(BaseModel):
+    id: int
+    user_id: int
+    alarm_id: Optional[int] = None
+    challenge_type: str
+    difficulty: str
+    question: str
+    correct_answer: str
+    user_answer: str
+    is_correct: bool
+    attempt_number: int
+    time_taken: float
+    time_limit: int
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+class UserPerformanceResponse(BaseModel):
+    user_id: int
+    total_attempts: int
+    total_passed: int
+    accuracy_percentage: float
+    average_time_taken: float
+    recommended_difficulty: str
+    recent_attempts: List[ChallengeAttemptResponse] = []
 
 
 

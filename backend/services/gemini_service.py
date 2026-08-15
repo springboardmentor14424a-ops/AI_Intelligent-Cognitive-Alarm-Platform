@@ -17,7 +17,7 @@ ALLOWED_TYPES = [
     "Quick Quizzes"
 ]
 
-ALLOWED_DIFFICULTIES = ["Easy", "Medium", "Hard"]
+ALLOWED_DIFFICULTIES = ["Beginner", "Easy", "Medium", "Difficult", "Advanced"]
 
 def map_challenge_type(input_type: str) -> str:
     """Normalize input challenge types or shortcuts to standard types."""
@@ -55,9 +55,11 @@ def build_gemini_prompt(challenge_type: str, difficulty: str) -> str:
     Constructs a strong prompt for Gemini to generate a wake-up cognitive challenge.
     """
     difficulty_instructions = {
+        "Beginner": "Very gentle, basic calculations, simple direct questions, or 2-item memory tasks for gentle morning wakeups.",
         "Easy": "Simple calculations, basic patterns, direct riddles, or simple memory tasks that kickstart alertness.",
         "Medium": "Multi-step reasoning, moderate arithmetic, complex word/pattern matching, or multi-item memory tasks.",
-        "Hard": "Challenging multi-step logic, complex math equations, deep pattern recognition, or multi-element recall."
+        "Difficult": "Challenging multi-step logic, complex math equations, deep pattern recognition, or multi-element recall.",
+        "Advanced": "Rapid, high-intensity cognitive arousal drills, advanced algebra/logic, multi-layered memory recall."
     }
 
     diff_desc = difficulty_instructions.get(difficulty, difficulty_instructions["Medium"])
@@ -103,9 +105,8 @@ def generate_cognitive_challenge(challenge_type: str, difficulty: str) -> dict:
 
     prompt = build_gemini_prompt(normalized_type, normalized_diff)
 
-    models_to_try = ["gemini-2.5-flash", "gemini-2.5-flash-lite"]
+    models_to_try = ["gemini-flash-latest", "gemini-2.5-flash"]
     response = None
-    last_error_text = ""
 
     for model_name in models_to_try:
         endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -123,31 +124,20 @@ def generate_cognitive_challenge(challenge_type: str, difficulty: str) -> dict:
             }
         }
 
-        # Try up to 2 attempts per model if hit by 503 (high demand)
-        for attempt in range(2):
-            try:
-                res = requests.post(endpoint, json=payload, timeout=12.0)
-                if res.status_code == 200:
-                    response = res
-                    break
-                elif res.status_code == 503 and attempt == 0:
-                    logger.warning(f"Gemini model {model_name} 503 high demand spike. Retrying in 1.5s...")
-                    import time
-                    time.sleep(1.5)
-                    continue
-                else:
-                    last_error_text = f"{model_name} status {res.status_code}: {res.text}"
-                    logger.warning(f"Gemini API model {model_name} returned non-200: {last_error_text}")
-                    break
-            except Exception as e:
-                logger.warning(f"Error calling Gemini API model {model_name}: {e}")
+        try:
+            res = requests.post(endpoint, json=payload, timeout=8.0)
+            if res.status_code == 200:
+                response = res
+                logger.info(f"Gemini API model '{model_name}' successfully generated dynamic AI challenge!")
                 break
-
-        if response and response.status_code == 200:
-            break
+            else:
+                logger.warning(f"Gemini API model '{model_name}' returned status {res.status_code}: {res.text[:250]}")
+        except Exception as e:
+            logger.warning(f"Gemini API model '{model_name}' connection issue: {type(e).__name__}: {e}")
+            continue
 
     if not response or response.status_code != 200:
-        logger.warning(f"Gemini API model unavailable due to temporary Google API load (503). Serving instant local fallback challenge.")
+        logger.info(f"Serving instant local cognitive challenge for '{normalized_type}' ({normalized_diff}).")
         return get_fallback_challenge(normalized_type, normalized_diff)
 
     try:
@@ -192,6 +182,9 @@ def generate_cognitive_challenge(challenge_type: str, difficulty: str) -> dict:
             
         challenge_obj["answer"] = str(challenge_obj["answer"]).strip()
         challenge_obj["explanation"] = str(challenge_obj["explanation"]).strip()
+
+        from services.personalization_service import get_time_limit_for_difficulty
+        challenge_obj["time_limit"] = get_time_limit_for_difficulty(normalized_diff)
 
         logger.info(f"Successfully generated Gemini cognitive challenge for '{normalized_type}' ({normalized_diff})")
         return challenge_obj

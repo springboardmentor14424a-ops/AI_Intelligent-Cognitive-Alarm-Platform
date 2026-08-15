@@ -43,9 +43,6 @@
                 <li class="sidebar-menu-item" data-tab="tab-alarms">
                     <a href="#alarms"><i class="fas fa-clock"></i> <span>My Alarms</span></a>
                 </li>
-                <li class="sidebar-menu-item" data-tab="tab-challenges">
-                    <a href="#challenges"><i class="fas fa-puzzle-piece"></i> <span>Challenges</span></a>
-                </li>
                 <li class="sidebar-menu-item" data-tab="tab-habits">
                     <a href="#habits"><i class="fas fa-tasks"></i> <span>Habit Tracker</span></a>
                 </li>
@@ -324,40 +321,6 @@
                     </div>
                 </div>
 
-                <!-- ================= TAB: CHALLENGES ================= -->
-                <div id="tab-challenges" class="tab-content-section">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;" class="dashboard-grid">
-                        <div class="glass-card primary-hover">
-                            <h3 style="margin-bottom: 15px;">Prefrontal Cortex Drills</h3>
-                            <p style="color: var(--text-secondary); margin-bottom: 25px;">Activate your cognitive
-                                awareness by training daily before bed or directly during morning wakeup cycles.</p>
-                            <div class="action-panel-list">
-                                <div class="action-card">
-                                    <div class="action-info">
-                                        <h4>Math Focus Run</h4>
-                                        <p>Rapid arithmetic resolution test</p>
-                                    </div>
-                                    <button class="btn btn-primary" onclick="triggerMathChallenge()">Start</button>
-                                </div>
-                                <div class="action-card">
-                                    <div class="action-info">
-                                        <h4>Memory Grid Spark</h4>
-                                        <p>Visual card matching speed test</p>
-                                    </div>
-                                    <button class="btn btn-accent"
-                                        onclick="Toast.show('Matrix Memory Locked', 'This memory expansion pack unlocks in the next premium release.', 'info')">Unlock</button>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="glass-card secondary-hover">
-                            <h3 style="margin-bottom: 15px;">Dynamic Progress Chart</h3>
-                            <div class="chart-container">
-                                <canvas id="habitRadarChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- ================= TAB: HABIT TRACKER ================= -->
                 <div id="tab-habits" class="tab-content-section">
                     <div class="glass-card success-hover" style="margin-bottom: 30px;">
@@ -373,10 +336,113 @@
 
                 <!-- ================= TAB: ANALYTICS ================= -->
                 <div id="tab-analytics" class="tab-content-section">
-                    <div class="glass-card secondary-hover" style="margin-bottom: 30px;">
-                        <h3 style="margin-bottom: 20px;">Detailed Sleep Cycle Analysis</h3>
-                        <div class="chart-container" style="height: 350px;">
+                    <div class="glass-card primary-hover" style="margin-bottom: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                            <div>
+                                <h2 style="margin: 0; font-size: 1.5rem;"><i class="fas fa-chart-line grad-text"></i> Performance & Cognitive Analytics</h2>
+                                <p style="color: var(--text-secondary); margin-top: 4px; font-size: 0.85rem;">
+                                    Calculated from your personal challenge attempts in the database.
+                                </p>
+                            </div>
+                            <div>
+                                <span class="badge badge-info" id="db-recommended-diff-badge" style="padding: 6px 12px; font-size: 0.8rem;">
+                                    Recommended: Medium
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5 STAT SUMMARY CARDS GRID -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(168,85,247,0.15); color: var(--primary);">
+                                <i class="fas fa-bullseye"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">Overall Accuracy</span>
+                                <h3 class="stat-value" id="db-analytics-accuracy">0%</h3>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(34,197,94,0.15); color: #22c55e;">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">Passed</span>
+                                <h3 class="stat-value" id="db-analytics-passed">0</h3>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(239,68,68,0.15); color: #ef4444;">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">Failed</span>
+                                <h3 class="stat-value" id="db-analytics-failed">0</h3>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(59,130,246,0.15); color: #3b82f6;">
+                                <i class="fas fa-stopwatch"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">Average Time</span>
+                                <h3 class="stat-value" id="db-analytics-avg-time">0.0s</h3>
+                            </div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-icon" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                                <i class="fas fa-fire"></i>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-label">Current Streak</span>
+                                <h3 class="stat-value" id="db-analytics-streak">0 Days</h3>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ACCURACY OVER TIME CHART -->
+                    <div class="glass-card secondary-hover" style="margin-bottom: 24px;">
+                        <h3 style="margin-bottom: 16px;"><i class="fas fa-line-chart grad-text"></i> Daily Performance Trend</h3>
+                        <div class="chart-container" style="height: 320px;">
                             <canvas id="detailedSleepChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- BREAKDOWN GRIDS: BY TYPE & BY DIFFICULTY -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;" class="dashboard-grid">
+                        <div class="glass-card accent-hover">
+                            <h3 style="margin-bottom: 16px;"><i class="fas fa-puzzle-piece grad-text"></i> Performance by Type</h3>
+                            <div id="db-analytics-by-type-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                        </div>
+
+                        <div class="glass-card primary-hover">
+                            <h3 style="margin-bottom: 16px;"><i class="fas fa-layer-group grad-text"></i> Performance by Difficulty</h3>
+                            <div id="db-analytics-by-diff-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- RECENT ATTEMPT HISTORY TABLE -->
+                    <div class="glass-card success-hover">
+                        <h3 style="margin-bottom: 16px;"><i class="fas fa-history grad-text"></i> Recent Attempt Logs</h3>
+                        <div class="table-responsive">
+                            <table class="custom-table" id="db-analytics-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date & Time</th>
+                                        <th>Type</th>
+                                        <th>Difficulty</th>
+                                        <th>Question</th>
+                                        <th>Result</th>
+                                        <th>Time Taken</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -524,9 +590,11 @@
                     <div class="form-group" style="margin-bottom: 16px;">
                         <label for="alarm-difficulty">Challenge Difficulty</label>
                         <select id="alarm-difficulty" class="form-control form-select">
-                            <option value="Easy">Easy</option>
-                            <option value="Medium" selected>Medium</option>
-                            <option value="Hard">Hard</option>
+                            <option value="Beginner">Beginner (Gentle)</option>
+                            <option value="Easy">Easy (Simple)</option>
+                            <option value="Medium" selected>Medium (Standard)</option>
+                            <option value="Difficult">Difficult (Challenging)</option>
+                            <option value="Advanced">Advanced (High Intensity)</option>
                         </select>
                     </div>
                     <div class="form-group" style="margin-bottom: 16px;">
@@ -565,12 +633,16 @@
         <div class="modal-container" style="max-width: 480px;">
             <div class="modal-header">
                 <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening Drill</span></h3>
-                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
                     <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
                     <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
+                    <span class="badge badge-primary" id="challenge-attempt-badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4);">Attempt 1</span>
+                </div>
+                <div id="challenge-timer-container" style="margin-bottom: 14px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;"><i class="fas fa-clock" style="color: #f59e0b; margin-right: 6px;"></i>Time Remaining:</span>
+                    <span id="challenge-timer-display" style="font-size: 1.1rem; font-weight: 700; color: #f59e0b; font-family: monospace;">00:20</span>
                 </div>
                 <p id="challenge-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
                     Solve the challenge to silence the wake-up alarm!

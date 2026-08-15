@@ -7,7 +7,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from config import settings
 from database import engine, Base
-from routes import auth, alarms, challenges
+from routes import auth, alarms, challenges, analytics
 from scheduler import alarm_scheduler_loop
 
 # Configure logging
@@ -38,6 +38,8 @@ app.include_router(auth.router)
 app.include_router(alarms.router)
 # Include Challenges Router
 app.include_router(challenges.router)
+# Include Analytics Router
+app.include_router(analytics.router)
 
 @app.on_event("startup")
 async def startup_event():

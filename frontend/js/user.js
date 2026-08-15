@@ -6,7 +6,7 @@
 let alarms = [];
 let alarmMonitorInterval = null;
 let alarmTriggerCache = new Set();
-const USER_API_BASE_URL = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : 'http://localhost:8000';
+// API Base URL is globally configured in window.API_BASE_URL
 
 
 function getAuthHeaders() {
@@ -19,7 +19,7 @@ function getAuthHeaders() {
 
 async function fetchAlarmsFromServer() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/alarms/`, {
+        const response = await fetch(`${window.API_BASE_URL}/api/alarms/`, {
             method: 'GET',
             headers: getAuthHeaders()
         });
@@ -83,69 +83,75 @@ window.stopAlarmSound = () => {
         clearInterval(synthPulseInterval);
         synthPulseInterval = null;
     }
+    currentRingingAlarm = null;
+    activeCognitiveChallenge = null;
+    selectedChallengeOption = null;
+    stopChallengeTimer();
 };
 
 function triggerAlarmSound(alarm) {
     if (!alarm) return;
 
-    currentRingingAlarm = alarm;
-
-    console.log("🔔 ALARM TRIGGERED:", alarm.title);
-
-    const audio = getAlarmAudioElement();
-
-    if (!audio) {
-        console.error("❌ Alarm audio element not found");
+    // Prevent duplicate triggers if an alarm is already actively ringing
+    if (currentRingingAlarm) {
+        console.log("⚠️ Alarm already ringing. Ignoring duplicate trigger for:", alarm.title || alarm.id);
         return;
     }
 
-    audio.loop = true;
-    audio.volume = 1.0;
-    audio.currentTime = 0;
+    currentRingingAlarm = alarm;
 
-    audio.play()
-        .then(() => {
-            console.log("🔊 ALARM AUDIO PLAYING SUCCESSFULLY");
-        })
-        .catch(error => {
-            console.error("❌ ALARM AUDIO FAILED:", error.name, error.message);
+    console.log("🔔 ALARM TRIGGERED:", alarm.title || alarm.id);
 
-            Toast.show(
-                'Alarm Sound Blocked',
-                'Click anywhere on the page to start the alarm sound.',
-                'warning',
-                6000
-            );
+    const audio = getAlarmAudioElement();
 
-            const unlockAudio = async () => {
-                try {
-                    audio.currentTime = 0;
-                    audio.loop = true;
-                    audio.volume = 1.0;
+    if (audio) {
+        audio.loop = true;
+        audio.volume = 1.0;
+        audio.currentTime = 0;
 
-                    await audio.play();
+        audio.play()
+            .then(() => {
+                console.log("🔊 ALARM AUDIO PLAYING SUCCESSFULLY");
+            })
+            .catch(error => {
+                console.error("❌ ALARM AUDIO FAILED:", error.name, error.message);
 
-                    console.log("🔊 ALARM AUDIO UNLOCKED AND PLAYING");
+                Toast.show(
+                    'Alarm Sound Blocked',
+                    'Click anywhere on the page to start the alarm sound.',
+                    'warning',
+                    6000
+                );
 
-                    document.removeEventListener('click', unlockAudio);
-                    document.removeEventListener('keydown', unlockAudio);
-                } catch (err) {
-                    console.error("❌ Audio still blocked:", err);
-                }
-            };
+                const unlockAudio = async () => {
+                    try {
+                        audio.currentTime = 0;
+                        audio.loop = true;
+                        audio.volume = 1.0;
 
-            document.addEventListener('click', unlockAudio);
-            document.addEventListener('keydown', unlockAudio);
-        });
+                        await audio.play();
+
+                        console.log("🔊 ALARM AUDIO UNLOCKED AND PLAYING");
+
+                        document.removeEventListener('click', unlockAudio);
+                        document.removeEventListener('keydown', unlockAudio);
+                    } catch (err) {
+                        console.error("❌ Audio still blocked:", err);
+                    }
+                };
+
+                document.addEventListener('click', unlockAudio);
+                document.addEventListener('keydown', unlockAudio);
+            });
+    }
 
     // Set alarm title
     const modalTitle = document.getElementById('alarm-modal-title');
-
     if (modalTitle) {
-        modalTitle.textContent = `Wake-Up: ${alarm.title}`;
+        modalTitle.textContent = `Wake-Up: ${alarm.title || 'Alarm'}`;
     }
 
-    // Generate/display cognitive challenge
+    // Generate/display single cognitive challenge
     if (
         alarm.challenge &&
         typeof alarm.challenge === 'object' &&
@@ -153,11 +159,12 @@ function triggerAlarmSound(alarm) {
     ) {
         displayCognitiveChallenge(alarm.challenge);
     } else {
-        const chType = alarm.challenge || 'Math Problems';
-        const diff = alarm.difficulty_level || 'Medium';
+        const chType = alarm.challenge_type || (typeof alarm.challenge === 'string' && alarm.challenge !== 'none' ? alarm.challenge : 'Math Problems');
+        const diff = alarm.difficulty || alarm.difficulty_level || 'Medium';
+        const alarmIdParam = alarm.id ? `&alarm_id=${encodeURIComponent(alarm.id)}` : '';
 
         fetch(
-            `${USER_API_BASE_URL}/api/challenges/generate?challenge_type=${encodeURIComponent(chType)}&difficulty=${encodeURIComponent(diff)}`,
+            `${window.API_BASE_URL}/api/challenges/generate?challenge_type=${encodeURIComponent(chType)}&difficulty=${encodeURIComponent(diff)}${alarmIdParam}`,
             {
                 headers: getAuthHeaders()
             }
@@ -170,7 +177,7 @@ function triggerAlarmSound(alarm) {
                 console.error('Error fetching cognitive challenge:', err);
 
                 displayCognitiveChallenge({
-                    type: 'Math Problems',
+                    type: chType || 'Math Problems',
                     difficulty: diff,
                     question: 'What is 15 + 28?',
                     options: ['33', '43', '45', '53'],
@@ -182,15 +189,123 @@ function triggerAlarmSound(alarm) {
 
     Toast.show(
         'Wake-Up Alarm',
-        `${alarm.title} is ringing! Solve the challenge to silence it.`,
+        `${alarm.title || 'Alarm'} is ringing! Solve the challenge to silence it.`,
         'warning',
         10000
     );
 }
 
-function displayCognitiveChallenge(challenge) {
+let currentAttemptNumber = 1;
+let challengeStartTime = 0;
+let challengeTimerInterval = null;
+
+const COMMON_CHALLENGE_TIME_LIMIT = 30;
+
+function getDifficultyTimeLimit(difficulty) {
+    return COMMON_CHALLENGE_TIME_LIMIT;
+}
+
+function startChallengeTimer(timeLimitSeconds) {
+    if (challengeTimerInterval) {
+        clearInterval(challengeTimerInterval);
+        challengeTimerInterval = null;
+    }
+
+    challengeStartTime = Date.now();
+    let secondsLeft = timeLimitSeconds;
+
+    const timerDisplay = document.getElementById('challenge-timer-display');
+    const updateUI = () => {
+        const mins = Math.floor(secondsLeft / 60);
+        const secs = secondsLeft % 60;
+        const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        if (timerDisplay) {
+            timerDisplay.textContent = formatted;
+            if (secondsLeft <= 5) {
+                timerDisplay.style.color = '#ef4444';
+            } else if (secondsLeft <= 10) {
+                timerDisplay.style.color = '#f59e0b';
+            } else {
+                timerDisplay.style.color = '#10b981';
+            }
+        }
+    };
+
+    updateUI();
+
+    challengeTimerInterval = setInterval(async () => {
+        secondsLeft--;
+        updateUI();
+
+        if (secondsLeft <= 0) {
+            clearInterval(challengeTimerInterval);
+            challengeTimerInterval = null;
+            await handleChallengeTimeout();
+        }
+    }, 1000);
+}
+
+function stopChallengeTimer() {
+    if (challengeTimerInterval) {
+        clearInterval(challengeTimerInterval);
+        challengeTimerInterval = null;
+    }
+}
+
+async function handleChallengeTimeout() {
+    const timeTaken = Math.round((Date.now() - challengeStartTime) / 1000);
+    const feedback = document.getElementById('challenge-feedback');
+
+    try {
+        const response = await fetch(`${window.API_BASE_URL}/api/challenges/validate`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                challenge_id: activeCognitiveChallenge ? activeCognitiveChallenge.id : null,
+                user_answer: '',
+                correct_answer: activeCognitiveChallenge ? activeCognitiveChallenge.answer : null,
+                challenge_type: activeCognitiveChallenge ? activeCognitiveChallenge.type : null,
+                difficulty: activeCognitiveChallenge ? activeCognitiveChallenge.difficulty : null,
+                question: activeCognitiveChallenge ? activeCognitiveChallenge.question : null,
+                alarm_id: currentRingingAlarm ? currentRingingAlarm.id : null,
+                attempt_number: currentAttemptNumber,
+                time_taken: timeTaken,
+                time_limit: COMMON_CHALLENGE_TIME_LIMIT,
+                is_timeout: true
+            })
+        });
+
+        if (response.ok) {
+            const resData = await response.json();
+            currentAttemptNumber++;
+
+            if (resData.next_challenge) {
+                displayCognitiveChallenge(resData.next_challenge, currentAttemptNumber);
+                if (feedback) {
+                    feedback.style.color = '#f59e0b';
+                    feedback.textContent = resData.message || '⏱️ Time expired! Lowering difficulty. Solve this new question:';
+                }
+            } else {
+                const attemptBadge = document.getElementById('challenge-attempt-badge');
+                if (attemptBadge) attemptBadge.textContent = `Attempt ${currentAttemptNumber}`;
+                if (feedback) {
+                    feedback.style.color = 'var(--color-danger)';
+                    feedback.textContent = '⏱️ Time expired! Attempt recorded as failed. Try again!';
+                }
+                startChallengeTimer(COMMON_CHALLENGE_TIME_LIMIT);
+            }
+            Toast.show('Time Expired', 'Lowering difficulty. Try this new question!', 'danger', 3000);
+        }
+    } catch (err) {
+        console.error('Error handling challenge timeout:', err);
+    }
+}
+
+function displayCognitiveChallenge(challenge, attemptNum = 1) {
     activeCognitiveChallenge = challenge;
     selectedChallengeOption = null;
+    currentAttemptNumber = attemptNum || 1;
+
     if (memoryTimer) {
         clearInterval(memoryTimer);
         memoryTimer = null;
@@ -199,6 +314,7 @@ function displayCognitiveChallenge(challenge) {
     const titleElem = document.getElementById('challenge-modal-title');
     const typeBadge = document.getElementById('challenge-type-badge');
     const diffBadge = document.getElementById('challenge-difficulty-badge');
+    const attemptBadge = document.getElementById('challenge-attempt-badge');
     const questionElem = document.getElementById('challenge-question');
     const subtitleElem = document.getElementById('challenge-subtitle');
     const optionsContainer = document.getElementById('challenge-options-container');
@@ -210,8 +326,9 @@ function displayCognitiveChallenge(challenge) {
     if (typeBadge) typeBadge.textContent = challenge.type || 'Math Problems';
     if (diffBadge) {
         diffBadge.textContent = challenge.difficulty || 'Medium';
-        diffBadge.className = `badge ${challenge.difficulty === 'Easy' ? 'badge-success' : challenge.difficulty === 'Hard' ? 'badge-danger' : 'badge-warning'}`;
+        diffBadge.className = `badge ${challenge.difficulty === 'Beginner' || challenge.difficulty === 'Easy' ? 'badge-success' : challenge.difficulty === 'Difficult' || challenge.difficulty === 'Advanced' ? 'badge-danger' : 'badge-warning'}`;
     }
+    if (attemptBadge) attemptBadge.textContent = `Attempt ${currentAttemptNumber}`;
 
     if (feedbackElem) {
         feedbackElem.textContent = '';
@@ -244,12 +361,18 @@ function displayCognitiveChallenge(challenge) {
                 if (subtitleElem) subtitleElem.textContent = 'Recall time! Choose or type the correct item:';
                 if (questionElem) questionElem.textContent = recallQuestion;
                 renderChallengeControls(challenge, optionsContainer, inputGroup);
+
+                const timeLimit = challenge.time_limit || getDifficultyTimeLimit(challenge.difficulty);
+                startChallengeTimer(timeLimit);
             }
         }, 1000);
     } else {
         if (subtitleElem) subtitleElem.textContent = 'Solve the challenge to silence the wake-up alarm!';
         if (questionElem) questionElem.textContent = challenge.question;
         renderChallengeControls(challenge, optionsContainer, inputGroup);
+
+        const timeLimit = challenge.time_limit || getDifficultyTimeLimit(challenge.difficulty);
+        startChallengeTimer(timeLimit);
     }
 
     Modal.open('challenge-modal');
@@ -292,38 +415,35 @@ function renderChallengeControls(challenge, optionsContainer, inputGroup) {
 function startAlarmMonitor() {
     if (alarmMonitorInterval) return;
 
-    alarmMonitorInterval = setInterval(checkAlarmTriggers, 10000);
+    // Single unified alarm monitor polling backend scheduler queue
+    alarmMonitorInterval = setInterval(checkAlarmTriggers, 2000);
     checkAlarmTriggers();
 }
 
 async function checkAlarmTriggers() {
-    // Check backend triggered alarms queue
+    // If an alarm is already ringing, do not poll or trigger another one
+    if (currentRingingAlarm) return;
+
+    // Backend Scheduler is the single source of truth for triggered alarms
     try {
-        const response = await fetch(`${USER_API_BASE_URL}/api/alarms/triggered`, {
+        const response = await fetch(`${window.API_BASE_URL}/api/alarms/triggered`, {
             headers: getAuthHeaders()
         });
         if (response.ok) {
             const triggered = await response.json();
             if (Array.isArray(triggered) && triggered.length > 0) {
                 const alarmItem = triggered[0];
-                triggerAlarmSound(alarmItem);
-                return;
+                const now = new Date();
+                const cacheKey = `alarm-${alarmItem.id}-${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}-${now.getHours()}:${now.getMinutes()}`;
+                if (!alarmTriggerCache.has(cacheKey) && !currentRingingAlarm) {
+                    alarmTriggerCache.add(cacheKey);
+                    triggerAlarmSound(alarmItem);
+                }
             }
         }
     } catch (e) {
-        // Continue with local time check
+        // Backend not reachable or no session, keep waiting
     }
-
-    const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const cacheKey = `${currentTime}-${now.getDate()}-${now.getMonth() + 1}-${now.getFullYear()}`;
-
-    const matchingAlarm = alarms.find(alarm => alarm.is_active && alarm.alarm_time === currentTime);
-    if (!matchingAlarm) return;
-    if (alarmTriggerCache.has(cacheKey)) return;
-
-    alarmTriggerCache.add(cacheKey);
-    triggerAlarmSound(matchingAlarm);
 }
 
 let habits = JSON.parse(localStorage.getItem('user_habits')) || [
@@ -689,7 +809,7 @@ window.toggleAlarmActive = async (id) => {
     if (!alarm) return;
     const action = alarm.is_active ? 'disable' : 'enable';
     try {
-        const response = await fetch(`${API_BASE_URL}/api/alarms/${id}/${action}`, {
+        const response = await fetch(`${window.API_BASE_URL}/api/alarms/${id}/${action}`, {
             method: 'PATCH',
             headers: getAuthHeaders()
         });
@@ -709,7 +829,7 @@ window.toggleAlarmActive = async (id) => {
 
 window.deleteAlarm = async (id) => {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/alarms/${id}`, {
+        const response = await fetch(`${window.API_BASE_URL}/api/alarms/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders()
         });
@@ -810,7 +930,7 @@ window.toggleHabitCompleted = (id) => {
 
 // 7. Dynamic Cognitive Challenge Drill & Verification
 window.triggerChallenge = () => {
-    fetch(`${USER_API_BASE_URL}/api/challenges/generate?challenge_type=Math%20Problems&difficulty=Medium`, {
+    fetch(`${window.API_BASE_URL}/api/challenges/generate?challenge_type=Math%20Problems&difficulty=Medium`, {
         headers: getAuthHeaders()
     })
         .then(res => res.json())
@@ -821,7 +941,7 @@ window.triggerChallenge = () => {
 };
 
 window.triggerMathChallenge = () => {
-    fetch(`${USER_API_BASE_URL}/api/challenges/generate?challenge_type=Math%20Problems&difficulty=Easy`, {
+    fetch(`${window.API_BASE_URL}/api/challenges/generate?challenge_type=Math%20Problems&difficulty=Easy`, {
         headers: getAuthHeaders()
     })
         .then(res => res.json())
@@ -853,15 +973,25 @@ if (submitChallengeBtn) {
             return;
         }
 
+        const timeTaken = Math.round((Date.now() - challengeStartTime) / 1000);
+        stopChallengeTimer();
+
         try {
-            const response = await fetch(`${USER_API_BASE_URL}/api/challenges/validate`, {
+            const response = await fetch(`${window.API_BASE_URL}/api/challenges/validate`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     challenge_id: activeCognitiveChallenge ? activeCognitiveChallenge.id : null,
                     user_answer: userAnswer,
                     correct_answer: activeCognitiveChallenge ? activeCognitiveChallenge.answer : null,
-                    challenge_type: activeCognitiveChallenge ? activeCognitiveChallenge.type : null
+                    challenge_type: activeCognitiveChallenge ? activeCognitiveChallenge.type : null,
+                    difficulty: activeCognitiveChallenge ? activeCognitiveChallenge.difficulty : null,
+                    question: activeCognitiveChallenge ? activeCognitiveChallenge.question : null,
+                    alarm_id: currentRingingAlarm ? currentRingingAlarm.id : null,
+                    attempt_number: currentAttemptNumber,
+                    time_taken: timeTaken,
+                    time_limit: activeCognitiveChallenge ? (activeCognitiveChallenge.time_limit || 20) : 20,
+                    is_timeout: false
                 })
             });
 
@@ -869,12 +999,11 @@ if (submitChallengeBtn) {
                 const resData = await response.json();
                 if (resData.correct) {
                     feedback.style.color = 'var(--color-success)';
-                    feedback.textContent = resData.message || 'Correct! Neural wakeup sequence confirmed.';
+                    feedback.textContent = resData.message || '✓ Correct! Neural wakeup sequence confirmed.';
 
-                    // Stop alarm audio
                     stopAlarmSound();
+                    stopChallengeTimer();
 
-                    // Log challenge pass
                     dailyChallengeCompleted = true;
                     challengeHistory.unshift({
                         mode: activeCognitiveChallenge ? activeCognitiveChallenge.type : 'Cognitive Challenge',
@@ -884,11 +1013,10 @@ if (submitChallengeBtn) {
                     localStorage.setItem('user_challenges', JSON.stringify(challengeHistory));
                     renderHistoryLog();
 
-                    // Disable One-Time alarms upon successful challenge completion (Section 11)
                     if (currentRingingAlarm && currentRingingAlarm.id) {
                         const alarmType = currentRingingAlarm.alarm_type || 'One-Time';
                         if (alarmType === 'One-Time') {
-                            fetch(`${USER_API_BASE_URL}/api/alarms/${currentRingingAlarm.id}/disable`, {
+                            fetch(`${window.API_BASE_URL}/api/alarms/${currentRingingAlarm.id}/disable`, {
                                 method: 'PATCH',
                                 headers: getAuthHeaders()
                             }).then(() => fetchAlarmsFromServer()).catch(console.error);
@@ -897,20 +1025,32 @@ if (submitChallengeBtn) {
 
                     Toast.show('Wakeup Drill Clear!', 'Prefrontal cortex activated successfully! +10 Points.', 'success', 3000);
                     updateGoalProgress();
+                    fetchAnalyticsData();
 
                     setTimeout(() => {
                         Modal.close('challenge-modal');
                     }, 1200);
                 } else {
-                    feedback.style.color = 'var(--color-danger)';
-                    feedback.textContent = resData.message || 'Incorrect answer. Try again!';
-
+                    currentAttemptNumber++;
                     const modalContainer = document.querySelector('#challenge-modal .modal-container');
                     if (modalContainer) {
                         modalContainer.style.border = '2px solid var(--color-danger)';
                         setTimeout(() => {
                             modalContainer.style.border = '1px solid var(--glass-border)';
                         }, 800);
+                    }
+
+                    if (resData.next_challenge) {
+                        // Render fresh question with lowered difficulty
+                        displayCognitiveChallenge(resData.next_challenge, currentAttemptNumber);
+                        feedback.style.color = 'var(--color-danger)';
+                        feedback.textContent = resData.message || '✗ Incorrect! Lowering difficulty. Solve this new question:';
+                    } else {
+                        const attemptBadge = document.getElementById('challenge-attempt-badge');
+                        if (attemptBadge) attemptBadge.textContent = `Attempt ${currentAttemptNumber}`;
+                        feedback.style.color = 'var(--color-danger)';
+                        feedback.textContent = resData.message || '✗ Incorrect answer. Try again!';
+                        startChallengeTimer(COMMON_CHALLENGE_TIME_LIMIT);
                     }
                 }
             } else {
@@ -1082,13 +1222,13 @@ if (addAlarmForm) {
         try {
             let response;
             if (alarmId) {
-                response = await fetch(`${API_BASE_URL}/api/alarms/${alarmId}`, {
+                response = await fetch(`${window.API_BASE_URL}/api/alarms/${alarmId}`, {
                     method: 'PUT',
                     headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
                 });
             } else {
-                response = await fetch(`${API_BASE_URL}/api/alarms/`, {
+                response = await fetch(`${window.API_BASE_URL}/api/alarms/`, {
                     method: 'POST',
                     headers: getAuthHeaders(),
                     body: JSON.stringify(payload)
@@ -1181,8 +1321,8 @@ Report generated dynamically by WakeWise AI Platform.`;
 // 12. Run setup on load
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
-    initCharts();
     fetchAlarmsFromServer();
+    fetchAnalyticsData();
     renderHabits();
     renderHistoryLog();
     renderNotifications();
@@ -1197,27 +1337,237 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 20000);
 });
 
-async function checkTriggeredAlarm() {
-    const session = JSON.parse(localStorage.getItem('sessionUser') || '{}');
-    if (!session.accessToken) return;
+// (Duplicate checkTriggeredAlarm removed; unified in startAlarmMonitor)
 
+// ==========================================================================
+// REAL PERFORMANCE & ANALYTICS DATA CONTROLLER
+// ==========================================================================
+let analyticsChartInstance = null;
+let dbAnalyticsChartInstance = null;
+
+async function fetchAnalyticsData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/alarms/triggered`, {
-            headers: {
-                'Authorization': `Bearer ${session.accessToken}`
-            }
-        });
+        const headers = getAuthHeaders();
 
-        if (!response.ok) return;
+        // 1. Summary Metrics
+        const summaryRes = await fetch(`${window.API_BASE_URL}/api/analytics/summary`, { headers });
+        if (summaryRes.ok) {
+            const summary = await summaryRes.json();
+            
+            const accStr = `${summary.overall_accuracy}%`;
+            const passedStr = summary.passed_challenges;
+            const failedStr = summary.failed_challenges;
+            const timeStr = `${summary.average_completion_time}s`;
+            const streakStr = `${summary.current_streak} Days 🔥`;
+            const diffStr = `Recommended: ${summary.recommended_difficulty}`;
 
-        const triggered = await response.json();
-        if (!Array.isArray(triggered) || triggered.length === 0) return;
+            ['analytics-accuracy', 'db-analytics-accuracy'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = accStr;
+            });
 
-        const alarm = triggered[0];
-        triggerAlarmSound(alarm);
+            ['analytics-passed', 'db-analytics-passed'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = passedStr;
+            });
+
+            ['analytics-failed', 'db-analytics-failed'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = failedStr;
+            });
+
+            ['analytics-avg-time', 'db-analytics-avg-time'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = timeStr;
+            });
+
+            ['analytics-streak', 'db-analytics-streak'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = streakStr;
+            });
+
+            ['recommended-diff-badge', 'db-recommended-diff-badge'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = diffStr;
+            });
+        }
+
+        // 2. Performance by Type
+        const byTypeRes = await fetch(`${window.API_BASE_URL}/api/analytics/by-type`, { headers });
+        if (byTypeRes.ok) {
+            const typeData = await byTypeRes.json();
+            renderAnalyticsBreakdown('by-type', typeData);
+        }
+
+        // 3. Performance by Difficulty
+        const byDiffRes = await fetch(`${window.API_BASE_URL}/api/analytics/by-difficulty`, { headers });
+        if (byDiffRes.ok) {
+            const diffData = await byDiffRes.json();
+            renderAnalyticsBreakdown('by-difficulty', diffData);
+        }
+
+        // 4. Daily History & Recent Attempt Logs
+        const historyRes = await fetch(`${window.API_BASE_URL}/api/analytics/history`, { headers });
+        if (historyRes.ok) {
+            const historyData = await historyRes.json();
+            renderAnalyticsChart(historyData.daily_history || []);
+            renderAnalyticsHistoryTable(historyData.recent_logs || []);
+        }
+
     } catch (e) {
-        console.error('Error checking triggered alarms:', e);
+        console.error('Error fetching analytics data:', e);
     }
 }
 
-setInterval(checkTriggeredAlarm, 1000);
+function renderAnalyticsBreakdown(mode, items) {
+    const isType = mode === 'by-type';
+    const containers = isType
+        ? ['analytics-by-type-container', 'db-analytics-by-type-container']
+        : ['analytics-by-diff-container', 'db-analytics-by-diff-container'];
+
+    let html = '';
+    if (!items || items.length === 0) {
+        html = '<p style="color: var(--text-muted); font-size: 0.85rem;">No attempt records found yet.</p>';
+    } else {
+        items.forEach(item => {
+            const title = isType ? item.challenge_type : item.difficulty;
+            const accuracy = item.accuracy_percentage || 0;
+            const total = item.total_attempts || 0;
+            const passed = item.passed || 0;
+            const avgTime = item.avg_time_taken || 0;
+
+            let barColor = '#a855f7';
+            if (accuracy >= 80) barColor = '#22c55e';
+            else if (accuracy >= 50) barColor = '#f59e0b';
+            else if (total > 0) barColor = '#ef4444';
+
+            html += `
+                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-weight: 600; font-size: 0.9rem;">${title}</span>
+                        <span style="font-weight: 700; color: ${barColor}; font-size: 0.9rem;">${accuracy}% (${passed}/${total})</span>
+                    </div>
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 6px;">
+                        <div style="width: ${accuracy}%; height: 100%; background: ${barColor}; transition: width 0.4s ease;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted);">
+                        <span>Avg Speed: ${avgTime}s</span>
+                        <span>Attempts: ${total}</span>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    containers.forEach(cid => {
+        const el = document.getElementById(cid);
+        if (el) el.innerHTML = html;
+    });
+}
+
+function renderAnalyticsChart(dailyHistory) {
+    if (typeof Chart === 'undefined') return;
+
+    const labels = dailyHistory.length > 0 ? dailyHistory.map(d => d.date) : ['No Data'];
+    const accuracyPoints = dailyHistory.length > 0 ? dailyHistory.map(d => d.accuracy_percentage) : [0];
+    const passedPoints = dailyHistory.length > 0 ? dailyHistory.map(d => d.passed) : [0];
+
+    const chartConfig = {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Accuracy (%)',
+                    data: accuracyPoints,
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168, 85, 247, 0.15)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#a855f7'
+                },
+                {
+                    label: 'Passed Count',
+                    data: passedPoints,
+                    borderColor: '#22c55e',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#22c55e'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#e2e8f0', font: { family: 'Inter' } }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    };
+
+    const canvas1 = document.getElementById('analyticsAccuracyChart');
+    if (canvas1) {
+        if (analyticsChartInstance) analyticsChartInstance.destroy();
+        analyticsChartInstance = new Chart(canvas1, chartConfig);
+    }
+
+    const canvas2 = document.getElementById('detailedSleepChart');
+    if (canvas2) {
+        if (dbAnalyticsChartInstance) dbAnalyticsChartInstance.destroy();
+        dbAnalyticsChartInstance = new Chart(canvas2, chartConfig);
+    }
+}
+
+function renderAnalyticsHistoryTable(logs) {
+    const tableIds = ['analytics-history-table', 'db-analytics-history-table'];
+
+    let rowsHtml = '';
+    if (!logs || logs.length === 0) {
+        rowsHtml = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">No challenge attempt logs recorded yet.</td></tr>';
+    } else {
+        logs.forEach(log => {
+            const resBadge = log.is_correct
+                ? '<span class="badge badge-success">✓ Pass</span>'
+                : '<span class="badge badge-danger">✗ Fail</span>';
+            
+            rowsHtml += `
+                <tr>
+                    <td>${log.date || 'Just Now'}</td>
+                    <td><span class="badge badge-info">${log.challenge_type || 'Math'}</span></td>
+                    <td><span class="badge badge-warning">${log.difficulty || 'Medium'}</span></td>
+                    <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${log.question || '-'}</td>
+                    <td>${log.user_answer || '-'}</td>
+                    <td>${resBadge}</td>
+                    <td>${log.time_taken || 0}s / ${log.time_limit || 20}s</td>
+                </tr>
+            `;
+        });
+    }
+
+    tableIds.forEach(tid => {
+        const table = document.getElementById(tid);
+        if (table) {
+            const tbody = table.querySelector('tbody');
+            if (tbody) tbody.innerHTML = rowsHtml;
+        }
+    });
+}

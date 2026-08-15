@@ -434,6 +434,10 @@ document.addEventListener('DOMContentLoaded', () => {
     overlays.forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
+                if (overlay.id === 'challenge-modal') {
+                    // Force user to solve cognitive challenge to close modal
+                    return;
+                }
                 Modal.close(overlay.id);
             }
         });

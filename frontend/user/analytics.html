@@ -3,58 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analytics - WakeWise AI</title>
+    <title>Performance & Analytics - WakeWise AI</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body data-theme="dark">
     <div class="db-wrapper">
+        <!-- Sidebar Navigation -->
         <aside class="db-sidebar">
             <div class="sidebar-brand">
                 <div class="logo">
                     <i class="fas fa-brain"></i>
-                    <span>WakeWise AI</span>
+                    <span>WakeWise <span class="grad-text">AI</span></span>
                 </div>
             </div>
             <ul class="sidebar-menu">
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#dashboard"><i class="fas fa-th-large"></i> <span>Dashboard</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#alarms"><i class="fas fa-clock"></i> <span>My Alarms</span></a></li>
-                <li class="sidebar-menu-item"><a href="dashboard-user.html#challenges"><i class="fas fa-puzzle-piece"></i> <span>Challenges</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#habits"><i class="fas fa-tasks"></i> <span>Habit Tracker</span></a></li>
-                <li class="sidebar-menu-item active"><a href="dashboard-user.html#analytics"><i class="fas fa-chart-line"></i> <span>Analytics</span></a></li>
+                <li class="sidebar-menu-item active"><a href="analytics.html"><i class="fas fa-chart-line"></i> <span>Analytics</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#notifications"><i class="fas fa-bell"></i> <span>Notifications</span></a></li>
                 <li class="sidebar-menu-item"><a href="dashboard-user.html#profile"><i class="fas fa-user-cog"></i> <span>Profile</span></a></li>
             </ul>
         </aside>
-        <main class="db-main" style="padding:24px;">
-            <div class="card" style="margin-bottom:20px;">
-                <h2 style="margin-top:0;">Analytics</h2>
-                <p style="color:var(--text-secondary);">Review your sleep and challenge metrics in one place.</p>
+
+        <!-- Main Workspace Area -->
+        <main class="db-main" style="padding: 24px;">
+            <div class="glass-card primary-hover" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.6rem;"><i class="fas fa-chart-line grad-text"></i> Performance & Cognitive Analytics</h2>
+                        <p style="color: var(--text-secondary); margin-top: 4px; font-size: 0.9rem;">
+                            Real-time metrics calculated from your personal cognitive challenge attempts.
+                        </p>
+                    </div>
+                    <div>
+                        <span class="badge badge-info" id="recommended-diff-badge" style="padding: 8px 14px; font-size: 0.85rem;">
+                            Recommended: Medium
+                        </span>
+                    </div>
+                </div>
             </div>
-            <div class="card">
-                <div class="chart-container" style="height:420px;">
-                    <canvas id="performanceChart"></canvas>
+
+            <!-- 5 STAT SUMMARY CARDS GRID -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(168,85,247,0.15); color: var(--primary);">
+                        <i class="fas fa-bullseye"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Overall Accuracy</span>
+                        <h3 class="stat-value" id="analytics-accuracy">0%</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(34,197,94,0.15); color: #22c55e;">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Challenges Passed</span>
+                        <h3 class="stat-value" id="analytics-passed">0</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(239,68,68,0.15); color: #ef4444;">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Failed Challenges</span>
+                        <h3 class="stat-value" id="analytics-failed">0</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(59,130,246,0.15); color: #3b82f6;">
+                        <i class="fas fa-stopwatch"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Average Time</span>
+                        <h3 class="stat-value" id="analytics-avg-time">0.0s</h3>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: rgba(245,158,11,0.15); color: #f59e0b;">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="stat-info">
+                        <span class="stat-label">Current Streak</span>
+                        <h3 class="stat-value" id="analytics-streak">0 Days</h3>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACCURACY OVER TIME CHART -->
+            <div class="glass-card secondary-hover" style="margin-bottom: 24px;">
+                <h3 style="margin-bottom: 16px;"><i class="fas fa-line-chart grad-text"></i> Daily Accuracy & Performance Over Time</h3>
+                <div class="chart-container" style="height: 340px;">
+                    <canvas id="analyticsAccuracyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- BREAKDOWN GRIDS: BY TYPE & BY DIFFICULTY -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;" class="dashboard-grid">
+                <!-- Performance by Type -->
+                <div class="glass-card accent-hover">
+                    <h3 style="margin-bottom: 16px;"><i class="fas fa-puzzle-piece grad-text"></i> Accuracy by Challenge Type</h3>
+                    <div id="analytics-by-type-container" style="display: flex; flex-direction: column; gap: 14px;">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- Performance by Difficulty -->
+                <div class="glass-card primary-hover">
+                    <h3 style="margin-bottom: 16px;"><i class="fas fa-layer-group grad-text"></i> Accuracy by Difficulty Level</h3>
+                    <div id="analytics-by-diff-container" style="display: flex; flex-direction: column; gap: 14px;">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- RECENT ATTEMPT HISTORY LOG TABLE -->
+            <div class="glass-card success-hover">
+                <h3 style="margin-bottom: 16px;"><i class="fas fa-history grad-text"></i> Recent Alarm & Challenge Attempt History</h3>
+                <div class="table-responsive">
+                    <table class="custom-table" id="analytics-history-table">
+                        <thead>
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Type</th>
+                                <th>Difficulty</th>
+                                <th>Question</th>
+                                <th>User Answer</th>
+                                <th>Result</th>
+                                <th>Time Taken</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </main>
     </div>
 
+    <!-- Active Challenge Alarm Modal -->
     <div id="challenge-modal" class="modal-overlay">
-        <div class="modal-container" style="max-width:440px;">
+        <div class="modal-container" style="max-width: 480px;">
             <div class="modal-header">
-                <h3><i class="fas fa-brain grad-text"></i> Prefrontal Awakening Test</h3>
-                <button class="modal-close-btn"><i class="fas fa-times"></i></button>
+                <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening Drill</span></h3>
             </div>
             <div class="modal-body">
-                <p style="font-size:0.85rem; color:var(--text-secondary); text-align:center;">Solve the challenge to silence the alarm.</p>
-                <div class="challenge-math-question" id="challenge-question">8 x 7 + 12</div>
-                <div class="form-group">
-                    <input type="number" id="challenge-answer" class="form-control" placeholder="Enter answer here..." required>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
+                    <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
+                    <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
                 </div>
-                <div class="challenge-feedback" id="challenge-feedback"></div>
+                <div id="challenge-timer-container" style="font-weight: 600; font-size: 0.9rem; color: #f59e0b; margin-bottom: 8px; text-align: center;">
+                    ⏳ Time Remaining: 00:20
+                </div>
+                <div class="challenge-math-question" id="challenge-question">8 x 7 + 12</div>
+                <div id="challenge-options-container" style="margin-bottom: 16px;"></div>
+                <div class="form-group" id="challenge-input-container">
+                    <input type="number" id="challenge-answer" class="form-control" placeholder="Enter numerical answer..." required>
+                </div>
+                <div class="challenge-feedback" id="challenge-feedback" style="margin-top: 10px; font-weight: 600; text-align: center;"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width:100%;">Verify Formula</button>
+                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">Verify & Silence Alarm</button>
             </div>
         </div>
     </div>
@@ -65,6 +183,7 @@
     </audio>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="../js/config.js?v=1.0.6"></script>
     <script src="../js/utils.js?v=1.0.6"></script>
     <script src="../js/auth.js?v=1.0.6"></script>
     <script>protectPage('user');</script>
