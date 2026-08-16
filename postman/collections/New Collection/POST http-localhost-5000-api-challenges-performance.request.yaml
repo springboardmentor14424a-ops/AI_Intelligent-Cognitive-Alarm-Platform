@@ -1,0 +1,27 @@
+$kind: http-request
+name: POST http://localhost:5000/api/challenges/performance
+description: ""
+url: http://localhost:5000/api/challenges/performance
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"userId\": 1,\r
+
+    \  \"challengeType\": \"Math\",\r
+
+    \  \"difficulty\": \"Easy\",\r
+
+    \  \"correct\": true,\r
+
+    \  \"timeTaken\": 10,\r
+
+    \  \"attempts\": 1,\r
+
+    \  \"completionStatus\": \"completed\",\r
+
+    \  \"score\": 100\r
+
+    }"
+order: 1242919285224749

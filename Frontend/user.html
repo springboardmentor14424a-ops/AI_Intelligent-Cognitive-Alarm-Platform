@@ -123,11 +123,7 @@ Good Evening, Narasimha 👋
 
 </h2>
 
-<p>
-
-Monday • 28 July 2026
-
-</p>
+<p id="currentDate"></p>
 
 </div>
 
@@ -322,11 +318,39 @@ GRID STARTS
     <option value="10">10</option>
 </select>
 
+<label>Challenge Type</label>
+
+<select id="alarmChallengeType">
+
+    <option value="Math">🧮 Math Problems</option>
+
+    <option value="Logic">🧩 Logic Puzzles</option>
+
+    <option value="Memory">🧠 Memory Challenges</option>
+
+    <option value="Word">🔤 Word Games</option>
+
+    <option value="Pattern">🔷 Pattern Recognition</option>
+
+    <option value="Riddle">💡 Riddles</option>
+
+    <option value="Quiz">❓ Quick Quizzes</option>
+
+</select>
+
 <label>Difficulty</label>
 <select id="alarmDifficulty">
-    <option value="Easy">Easy</option>
-    <option value="Medium" selected>Medium</option>
+
+    <option value="Beginner">Beginner</option>
+
+    <option value="Easy" selected>Easy</option>
+
+    <option value="Medium">Medium</option>
+
     <option value="Hard">Hard</option>
+
+    <option value="Expert">Expert</option>
+
 </select>
 
 <label>
@@ -1116,34 +1140,99 @@ if (role !== "user") {
     <source src="assets/alarm.wav" type="audio/wav">
 </audio>
 
+<!-- ==========================================
+     COGNITIVE CHALLENGE POPUP
+========================================== -->
+
 <div id="alarmPopup" class="alarm-popup" style="display:none;">
 
-    <div class="popup-content">
+    <div class="popup-content challenge-popup">
 
-    <h2>🧠 Cognitive Challenge</h2>
+        <div class="challenge-header">
+            <div class="challenge-icon">
+                🧠
+            </div>
 
-    <h3 id="popupLabel"></h3>
+            <div>
+                <h2>Cognitive Challenge</h2>
+                <p id="popupLabel"></p>
+            </div>
+        </div>
 
-    <p id="question"></p>
+        <!-- Challenge Information -->
 
-    <input
-        type="number"
-        id="answerInput"
-        placeholder="Enter Answer">
+        <div class="challenge-info">
 
-    <button onclick="checkAnswer()">
+            <span id="challengeTypeBadge">
+                🧮 Math
+            </span>
 
-        ✅ Submit
+            <span id="challengeDifficultyBadge">
+                Difficulty
+            </span>
 
-    </button>
+        </div>
 
-    <button onclick="snoozeAlarm()">
+        <!-- Question -->
 
-        😴 Snooze
+        <div class="challenge-question">
 
-    </button>
+            <p id="question">
+                Your challenge will appear here.
+            </p>
+
+        </div>
+
+        <!-- Memory Display -->
+
+        <div
+            id="memoryDisplay"
+            class="memory-display"
+            style="display:none;">
+        </div>
+
+        <!-- Answer -->
+
+        <input
+            type="text"
+            id="answerInput"
+            placeholder="Enter your answer"
+            autocomplete="off">
+
+        <!-- Buttons -->
+
+        <button
+            id="submitAnswerBtn"
+            onclick="checkAnswer()">
+
+            ✅ Submit Answer
+
+        </button>
+
+        <button
+            id="snoozeBtn"
+            onclick="snoozeAlarm()">
+
+            😴 Snooze
+
+        </button>
+
+        <button
+            id="dismissBtn"
+            onclick="dismissAlarm()">
+            ❌ Dismiss Alarm
+        </button>
+
+        <!-- Result -->
+
+        <div
+            id="challengeResult"
+            class="challenge-result"
+            style="display:none;">
+        </div>
 
     </div>
+
 </div>
 
 <script src="js/dashboard.js"></script>

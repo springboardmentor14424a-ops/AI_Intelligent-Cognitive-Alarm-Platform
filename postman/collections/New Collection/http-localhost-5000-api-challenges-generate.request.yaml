@@ -1,0 +1,14 @@
+$kind: http-request
+name: http://localhost:5000/api/challenges/generate
+url: http://localhost:5000/api/challenges/generate
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \  \"challengeType\": \"Math\",\r
+
+    \  \"difficulty\": \"Medium\"\r
+
+    }"
+order: 1786536087613

@@ -1,0 +1,838 @@
+// =====================================================
+// CHALLENGE CONTROLLER
+// =====================================================
+
+// Import all challenge generators
+const pool = require("../config/db");
+
+const { generateMath } =
+    require("../generators/mathGenerator");
+
+const { generateLogic } =
+    require("../generators/logicGenerator");
+
+const { generateMemory } =
+    require("../generators/memoryGenerator");
+
+const { generateWord } =
+    require("../generators/wordGenerator");
+
+const { generatePattern } =
+    require("../generators/patternGenerator");
+
+const { generateRiddle } =
+    require("../generators/riddleGenerator");
+
+const { generateQuiz } =
+    require("../generators/quizGenerator");
+
+
+// =====================================================
+// Store recently generated questions
+// =====================================================
+
+// This prevents the same question from being
+// returned repeatedly during the current server run.
+
+const recentQuestions = [];
+
+const MAX_HISTORY = 30;
+
+
+// =====================================================
+// Generate Challenge
+// =====================================================
+
+async function generateChallenge(req, res) {
+
+    try {
+
+        const {
+            challengeType,
+            difficulty
+        } = req.body;
+
+
+        // ---------------------------------------------
+        // Validate input
+        // ---------------------------------------------
+
+        if (!challengeType || !difficulty) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Challenge type and difficulty are required."
+
+            });
+        }
+
+
+        // ---------------------------------------------
+        // Normalize input
+        // ---------------------------------------------
+
+        const type =
+            challengeType.trim().toLowerCase();
+
+        const level =
+            difficulty.trim();
+
+
+        // ---------------------------------------------
+        // Validate difficulty
+        // ---------------------------------------------
+
+        const validDifficulties = [
+
+            "Beginner",
+            "Easy",
+            "Medium",
+            "Hard",
+            "Expert"
+
+        ];
+
+
+        if (!validDifficulties.includes(level)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Invalid difficulty. Use Beginner, Easy, Medium, Hard or Expert."
+
+            });
+        }
+
+
+        // ---------------------------------------------
+        // Generate challenge
+        // ---------------------------------------------
+
+        let result;
+
+        switch (type) {
+
+            case "math":
+
+                result =
+                    generateMath(level);
+
+                break;
+
+
+            case "logic":
+
+                result =
+                    generateLogic(level);
+
+                break;
+
+
+            case "memory":
+
+                result =
+                    generateMemory(level);
+
+                break;
+
+
+            case "word":
+
+                result =
+                    generateWord(level);
+
+                break;
+
+
+            case "pattern":
+
+                result =
+                    generatePattern(level);
+
+                break;
+
+
+            case "riddle":
+
+                result =
+                    generateRiddle(level);
+
+                break;
+
+
+            case "quiz":
+
+                result =
+                    generateQuiz(level);
+
+                break;
+
+
+            default:
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Invalid challenge type. Use Math, Logic, Memory, Word, Pattern, Riddle or Quiz."
+
+                });
+
+        }
+
+
+        // ---------------------------------------------
+        // Prevent immediate repetition
+        // ---------------------------------------------
+
+        const questionKey =
+            `${type}|${level}|${result.question}`;
+
+
+        if (recentQuestions.includes(questionKey)) {
+
+            // Try generating one more time
+
+            switch (type) {
+
+                case "math":
+                    result = generateMath(level);
+                    break;
+
+                case "logic":
+                    result = generateLogic(level);
+                    break;
+
+                case "memory":
+                    result = generateMemory(level);
+                    break;
+
+                case "word":
+                    result = generateWord(level);
+                    break;
+
+                case "pattern":
+                    result = generatePattern(level);
+                    break;
+
+                case "riddle":
+                    result = generateRiddle(level);
+                    break;
+
+                case "quiz":
+                    result = generateQuiz(level);
+                    break;
+
+            }
+        }
+
+
+        // ---------------------------------------------
+        // Save question in history
+        // ---------------------------------------------
+
+        const finalQuestionKey =
+            `${type}|${level}|${result.question}`;
+
+
+        recentQuestions.push(finalQuestionKey);
+
+
+        // Keep only the latest 30 questions
+
+        if (recentQuestions.length > MAX_HISTORY) {
+
+            recentQuestions.shift();
+
+        }
+
+
+        // ---------------------------------------------
+        // Send response
+        // ---------------------------------------------
+
+        return res.json({
+
+            success: true,
+
+            challengeType:
+                challengeType,
+
+            difficulty:
+                difficulty,
+
+            question:
+                result.question,
+
+            answer:
+                result.answer,
+
+            explanation:
+                result.explanation,
+
+            // Quiz only
+            ...(result.options && {
+
+                options:
+                    result.options
+
+            })
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Challenge Generation Error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Failed to generate challenge."
+
+        });
+
+    }
+
+}
+// =====================================================
+// Save Challenge Performance
+// =====================================================
+
+async function savePerformance(req, res) {
+
+    try {
+
+        const {
+            userId,
+            challengeType,
+            difficulty,
+            correct,
+            timeTaken,
+            attempts,
+            completionStatus,
+            score
+        } = req.body;
+
+
+        // Basic validation
+        if (
+            !challengeType ||
+            !difficulty ||
+            correct === undefined ||
+            !completionStatus
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Required performance data is missing."
+
+            });
+
+        }
+
+
+        const result = await pool.query(
+
+            `INSERT INTO challenge_performance
+            (
+                user_id,
+                challenge_type,
+                difficulty,
+                correct,
+                time_taken,
+                attempts,
+                completion_status,
+                score
+            )
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+            RETURNING *`,
+
+            [
+                userId || null,
+                challengeType,
+                difficulty,
+                correct,
+                timeTaken || 0,
+                attempts || 1,
+                completionStatus,
+                score || 0
+            ]
+
+        );
+
+
+        return res.status(201).json({
+
+            success: true,
+
+            message:
+                "Challenge performance saved successfully.",
+
+            performance:
+                result.rows[0]
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Save Performance Error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                "Failed to save challenge performance."
+
+        });
+
+    }
+
+}
+
+// =====================================================
+// CHALLENGE PERFORMANCE ANALYSIS
+// =====================================================
+
+async function analyzePerformance(req, res) {
+
+    try {
+
+        const userId = Number(req.params.userId);
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid user ID is required."
+            });
+        }
+
+
+        // Get user's performance statistics
+        const result = await pool.query(
+            `
+            SELECT
+                COUNT(*) AS total_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = false
+                ) AS failed_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE completion_status = 'completed'
+                ) AS completed_challenges,
+
+                COALESCE(
+                    ROUND(AVG(time_taken)),
+                    0
+                ) AS average_time,
+
+                COALESCE(
+                    ROUND(AVG(score)),
+                    0
+                ) AS average_score
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+
+        const stats = result.rows[0];
+
+
+        const totalChallenges =
+            Number(stats.total_challenges);
+
+        const correctChallenges =
+            Number(stats.correct_challenges);
+
+        const failedChallenges =
+            Number(stats.failed_challenges);
+
+        const completedChallenges =
+            Number(stats.completed_challenges);
+
+        const averageTime =
+            Number(stats.average_time);
+
+        const averageScore =
+            Number(stats.average_score);
+
+
+        // Calculate accuracy
+        const accuracy =
+            totalChallenges > 0
+                ? Math.round(
+                    (correctChallenges /
+                        totalChallenges) * 100
+                )
+                : 0;
+
+
+        // ---------------------------------------------
+        // Determine recommended difficulty
+        // ---------------------------------------------
+
+        let recommendedDifficulty = "Easy";
+
+
+        if (totalChallenges < 3) {
+
+            // Not enough performance history yet
+            recommendedDifficulty = "Easy";
+
+        }
+        else if (accuracy >= 85) {
+
+            recommendedDifficulty = "Medium";
+
+        }
+        else if (accuracy >= 60) {
+
+            recommendedDifficulty = "Easy";
+
+        }
+        else {
+
+            recommendedDifficulty = "Beginner";
+        }
+
+
+        // ---------------------------------------------
+        // Send analysis
+        // ---------------------------------------------
+
+        return res.json({
+
+            success: true,
+
+            userId: userId,
+
+            analysis: {
+
+                totalChallenges,
+
+                correctChallenges,
+
+                failedChallenges,
+
+                completedChallenges,
+
+                accuracy,
+
+                averageTime,
+
+                averageScore,
+
+                recommendedDifficulty
+
+            }
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Performance Analysis Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Failed to analyze performance."
+
+        });
+
+    }
+
+}
+
+// =====================================================
+// PERSONALIZED CHALLENGE SELECTION
+// =====================================================
+
+async function getPersonalizedChallenge(req, res) {
+
+    try {
+
+        const userId = Number(req.params.userId);
+
+        const challengeType =
+            req.query.challengeType || "math";
+
+
+        if (!userId) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Valid user ID is required."
+            });
+
+        }
+
+
+        // ---------------------------------------------
+        // Get user's performance
+        // ---------------------------------------------
+
+        const result = await pool.query(
+            `
+            SELECT
+                COUNT(*) AS total_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct_challenges,
+
+                COALESCE(
+                    ROUND(AVG(time_taken)),
+                    0
+                ) AS average_time,
+
+                COALESCE(
+                    ROUND(AVG(score)),
+                    0
+                ) AS average_score,
+
+                COALESCE(
+                    SUM(attempts),
+                    0
+                ) AS total_attempts
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+
+        const stats = result.rows[0];
+
+
+        const totalChallenges =
+            Number(stats.total_challenges);
+
+        const correctChallenges =
+            Number(stats.correct_challenges);
+
+        const averageTime =
+            Number(stats.average_time);
+
+        const averageScore =
+            Number(stats.average_score);
+
+        const totalAttempts =
+            Number(stats.total_attempts);
+
+
+        // ---------------------------------------------
+        // Calculate accuracy
+        // ---------------------------------------------
+
+        const accuracy =
+            totalChallenges > 0
+                ? Math.round(
+                    (correctChallenges /
+                        totalChallenges) * 100
+                )
+                : 0;
+
+
+        // ---------------------------------------------
+        // Select difficulty
+        // ---------------------------------------------
+
+        let difficulty = "Easy";
+
+
+        // New user
+        if (totalChallenges < 3) {
+
+            difficulty = "Easy";
+
+        }
+
+        // Excellent performance
+        else if (
+            accuracy >= 85 &&
+            averageScore >= 80 &&
+            totalAttempts <= totalChallenges + 2
+        ) {
+
+            difficulty = "Medium";
+
+        }
+
+        // Moderate performance
+        else if (accuracy >= 60) {
+
+            difficulty = "Easy";
+
+        }
+
+        // Poor performance
+        else {
+
+            difficulty = "Beginner";
+
+        }
+
+
+        // ---------------------------------------------
+        // Generate challenge
+        // ---------------------------------------------
+
+        const type =
+            challengeType.trim().toLowerCase();
+
+
+        let challenge;
+
+
+        switch (type) {
+
+            case "math":
+                challenge = generateMath(difficulty);
+                break;
+
+            case "logic":
+                challenge = generateLogic(difficulty);
+                break;
+
+            case "memory":
+                challenge = generateMemory(difficulty);
+                break;
+
+            case "word":
+                challenge = generateWord(difficulty);
+                break;
+
+            case "pattern":
+                challenge = generatePattern(difficulty);
+                break;
+
+            case "riddle":
+                challenge = generateRiddle(difficulty);
+                break;
+
+            case "quiz":
+                challenge = generateQuiz(difficulty);
+                break;
+
+            default:
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Invalid challenge type."
+                });
+        }
+
+
+        // ---------------------------------------------
+        // Return personalized challenge
+        // ---------------------------------------------
+
+        return res.json({
+
+            success: true,
+
+            userId,
+
+            challengeType: type,
+
+            difficulty,
+
+            personalization: {
+
+                totalChallenges,
+
+                accuracy,
+
+                averageTime,
+
+                averageScore,
+
+                totalAttempts
+
+            },
+
+            question: challenge.question,
+
+            answer: challenge.answer,
+
+            explanation: challenge.explanation,
+
+            ...(challenge.options && {
+                options: challenge.options
+            })
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Personalized Challenge Error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Failed to generate personalized challenge."
+
+        });
+
+    }
+
+}
+
+// =====================================================
+// Export
+// =====================================================
+module.exports = {
+    generateChallenge,
+    savePerformance,
+    analyzePerformance,
+    getPersonalizedChallenge
+};

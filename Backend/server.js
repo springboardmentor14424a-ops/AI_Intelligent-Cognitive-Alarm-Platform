@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const googleRoutes = require("./routes/google");
 const passport = require("passport");
 const session = require("express-session");
@@ -6,10 +8,11 @@ require("./config/passport");
 
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
+
 require("./config/db");
 
 const authRoutes = require("./routes/auth");
+const challengeRoutes = require("./routes/Challenge");
 
 const app = express();
 
@@ -33,11 +36,13 @@ app.get("/", (req, res) => {
     res.send("🚀 Backend is running successfully!");
 });
 
-// Server
-const PORT = process.env.PORT || 5000;
-
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/auth", googleRoutes);
+app.use("/api/challenges", challengeRoutes);
+
+// Server
+const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);

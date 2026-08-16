@@ -771,5 +771,206 @@ background:#ececec;
 .popup-content button{
 
     margin-top:15px;
+}
+
+/* ==========================================
+   COGNITIVE CHALLENGE
+========================================== */
+
+.challenge-popup {
+    width: 450px;
+    max-width: 90%;
+    padding: 30px;
+}
+
+/* Challenge Header */
+
+.challenge-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.challenge-icon {
+    width: 55px;
+    height: 55px;
+    background: #eef2ff;
+    border-radius: 50%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 28px;
+}
+
+.challenge-header h2 {
+    margin: 0;
+    color: #1e293b;
+}
+
+.challenge-header p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* Challenge Type + Difficulty */
+
+.challenge-info {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 15px 0 20px;
+}
+
+.challenge-info span {
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#challengeTypeBadge {
+    background: #eef2ff;
+    color: #4F46E5;
+}
+
+#challengeDifficultyBadge {
+    background: #fef3c7;
+    color: #ca8a04;
+}
+
+/* Question */
+
+.challenge-question {
+    background: #f8faff;
+    border-radius: 12px;
+    padding: 25px 15px;
+    margin: 15px 0;
+    min-height: 80px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.challenge-question p {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+/* Memory Challenge */
+
+.memory-display {
+    background: #eef2ff;
+    color: #4F46E5;
+
+    padding: 20px;
+    border-radius: 12px;
+
+    font-size: 26px;
+    font-weight: 700;
+
+    letter-spacing: 5px;
+    text-align: center;
+
+    margin: 15px 0;
+}
+
+/* Answer Input */
+
+#answerInput {
+    width: 100%;
+    padding: 14px;
+
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+
+    font-size: 16px;
+    text-align: center;
+
+    outline: none;
+}
+
+#answerInput:focus {
+    border-color: #4F46E5;
+}
+
+/* Submit Button */
+
+#submitAnswerBtn {
+    width: 100%;
+    padding: 14px;
+
+    background: #4F46E5;
+    color: white;
+
+    border: none;
+    border-radius: 10px;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+#submitAnswerBtn:hover {
+    background: #4338ca;
+}
+
+/* Snooze Button */
+
+#snoozeBtn {
+    width: 100%;
+    padding: 14px;
+
+    background: #f1f5f9;
+    color: #475569;
+
+    border: none;
+    border-radius: 10px;
+
+    font-size: 15px;
+    font-weight: 600;
+
+    cursor: pointer;
+}
+
+#snoozeBtn:hover {
+    background: #e2e8f0;
+}
+
+/* Challenge Result */
+
+.challenge-result {
+    margin-top: 15px;
+    padding: 12px;
+
+    border-radius: 10px;
+
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Mobile */
+
+@media(max-width:600px) {
+
+    .challenge-popup {
+        width: 95%;
+        padding: 22px;
+    }
+
+    .challenge-question p {
+        font-size: 17px;
+    }
+
+    .memory-display {
+        font-size: 21px;
+    }
 
 }
