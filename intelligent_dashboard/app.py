@@ -214,4 +214,7 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+    try:
+        uvicorn.run("app:app", host="127.0.0.1", port=8080, reload=True)
+    except Exception:
+        uvicorn.run("app:app", host="127.0.0.1", port=5000, reload=True)
