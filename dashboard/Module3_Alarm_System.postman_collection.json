@@ -1,0 +1,242 @@
+{
+	"info": {
+		"_postman_id": "c1f23b4e-89a0-4b12-9876-module3alarms",
+		"name": "CogniWell Module 3 - Alarm Scheduling System API",
+		"description": "Complete Postman collection for Module 3 Alarm System (FastAPI & Express PostgreSQL Backends)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Create New Alarm",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": 1,\n  \"title\": \"Morning REM Sync Wake-up\",\n  \"alarm_time\": \"06:30 AM\",\n  \"alarm_type\": \"Daily\",\n  \"repeat_days\": \"Mon,Tue,Wed,Thu,Fri,Sat,Sun\",\n  \"is_active\": true,\n  \"difficulty_level\": \"Hard\",\n  \"sound\": \"REM Sync\",\n  \"vibration\": true,\n  \"snooze_interval\": 5\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/alarms",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms"
+					]
+				}
+			}
+		},
+		{
+			"name": "2. Get All User Alarms",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms?userId=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms"
+					],
+					"query": [
+						{
+							"key": "userId",
+							"value": "1"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "3. Get Today's Active Alarms",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms/today?userId=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"today"
+					],
+					"query": [
+						{
+							"key": "userId",
+							"value": "1"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "4. Get Upcoming Alarms",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms/upcoming?userId=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"upcoming"
+					],
+					"query": [
+						{
+							"key": "userId",
+							"value": "1"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "5. Check Next Alarm (Rule-based Smart Adaptive)",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": 1,\n  \"sleep_quality_score\": 95,\n  \"target_date\": \"2026-08-07\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/alarms/check-next",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"check-next"
+					]
+				}
+			}
+		},
+		{
+			"name": "6. Get Alarm By ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"1"
+					]
+				}
+			}
+		},
+		{
+			"name": "7. Update Alarm",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"title\": \"Updated Cognitive Alarm\",\n  \"alarm_time\": \"07:15 AM\",\n  \"difficulty_level\": \"Expert\"\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/api/alarms/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"1"
+					]
+				}
+			}
+		},
+		{
+			"name": "8. Disable Alarm",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms/1/disable",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"1",
+						"disable"
+					]
+				}
+			}
+		},
+		{
+			"name": "9. Enable Alarm",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms/1/enable",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"1",
+						"enable"
+					]
+				}
+			}
+		},
+		{
+			"name": "10. Delete Alarm",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/api/alarms/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"alarms",
+						"1"
+					]
+				}
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:5001",
+			"type": "string"
+		}
+	]
+}

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database Service
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: cogniwell_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: cogniwell_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./server/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+
+  # 2. Node.js Express Auth & Backend Service
+  express_backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: cogniwell_express
+    ports:
+      - "5001:5001"
+    environment:
+      - PORT=5001
+      - PGHOST=postgres_db
+      - PGUSER=postgres
+      - PGPASSWORD=postgrespassword
+      - PGDATABASE=cogniwell_db
+      - PGPORT=5432
+      - JWT_SECRET=cogniwell_super_secret_jwt_key_2026
+    depends_on:
+      - postgres_db
+
+  # 3. Python FastAPI Alarm Scheduling Microservice (Module 3)
+  fastapi_alarm_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.alarm
+    container_name: cogniwell_alarm_service
+    ports:
+      - "8000:8000"
+    environment:
+      - PGHOST=postgres_db
+      - PGUSER=postgres
+      - PGPASSWORD=postgrespassword
+      - PGDATABASE=cogniwell_db
+      - PGPORT=5432
+      - JWT_SECRET=cogniwell_super_secret_jwt_key_2026
+    depends_on:
+      - postgres_db
+
+volumes:
+  pgdata:
