@@ -59,13 +59,13 @@ SIDEBAR
 
         </li>
 
-        <li>
+        <li id="analyticsMenu">
 
-            <i class="fa-solid fa-chart-line"></i>
+    <i class="fa-solid fa-chart-line"></i>
 
-            Analytics
+    Analytics
 
-        </li>
+</li>
 
         <li>
 
@@ -1000,6 +1000,163 @@ Health Report
 
 <!-- Dashboard Grid Ends -->
 
+
+<!-- ================= VISUAL ANALYTICS ================= -->
+
+<section id="analyticsSection" class="analytics-section">
+
+    <div class="section-header">
+        <div>
+            <h2>Visual Analytics</h2>
+            <p>Track your alarm and cognitive challenge performance</p>
+        </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="analytics-kpis">
+
+        <div class="analytics-card">
+            <div class="analytics-icon">📊</div>
+            <div>
+                <span>Total Challenges</span>
+                <strong id="analyticsTotal">0</strong>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <div class="analytics-icon">🎯</div>
+            <div>
+                <span>Accuracy</span>
+                <strong id="analyticsAccuracy">0%</strong>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <div class="analytics-icon">✅</div>
+            <div>
+                <span>Completed</span>
+                <strong id="analyticsCompleted">0</strong>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <div class="analytics-icon">❌</div>
+            <div>
+                <span>Failed</span>
+                <strong id="analyticsFailed">0</strong>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <div class="analytics-icon">⏱</div>
+            <div>
+                <span>Average Time</span>
+                <strong id="analyticsTime">0s</strong>
+            </div>
+        </div>
+
+        <div class="analytics-card">
+            <div class="analytics-icon">🏆</div>
+            <div>
+                <span>Average Score</span>
+                <strong id="analyticsScore">0</strong>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- CHARTS -->
+    <div class="analytics-grid">
+
+        <!-- Challenge Type -->
+        <div class="analytics-chart-card">
+
+            <h3>Challenge Type Performance</h3>
+
+            <div class="chart-container">
+                <canvas id="challengeTypeChart"></canvas>
+            </div>
+
+        </div>
+
+
+        <!-- Difficulty -->
+        <div class="analytics-chart-card">
+
+            <h3>Difficulty Distribution</h3>
+
+            <div class="chart-container">
+                <canvas id="difficultyChart"></canvas>
+            </div>
+
+        </div>
+
+
+        <!-- Performance Trend -->
+        <div class="analytics-chart-card analytics-wide">
+
+            <h3>Performance Trend</h3>
+
+            <div class="chart-container">
+                <canvas id="performanceTrendChart"></canvas>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- RECENT HISTORY -->
+
+    <div class="analytics-history">
+
+        <div class="analytics-history-header">
+
+            <div>
+                <h3>Recent Challenge History</h3>
+                <p>Your latest cognitive challenge attempts</p>
+            </div>
+
+        </div>
+
+        <div class="analytics-table-wrapper">
+
+            <table class="analytics-table">
+
+                <thead>
+
+                    <tr>
+                        <th>Challenge</th>
+                        <th>Difficulty</th>
+                        <th>Result</th>
+                        <th>Score</th>
+                        <th>Time</th>
+                        <th>Attempts</th>
+                    </tr>
+
+                </thead>
+
+                <tbody id="analyticsHistoryBody">
+
+                    <tr>
+                        <td colspan="6">
+                            Analytics will appear here.
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ================= END VISUAL ANALYTICS ================= -->
+
 <footer
 style="margin-top:40px;text-align:center;color:#666;">
 
@@ -1009,6 +1166,8 @@ Frontend Demo
 </footer>
 
 </div>
+
+
 
 <!-- Main Ends -->
 
@@ -1236,6 +1395,29 @@ if (role !== "user") {
 </div>
 
 <script src="js/dashboard.js"></script>
+
+<script>
+
+const analyticsMenu =
+    document.getElementById("analyticsMenu");
+
+const analyticsSection =
+    document.getElementById("analyticsSection");
+
+
+if (analyticsMenu && analyticsSection) {
+
+    analyticsMenu.addEventListener("click", function () {
+
+        analyticsSection.scrollIntoView({
+            behavior: "smooth"
+        });
+
+    });
+
+}
+
+</script>
 
 </body>
 

@@ -23,6 +23,26 @@ const alarmForm = document.getElementById("alarmForm");
 const alarmList = document.getElementById("alarmList");
 
 const alarmSound = document.getElementById("alarmSound");
+
+let audioUnlocked = false;
+
+document.addEventListener("click", () => {
+
+    if (audioUnlocked) return;
+
+    alarmSound.play()
+        .then(() => {
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+            audioUnlocked = true;
+            console.log("Alarm sound unlocked.");
+        })
+        .catch(() => {
+            console.log("Waiting for user interaction to unlock alarm sound.");
+        });
+
+}, { once: true });
+
 const alarmPopup = document.getElementById("alarmPopup");
 const popupLabel = document.getElementById("popupLabel");
 
@@ -1857,3 +1877,486 @@ function updateCurrentDate() {
 }
 
 updateCurrentDate();
+
+/* =====================================================
+   VISUAL ANALYTICS
+   ===================================================== */
+
+let challengeTypeAnalyticsChart = null;
+let difficultyAnalyticsChart = null;
+let performanceTrendAnalyticsChart = null;
+
+
+/* LOAD ANALYTICS FROM BACKEND */
+
+async function loadAnalytics() {
+
+    try {
+
+        const userId =
+            localStorage.getItem("userId") || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/performance/analysis/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.message || "Failed to load analytics."
+            );
+
+        }
+
+        console.log("Analytics data:", data);
+
+        renderAnalytics(data);
+
+    } catch (error) {
+
+        console.error(
+            "Analytics loading error:",
+            error
+        );
+
+    }
+
+}
+
+
+/* RENDER ANALYTICS */
+
+function renderAnalytics(data) {
+
+    const summary = data.analysis || {};
+
+
+    /* ==========================
+       KPI CARDS
+       ========================== */
+
+    const total =
+        document.getElementById("analyticsTotal");
+
+    const accuracy =
+        document.getElementById("analyticsAccuracy");
+
+    const completed =
+        document.getElementById("analyticsCompleted");
+
+    const failed =
+        document.getElementById("analyticsFailed");
+
+    const averageTime =
+        document.getElementById("analyticsTime");
+
+    const averageScore =
+        document.getElementById("analyticsScore");
+
+
+    if (total) {
+
+        total.innerText =
+            summary.totalChallenges ?? 0;
+
+    }
+
+
+    if (accuracy) {
+
+        accuracy.innerText =
+            `${summary.accuracy ?? 0}%`;
+
+    }
+
+
+    if (completed) {
+
+        completed.innerText =
+            summary.completedChallenges ?? 0;
+
+    }
+
+
+    if (failed) {
+
+        failed.innerText =
+            summary.failedChallenges ?? 0;
+
+    }
+
+
+    if (averageTime) {
+
+        averageTime.innerText =
+            `${summary.averageTime ?? 0}s`;
+
+    }
+
+
+    if (averageScore) {
+
+        averageScore.innerText =
+            summary.averageScore ?? 0;
+
+    }
+
+
+    /* ==========================
+       CHALLENGE TYPE CHART
+       ========================== */
+
+    const challengeCanvas =
+        document.getElementById("challengeTypeChart");
+
+
+    if (challengeCanvas) {
+
+        if (challengeTypeAnalyticsChart) {
+
+            challengeTypeAnalyticsChart.destroy();
+
+        }
+
+
+        const types =
+            data.challengeTypes || [];
+
+
+        challengeTypeAnalyticsChart =
+            new Chart(challengeCanvas, {
+
+                type: "bar",
+
+                data: {
+
+                    labels: types.map(
+                        item => item.challenge_type
+                    ),
+
+                    datasets: [
+
+                        {
+                            label: "Total Challenges",
+
+                            data: types.map(
+                                item => Number(item.total)
+                            )
+                        },
+
+                        {
+                            label: "Correct",
+
+                            data: types.map(
+                                item => Number(item.correct)
+                            )
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: true
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+    }
+
+
+    /* ==========================
+       DIFFICULTY CHART
+       ========================== */
+
+    const difficultyCanvas =
+        document.getElementById("difficultyChart");
+
+
+    if (difficultyCanvas) {
+
+        if (difficultyAnalyticsChart) {
+
+            difficultyAnalyticsChart.destroy();
+
+        }
+
+
+        const difficulties =
+            data.difficulties || [];
+
+
+        const difficultyOrder = [
+
+            "Beginner",
+            "Easy",
+            "Medium",
+            "Hard",
+            "Expert"
+
+        ];
+
+
+        const difficultyData =
+            difficultyOrder.map(level => {
+
+                const item =
+                    difficulties.find(
+                        d => d.difficulty === level
+                    );
+
+                return item
+                    ? Number(item.total)
+                    : 0;
+
+            });
+
+
+        difficultyAnalyticsChart =
+            new Chart(difficultyCanvas, {
+
+                type: "doughnut",
+
+                data: {
+
+                    labels: difficultyOrder,
+
+                    datasets: [
+
+                        {
+
+                            data: difficultyData
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    plugins: {
+
+                        legend: {
+
+                            position: "bottom"
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+    }
+
+
+    /* ==========================
+       PERFORMANCE TREND
+       ========================== */
+
+    const trendCanvas =
+        document.getElementById(
+            "performanceTrendChart"
+        );
+
+
+    if (trendCanvas) {
+
+        if (performanceTrendAnalyticsChart) {
+
+            performanceTrendAnalyticsChart.destroy();
+
+        }
+
+
+        const trend =
+            data.trend || [];
+
+
+        performanceTrendAnalyticsChart =
+            new Chart(trendCanvas, {
+
+                type: "line",
+
+                data: {
+
+                    labels: trend.map(item => {
+
+                        return new Date(
+                            item.date
+                        ).toLocaleDateString(
+                            "en-IN",
+                            {
+                                day: "numeric",
+                                month: "short"
+                            }
+                        );
+
+                    }),
+
+                    datasets: [
+
+                        {
+
+                            label: "Average Score",
+
+                            data: trend.map(
+                                item =>
+                                    Number(
+                                        item.average_score
+                                    )
+                            ),
+
+                            tension: 0.3,
+
+                            fill: false
+
+                        }
+
+                    ]
+
+                },
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            max: 100
+
+                        }
+
+                    }
+
+                }
+
+            });
+
+    }
+
+
+    /* ==========================
+       RECENT HISTORY
+       ========================== */
+
+    const historyBody =
+        document.getElementById(
+            "analyticsHistoryBody"
+        );
+
+
+    if (historyBody) {
+
+        const history =
+            data.recentHistory || [];
+
+
+        if (history.length === 0) {
+
+            historyBody.innerHTML = `
+
+                <tr>
+
+                    <td colspan="6">
+                        No challenge history available.
+                    </td>
+
+                </tr>
+
+            `;
+
+        } else {
+
+            historyBody.innerHTML =
+                history.map(item => `
+
+                    <tr>
+
+                        <td>
+                            ${item.challenge_type}
+                        </td>
+
+                        <td>
+                            ${item.difficulty}
+                        </td>
+
+                        <td>
+                            ${
+                                item.correct
+                                ? "✅ Correct"
+                                : "❌ Failed"
+                            }
+                        </td>
+
+                        <td>
+                            ${item.score}
+                        </td>
+
+                        <td>
+                            ${item.time_taken}s
+                        </td>
+
+                        <td>
+                            ${item.attempts}
+                        </td>
+
+                    </tr>
+
+                `).join("");
+
+        }
+
+    }
+
+}
+
+
+/* =====================================================
+   LOAD ANALYTICS WHEN ANALYTICS MENU IS CLICKED
+   ===================================================== */
+
+const visualAnalyticsMenu =
+    document.getElementById("analyticsMenu");
+
+
+if (visualAnalyticsMenu) {
+
+    visualAnalyticsMenu.addEventListener(
+        "click",
+        function () {
+
+            loadAnalytics();
+
+        }
+    );
+
+}

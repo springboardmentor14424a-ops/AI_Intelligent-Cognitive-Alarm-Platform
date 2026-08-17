@@ -6,7 +6,8 @@ const {
     generateChallenge,
     savePerformance,
     analyzePerformance,
-    getPersonalizedChallenge
+    getPersonalizedChallenge,
+    getAnalytics
 } = require("../controllers/challengeController");
 
 router.post(
@@ -22,6 +23,11 @@ router.post(
 router.get(
     "/performance/analysis/:userId",
     analyzePerformance
+);
+
+router.get(
+    "/performance/analytics/:userId",
+    getAnalytics
 );
 
 router.get(

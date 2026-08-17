@@ -430,10 +430,14 @@ async function analyzePerformance(req, res) {
         }
 
 
-        // Get user's performance statistics
-        const result = await pool.query(
+        // =====================================================
+        // 1. OVERALL SUMMARY
+        // =====================================================
+
+        const summaryResult = await pool.query(
             `
             SELECT
+
                 COUNT(*) AS total_challenges,
 
                 COUNT(*) FILTER (
@@ -466,7 +470,7 @@ async function analyzePerformance(req, res) {
         );
 
 
-        const stats = result.rows[0];
+        const stats = summaryResult.rows[0];
 
 
         const totalChallenges =
@@ -488,7 +492,6 @@ async function analyzePerformance(req, res) {
             Number(stats.average_score);
 
 
-        // Calculate accuracy
         const accuracy =
             totalChallenges > 0
                 ? Math.round(
@@ -498,16 +501,14 @@ async function analyzePerformance(req, res) {
                 : 0;
 
 
-        // ---------------------------------------------
-        // Determine recommended difficulty
-        // ---------------------------------------------
+        // =====================================================
+        // 2. RECOMMENDED DIFFICULTY
+        // =====================================================
 
         let recommendedDifficulty = "Easy";
 
-
         if (totalChallenges < 3) {
 
-            // Not enough performance history yet
             recommendedDifficulty = "Easy";
 
         }
@@ -524,12 +525,139 @@ async function analyzePerformance(req, res) {
         else {
 
             recommendedDifficulty = "Beginner";
+
         }
 
 
-        // ---------------------------------------------
-        // Send analysis
-        // ---------------------------------------------
+        // =====================================================
+        // 3. CHALLENGE TYPE PERFORMANCE
+        // =====================================================
+
+        const challengeTypeResult = await pool.query(
+            `
+            SELECT
+
+                challenge_type,
+
+                COUNT(*) AS total,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct,
+
+                COUNT(*) FILTER (
+                    WHERE correct = false
+                ) AS failed
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY challenge_type
+
+            ORDER BY challenge_type
+            `,
+            [userId]
+        );
+
+
+        // =====================================================
+        // 4. DIFFICULTY DISTRIBUTION
+        // =====================================================
+
+        const difficultyResult = await pool.query(
+            `
+            SELECT
+
+                difficulty,
+
+                COUNT(*) AS total
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY difficulty
+
+            ORDER BY
+                CASE difficulty
+                    WHEN 'Beginner' THEN 1
+                    WHEN 'Easy' THEN 2
+                    WHEN 'Medium' THEN 3
+                    WHEN 'Hard' THEN 4
+                    WHEN 'Expert' THEN 5
+                    ELSE 6
+                END
+            `,
+            [userId]
+        );
+
+
+        // =====================================================
+        // 5. PERFORMANCE TREND
+        // =====================================================
+
+        const trendResult = await pool.query(
+            `
+            SELECT
+
+                DATE(created_at) AS date,
+
+                COUNT(*) AS total,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct,
+
+                COALESCE(
+                    ROUND(AVG(score)),
+                    0
+                ) AS average_score
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY DATE(created_at)
+
+            ORDER BY DATE(created_at)
+            `,
+            [userId]
+        );
+
+
+        // =====================================================
+        // 6. RECENT HISTORY
+        // =====================================================
+
+        const historyResult = await pool.query(
+            `
+            SELECT
+
+                challenge_type,
+                difficulty,
+                correct,
+                time_taken,
+                attempts,
+                completion_status,
+                score,
+                created_at
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            ORDER BY created_at DESC
+
+            LIMIT 10
+            `,
+            [userId]
+        );
+
+
+        // =====================================================
+        // 7. SEND COMPLETE ANALYTICS RESPONSE
+        // =====================================================
 
         return res.json({
 
@@ -540,22 +668,27 @@ async function analyzePerformance(req, res) {
             analysis: {
 
                 totalChallenges,
-
                 correctChallenges,
-
                 failedChallenges,
-
                 completedChallenges,
-
                 accuracy,
-
                 averageTime,
-
                 averageScore,
-
                 recommendedDifficulty
 
-            }
+            },
+
+            challengeTypes:
+                challengeTypeResult.rows,
+
+            difficulties:
+                difficultyResult.rows,
+
+            trend:
+                trendResult.rows,
+
+            recentHistory:
+                historyResult.rows
 
         });
 
@@ -828,11 +961,231 @@ async function getPersonalizedChallenge(req, res) {
 }
 
 // =====================================================
+// VISUAL ANALYTICS
+// =====================================================
+
+async function getAnalytics(req, res) {
+
+    try {
+
+        const userId = Number(req.params.userId);
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid user ID is required."
+            });
+        }
+
+        // Overall statistics
+        const summaryResult = await pool.query(`
+            SELECT
+                COUNT(*) AS total_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = false
+                ) AS failed_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE completion_status = 'completed'
+                ) AS completed_challenges,
+
+                COALESCE(
+                    ROUND(AVG(time_taken)),
+                    0
+                ) AS average_time,
+
+                COALESCE(
+                    ROUND(AVG(score)),
+                    0
+                ) AS average_score
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+        `, [userId]);
+
+        const summary = summaryResult.rows[0];
+
+        const totalChallenges =
+            Number(summary.total_challenges);
+
+        const correctChallenges =
+            Number(summary.correct_challenges);
+
+        const accuracy =
+            totalChallenges > 0
+                ? Math.round(
+                    (correctChallenges / totalChallenges) * 100
+                )
+                : 0;
+
+
+        // Performance by challenge type
+        const typeResult = await pool.query(`
+            SELECT
+                challenge_type,
+                COUNT(*) AS total,
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct,
+                COUNT(*) FILTER (
+                    WHERE correct = false
+                ) AS failed
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY challenge_type
+
+            ORDER BY challenge_type
+        `, [userId]);
+
+
+        // Difficulty distribution
+        const difficultyResult = await pool.query(`
+            SELECT
+                difficulty,
+                COUNT(*) AS total
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY difficulty
+
+            ORDER BY
+                CASE difficulty
+                    WHEN 'Beginner' THEN 1
+                    WHEN 'Easy' THEN 2
+                    WHEN 'Medium' THEN 3
+                    WHEN 'Hard' THEN 4
+                    WHEN 'Expert' THEN 5
+                    ELSE 6
+                END
+        `, [userId]);
+
+
+        // Performance over time
+        const trendResult = await pool.query(`
+            SELECT
+                DATE(created_at) AS date,
+                COUNT(*) AS total,
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct,
+                COALESCE(
+                    ROUND(AVG(score)),
+                    0
+                ) AS average_score
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY DATE(created_at)
+
+            ORDER BY DATE(created_at)
+        `, [userId]);
+
+
+        // Recent challenge history
+        const historyResult = await pool.query(`
+            SELECT
+                challenge_type,
+                difficulty,
+                correct,
+                time_taken,
+                attempts,
+                completion_status,
+                score,
+                created_at
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            ORDER BY created_at DESC
+
+            LIMIT 10
+        `, [userId]);
+
+
+        return res.json({
+
+            success: true,
+
+            userId: userId,
+
+            summary: {
+
+                totalChallenges,
+
+                correctChallenges,
+
+                failedChallenges:
+                    Number(summary.failed_challenges),
+
+                completedChallenges:
+                    Number(summary.completed_challenges),
+
+                accuracy,
+
+                averageTime:
+                    Number(summary.average_time),
+
+                averageScore:
+                    Number(summary.average_score)
+
+            },
+
+            challengeTypes:
+                typeResult.rows,
+
+            difficulties:
+                difficultyResult.rows,
+
+            trend:
+                trendResult.rows,
+
+            recentHistory:
+                historyResult.rows
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Visual Analytics Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Failed to load visual analytics."
+
+        });
+
+    }
+
+}
+
+// =====================================================
 // Export
 // =====================================================
 module.exports = {
     generateChallenge,
     savePerformance,
     analyzePerformance,
-    getPersonalizedChallenge
+    getPersonalizedChallenge,
+    getAnalytics
 };
