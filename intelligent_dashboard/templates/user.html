@@ -358,48 +358,136 @@
                     {% endif %}
                 </div>
             </div>
+            <!-- TAB 4: ANALYTICS & ADAPTIVE DIFFICULTY DASHBOARD -->
             <div id="analytics-tab" class="switch-tab">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+
+                <!-- Header & Adaptive Engine Summary -->
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(59, 130, 246, 0.12) 100%); border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+                        <div>
+                            <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 6px; display: flex; align-items: center; gap: 10px;">
+                                📈 Analytics &amp; Adaptive Difficulty Dashboard
+                            </h2>
+                            <p style="color: var(--text-secondary); font-size: 13px; max-width: 650px; line-height: 1.5;">
+                                Real-time circadian &amp; cognitive performance monitoring powered by our Adaptive Difficulty AI Engine.
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <span class="badge badge-active" style="padding: 6px 12px; font-size: 12px;">AI Engine Active</span>
+                            <span class="badge badge-info" style="padding: 6px 12px; font-size: 12px;">Auto-Level Calibration</span>
+                        </div>
+                    </div>
+
+                    <!-- Adaptive Engine Explanation Box -->
+                    <div style="margin-top: 16px; padding: 14px; border-radius: 10px; background: rgba(0,0,0,0.2); border: 1px dashed rgba(255,255,255,0.15); display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 12px;">
+                        <div>
+                            <strong style="color: #4ade80;">🚀 Level Promotion Rule:</strong>
+                            <p style="color: var(--text-secondary); margin-top: 2px;">Accuracy ≥ 80%, Solved Time &lt; 35s, Failed Attempts ≤ 2 → Level Up</p>
+                        </div>
+                        <div>
+                            <strong style="color: #f87171;">🔻 Level Demotion Rule:</strong>
+                            <p style="color: var(--text-secondary); margin-top: 2px;">Accuracy &lt; 60%, Solved Time &gt; 60s, or Failed Attempts &gt; 3 → Level Down</p>
+                        </div>
+                        <div>
+                            <strong style="color: #a78bfa;">🎯 Circadian Goal Alignment:</strong>
+                            <p style="color: var(--text-secondary); margin-top: 2px;">Optimizes waking inertia and trains cognitive resilience step-by-step.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 Interactive Chart Grid -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
+                    <!-- Graph 1: Adaptive Difficulty Trend -->
                     <div class="glass-card">
-                        <h3>Sleep Patterns (Last 7 Days)</h3>
-                        <div style="height: 240px; margin-top: 15px;"><canvas id="sleepChart"></canvas></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="font-size: 16px;">📈 Adaptive Difficulty Progression</h3>
+                            <span style="font-size: 11px; color: #a78bfa; font-weight: bold;">Level 1-5 Trend</span>
+                        </div>
+                        <div style="height: 250px;"><canvas id="difficultyTrendChart"></canvas></div>
+                    </div>
+
+                    <!-- Graph 2: Accuracy & Score Trend -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="font-size: 16px;">📊 Accuracy % &amp; Score Points Trend</h3>
+                            <span style="font-size: 11px; color: var(--success); font-weight: bold;">Performance Curve</span>
+                        </div>
+                        <div style="height: 250px;"><canvas id="accuracyScoreChart"></canvas></div>
+                    </div>
+
+                    <!-- Graph 3: Response Time vs Failed Attempts -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="font-size: 16px;">⏱️ Solved Time vs Failed Attempts</h3>
+                            <span style="font-size: 11px; color: var(--warning); font-weight: bold;">Speed &amp; Errors</span>
+                        </div>
+                        <div style="height: 250px;"><canvas id="timeAttemptsChart"></canvas></div>
+                    </div>
+
+                    <!-- Graph 4: Challenge Type Mastery Breakdown -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="font-size: 16px;">🧩 Challenge Type Mastery</h3>
+                            <span style="font-size: 11px; color: var(--primary); font-weight: bold;">7 Cognitive Domains</span>
+                        </div>
+                        <div style="height: 250px;"><canvas id="typeBreakdownChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Sleep & Habit Consistency Patterns -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 10px;">
+                    <div class="glass-card">
+                        <h3>🌙 Circadian Sleep Target Alignment</h3>
+                        <div style="height: 220px; margin-top: 15px;"><canvas id="sleepChart"></canvas></div>
                     </div>
                     <div class="glass-card">
-                        <h3>Habit Consistency Scores</h3>
-                        <div style="height: 240px; margin-top: 15px;"><canvas id="habitChart"></canvas></div>
+                        <h3>🔥 Habit Score &amp; Consistency Trends</h3>
+                        <div style="height: 220px; margin-top: 15px;"><canvas id="habitChart"></canvas></div>
                     </div>
                 </div>
 
                 <!-- Real-Time Cognitive Challenge Performance Logs -->
-                <div class="glass-card" style="margin-top: 20px;">
-                    <h3 style="margin-bottom: 15px;">🧠 Real-Time Cognitive Challenge History</h3>
+                <div class="glass-card" style="margin-top: 10px;">
+                    <h3 style="margin-bottom: 15px;">🧠 Real-Time Performance Log &amp; Metrics History</h3>
                     {% if performances and performances | length > 0 %}
                         <div style="overflow-x: auto;">
                             <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left;">
                                 <thead>
-                                    <tr style="border-bottom: 1px solid var(--border-card); color: var(--text-secondary);">
-                                        <th style="padding: 8px;">Date &amp; Time</th>
-                                        <th style="padding: 8px;">Challenge Type</th>
-                                        <th style="padding: 8px;">Difficulty</th>
-                                        <th style="padding: 8px;">Time Taken</th>
-                                        <th style="padding: 8px;">Attempts</th>
-                                        <th style="padding: 8px;">Accuracy</th>
-                                        <th style="padding: 8px;">Score</th>
-                                        <th style="padding: 8px;">Correct</th>
-                                        <th style="padding: 8px;">Status</th>
+                                    <tr style="border-bottom: 1px solid var(--border-card); color: var(--text-secondary); font-size: 11px; text-transform: uppercase;">
+                                        <th style="padding: 10px 8px;">Date &amp; Time</th>
+                                        <th style="padding: 10px 8px;">Challenge Type</th>
+                                        <th style="padding: 10px 8px;">Difficulty</th>
+                                        <th style="padding: 10px 8px;">Time Taken</th>
+                                        <th style="padding: 10px 8px; text-align:center;">Attempts</th>
+                                        <th style="padding: 10px 8px;">Accuracy</th>
+                                        <th style="padding: 10px 8px;">Score</th>
+                                        <th style="padding: 10px 8px; text-align:center;">Correct</th>
+                                        <th style="padding: 10px 8px;">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {% for p in performances %}
-                                        <tr style="border-bottom: 1px solid var(--border-card);">
+                                        <tr style="border-bottom: 1px solid var(--border-card);" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
                                             <td style="padding: 8px;">{{ p.created_at.strftime('%Y-%m-%d %H:%M') if p.created_at else 'Just now' }}</td>
                                             <td style="padding: 8px; font-weight: 600;">{{ p.challenge_type }}</td>
-                                            <td style="padding: 8px;"><span class="badge badge-info">{{ p.difficulty }}</span></td>
+                                            <td style="padding: 8px;">
+                                                {% if p.difficulty == 'Expert' %}
+                                                    <span class="badge" style="background:rgba(239,68,68,0.2);color:#f87171;">Expert</span>
+                                                {% elif p.difficulty == 'Hard' %}
+                                                    <span class="badge badge-suspended">Hard</span>
+                                                {% elif p.difficulty == 'Medium' %}
+                                                    <span class="badge badge-warning">Medium</span>
+                                                {% elif p.difficulty == 'Easy' %}
+                                                    <span class="badge badge-active">Easy</span>
+                                                {% else %}
+                                                    <span class="badge badge-info">{{ p.difficulty }}</span>
+                                                {% endif %}
+                                            </td>
                                             <td style="padding: 8px;">{{ '%.1f' | format(p.time_taken) }}s</td>
-                                            <td style="padding: 8px;">{{ p.failed_attempts }}</td>
-                                            <td style="padding: 8px; font-weight: bold; color: {{ 'var(--success)' if p.accuracy > 70 else 'var(--warning)' }};">{{ '%.0f' | format(p.accuracy) }}%</td>
+                                            <td style="padding: 8px; text-align:center;">{{ p.failed_attempts }}</td>
+                                            <td style="padding: 8px; font-weight: bold; color: {{ 'var(--success)' if p.accuracy >= 80 else ('var(--warning)' if p.accuracy >= 50 else 'var(--danger)') }};">{{ '%.0f' | format(p.accuracy) }}%</td>
                                             <td style="padding: 8px; font-weight: bold; color: var(--warning);">{{ '%.1f' | format(p.score or 0) }}</td>
-                                            <td style="padding: 8px; text-align:center;">{{ '✅' if p.is_correct else '❌' }}</td>
+                                            <td style="padding: 8px; text-align:center; font-size:15px;">{{ '✅' if p.is_correct else '❌' }}</td>
                                             <td style="padding: 8px;">
                                                 <span class="badge {{ 'badge-active' if p.status == 'success' else ('badge-warning' if p.status == 'snooze' else 'badge-suspended') }}">
                                                     {{ p.status | upper }}
@@ -1175,11 +1263,195 @@
         // Calculate dynamic performance data for charts
         const perfData = [
             {% for p in (performances | reverse) %}
-                { time: "{{ p.created_at.strftime('%m/%d') if p.created_at else 'Today' }}", accuracy: {{ p.accuracy }}, status: "{{ p.status }}" }{% if not loop.last %},{% endif %}
+            {
+                time: "{{ p.created_at.strftime('%m/%d %H:%M') if p.created_at else 'Attempt ' ~ loop.index }}",
+                dateLabel: "{{ p.created_at.strftime('%m/%d') if p.created_at else 'Day ' ~ loop.index }}",
+                type: "{{ p.challenge_type | replace('\"', '') }}",
+                difficulty: "{{ p.difficulty }}",
+                diffLevel: {% if p.difficulty == 'Beginner' %}1{% elif p.difficulty == 'Easy' %}2{% elif p.difficulty == 'Hard' %}4{% elif p.difficulty == 'Expert' %}5{% else %}3{% endif %},
+                accuracy: {{ p.accuracy or 0.0 }},
+                timeTaken: {{ p.time_taken or 0.0 }},
+                failedAttempts: {{ p.failed_attempts or 0 }},
+                status: "{{ p.status }}",
+                score: {{ p.score or 0.0 }},
+                isCorrect: {{ 'true' if p.is_correct else 'false' }}
+            }{% if not loop.last %},{% endif %}
             {% endfor %}
         ];
 
-        const chartLabels = perfData.length > 0 ? perfData.map(p => p.time) : ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Today'];
+        const defaultLabels = ['Session 1', 'Session 2', 'Session 3', 'Session 4', 'Session 5', 'Latest'];
+        const chartLabels = perfData.length > 0 ? perfData.map((p, idx) => p.dateLabel || `Attempt ${idx+1}`) : defaultLabels;
+
+        // 1. Adaptive Difficulty Progression Line Chart (Level 1-5)
+        const diffTrendData = perfData.length > 0 ? perfData.map(p => p.diffLevel) : [2, 2, 3, 3, 4, 4];
+        const diffCtx = document.getElementById('difficultyTrendChart');
+        if (diffCtx) {
+            new Chart(diffCtx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{
+                        label: 'Adaptive Level',
+                        data: diffTrendData,
+                        borderColor: '#a78bfa',
+                        backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#a78bfa',
+                        pointRadius: 5,
+                        stepped: true,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: 1,
+                            max: 5,
+                            ticks: {
+                                callback: function(val) {
+                                    const levels = {1: 'Beginner', 2: 'Easy', 3: 'Medium', 4: 'Hard', 5: 'Expert'};
+                                    return levels[val] || val;
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const levels = {1: 'Beginner', 2: 'Easy', 3: 'Medium', 4: 'Hard', 5: 'Expert'};
+                                    return 'Adaptive Level: ' + (levels[context.raw] || context.raw);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // 2. Accuracy % & Score Points Trend Dual Line Chart
+        const accuracyData = perfData.length > 0 ? perfData.map(p => p.accuracy) : [50, 100, 100, 75, 100, 100];
+        const scoreData = perfData.length > 0 ? perfData.map(p => p.score) : [25, 50, 100, 75, 120, 150];
+        const accScoreCtx = document.getElementById('accuracyScoreChart');
+        if (accScoreCtx) {
+            new Chart(accScoreCtx, {
+                type: 'line',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: 'Accuracy %',
+                            data: accuracyData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Score Points',
+                            data: scoreData,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.3,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 100, title: { display: true, text: 'Accuracy %' } },
+                        y1: { min: 0, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Score Points' } }
+                    }
+                }
+            });
+        }
+
+        // 3. Solved Time vs Failed Attempts Bar Chart
+        const timeData = perfData.length > 0 ? perfData.map(p => p.timeTaken) : [22, 14, 18, 28, 12, 10];
+        const failedData = perfData.length > 0 ? perfData.map(p => p.failedAttempts) : [1, 0, 0, 1, 0, 0];
+        const timeAttemptsCtx = document.getElementById('timeAttemptsChart');
+        if (timeAttemptsCtx) {
+            new Chart(timeAttemptsCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [
+                        {
+                            label: 'Solved Time (s)',
+                            data: timeData,
+                            backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                            borderRadius: 6
+                        },
+                        {
+                            label: 'Failed Attempts',
+                            data: failedData,
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { min: 0 } }
+                }
+            });
+        }
+
+        // 4. Challenge Type Mastery Breakdown Chart
+        const typeStats = {};
+        if (perfData.length > 0) {
+            perfData.forEach(p => {
+                const t = p.type || 'Math Problems';
+                if (!typeStats[t]) typeStats[t] = { total: 0, accSum: 0 };
+                typeStats[t].total += 1;
+                typeStats[t].accSum += p.accuracy;
+            });
+        }
+        const typeLabels = Object.keys(typeStats).length > 0 
+            ? Object.keys(typeStats) 
+            : ['Math Problems', 'Logic Puzzles', 'Memory Challenges', 'Word Games', 'Pattern Recognition', 'Riddles', 'Quick Quizzes'];
+        const typeAccuracies = Object.keys(typeStats).length > 0 
+            ? typeLabels.map(t => Math.round(typeStats[t].accSum / typeStats[t].total)) 
+            : [85, 90, 75, 80, 95, 70, 88];
+
+        const typeBreakdownCtx = document.getElementById('typeBreakdownChart');
+        if (typeBreakdownCtx) {
+            new Chart(typeBreakdownCtx, {
+                type: 'bar',
+                data: {
+                    labels: typeLabels.map(t => t.length > 12 ? t.substring(0, 10) + '..' : t),
+                    datasets: [{
+                        label: 'Mastery / Avg Accuracy %',
+                        data: typeAccuracies,
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(139, 92, 246, 0.7)',
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(236, 72, 153, 0.7)',
+                            'rgba(14, 165, 233, 0.7)',
+                            'rgba(168, 85, 247, 0.7)'
+                        ],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { min: 0, max: 100 } }
+                }
+            });
+        }
+
+        // Sleep & Habit Consistency Charts
         const habitChartData = perfData.length > 0 ? perfData.map(p => p.accuracy) : [50, 50, 50, 50, 50, {{ profile.habit_score if profile else 50 }}];
 
         new Chart(document.getElementById('sleepChart'), {
@@ -1207,7 +1479,7 @@
             data: {
                 labels: chartLabels,
                 datasets: [{
-                    label: 'Challenge Accuracy / Performance %',
+                    label: 'Habit & Accuracy Consistency %',
                     data: habitChartData,
                     borderColor: '#8b5cf6',
                     backgroundColor: 'rgba(139, 92, 246, 0.1)',
