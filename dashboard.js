@@ -841,47 +841,51 @@ function getSoundBadge(sound) {
   return map[sound] || { icon: '', label: sound || 'Default' };
 }
 
-function renderAlarmHistoryTable() {
-  const historyTable = document.querySelector('.data-table tbody');
-  if (!historyTable) return;
+async function renderAlarmHistoryTable() {
+  const historyTbody = document.getElementById('alarm-history-tbody') || document.querySelector('.data-table tbody');
+  if (!historyTbody) return;
 
-  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  try {
+    const userId = (user && user.id) ? user.id : 1;
+    const res = await fetch(`http://localhost:8000/challenges/history?user_id=${userId}`);
+    if (!res.ok) throw new Error('Failed to fetch history');
+    const logs = await res.json();
 
-  historyTable.innerHTML = myAlarmsList.map(alarm => {
-    const timeObj = formatAlarmTime(alarm.alarm_time);
-    const formattedTime = `${timeObj.num} ${timeObj.period}`;
-    const chal = getChallengeBadge(alarm.challenge);
-    const diff = alarm.difficulty_level || 'medium';
-    const type = alarm.alarm_type || (alarm.repeat_days ? 'daily' : 'one-time');
+    if (!logs || logs.length === 0) {
+      historyTbody.innerHTML = `
+        <tr>
+          <td colspan="9" style="text-align:center;padding:24px;color:#64748b;font-weight:500;">
+            No alarm dismissal logs recorded yet. Dismiss an active alarm challenge to populate history.
+          </td>
+        </tr>
+      `;
+      return;
+    }
 
-    return `
-      <tr data-alarm-id="${alarm.id}">
-        <td>${today}</td>
-        <td>${formattedTime}</td>
-        <td>${alarm.title || 'My Alarm'}</td>
-        <td style="text-transform:capitalize;">${type}</td>
-        <td>--</td>
-        <td>--</td>
-        <td>${chal.label} · ${diff}</td>
+    historyTbody.innerHTML = logs.map(log => `
+      <tr>
+        <td>${log.date}</td>
+        <td>${log.set_time}</td>
+        <td>${log.label}</td>
+        <td style="text-transform:capitalize;">${log.alarm_type}</td>
+        <td style="font-weight:600;color:#0f172a;">${log.dismiss_time}</td>
+        <td style="font-weight:600;color:#2563eb;">${log.delay}</td>
+        <td>${log.puzzle_solved}</td>
         <td>
-          <span class="badge ${alarm.is_active ? 'badge-success' : 'badge-warning'}">
-            ${alarm.is_active ? 'Active' : 'Disabled'}
+          <span class="badge ${log.success ? 'badge-success' : 'badge-danger'}">
+            ${log.status}
           </span>
         </td>
         <td class="kebab-cell">
           <button type="button" class="kebab-btn" onclick="toggleKebab(this)">
             <span></span><span></span><span></span>
           </button>
-          <div class="kebab-menu">
-            <button type="button" class="kebab-danger" onclick="deleteMyAlarmCard(${alarm.id});closeKebab()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-              Remove
-            </button>
-          </div>
         </td>
       </tr>
-    `;
-  }).join('');
+    `).join('');
+  } catch (err) {
+    console.warn('Error fetching alarm history logs:', err);
+  }
 }
 
 function renderMyAlarms(filter = currentAlarmFilter) {
@@ -1276,6 +1280,107 @@ async function loadCognitivePerformance() {
     if (timeEl) timeEl.textContent = data.avg_time_seconds ? `${data.avg_time_seconds}s` : '0s';
     if (recEl) recEl.textContent = data.recommended_difficulty || 'medium';
     if (badgeEl) badgeEl.textContent = `Adaptive: ${(data.recommended_difficulty || 'medium').toUpperCase()}`;
+
+    // Update category bar chart heights dynamically
+    if (data.categories) {
+      const maxHeight = 50;
+      const catMap = {
+        'bar-math': data.categories.math || 0,
+        'bar-memory': data.categories.memory || 0,
+        'bar-logic': data.categories.logic || 0,
+        'bar-speed': data.categories.speed || 0
+      };
+      Object.keys(catMap).forEach(id => {
+        const bar = document.getElementById(id);
+        if (bar) {
+          const val = catMap[id];
+          const h = Math.max(8, Math.round((val / 100) * maxHeight));
+          const y = 60 - h;
+          bar.setAttribute('height', h);
+          bar.setAttribute('y', y);
+        }
+      });
+
+      // Update Dominant Category in Productivity Insights card
+      let topCat = 'math';
+      let maxScore = -1;
+      Object.keys(data.categories).forEach(cat => {
+        if (data.categories[cat] > maxScore) {
+          maxScore = data.categories[cat];
+          topCat = cat;
+        }
+      });
+      const tagEl = document.getElementById('insight-top-cat-tag');
+      const textEl = document.getElementById('insight-top-cat-text');
+      const catName = topCat.toUpperCase();
+      if (tagEl) tagEl.textContent = `${catName} (${maxScore}%)`;
+      if (textEl) textEl.textContent = `Your highest accuracy is in ${topCat.charAt(0).toUpperCase() + topCat.slice(1)} challenges. Ready for the next level!`;
+    }
+
+    // Update Productivity Insights dynamically from backend calculation
+    if (data.insights) {
+      const peakEl = document.getElementById('pi-wave-peak');
+      const clarityPill = document.getElementById('pi-clarity-pill');
+      const clarityDesc = document.getElementById('pi-clarity-desc');
+      const synergyPill = document.getElementById('pi-synergy-pill');
+      const synergyDesc = document.getElementById('pi-synergy-desc');
+
+      if (peakEl) peakEl.textContent = data.insights.peak_window;
+      if (clarityPill) clarityPill.textContent = data.insights.clarity_pill;
+      if (clarityDesc) clarityDesc.textContent = data.insights.clarity_desc;
+      if (synergyPill) synergyPill.textContent = data.insights.synergy_pill;
+      if (synergyDesc) synergyDesc.textContent = data.insights.synergy_desc;
+    }
+
+    // Update Day Streak on Habit Score card based on user's actual daily alarm usage
+    const streakEl = document.getElementById('hs-streak-count');
+    if (streakEl) {
+      const streakVal = data.day_streak !== undefined ? data.day_streak : 1;
+      streakEl.textContent = `${streakVal}-Day Streak`;
+    }
+
+    // Update Alarm History Pie Chart & Legends
+    if (data.breakdown) {
+      const onTime = data.breakdown.on_time || 0;
+      const snoozed = data.breakdown.snoozed || 0;
+      const failed = data.breakdown.failed || 0;
+      const total = onTime + snoozed + failed;
+
+      const elOnTime = document.getElementById('ah-count-ontime');
+      const elSnoozed = document.getElementById('ah-count-snoozed');
+      const elFailed = document.getElementById('ah-count-failed');
+
+      if (elOnTime) elOnTime.textContent = onTime;
+      if (elSnoozed) elSnoozed.textContent = snoozed;
+      if (elFailed) elFailed.textContent = failed;
+
+      if (total > 0) {
+        const circumference = 238.76;
+        const p1 = (onTime / total) * circumference;
+        const p2 = (snoozed / total) * circumference;
+        const p3 = (failed / total) * circumference;
+
+        const s1 = document.getElementById('pie-slice-ontime');
+        const s2 = document.getElementById('pie-slice-snoozed');
+        const s3 = document.getElementById('pie-slice-failed');
+
+        if (s1) {
+          s1.setAttribute('stroke-dasharray', `${p1} ${circumference}`);
+          s1.setAttribute('stroke-dashoffset', '0');
+        }
+        if (s2) {
+          s2.setAttribute('stroke-dasharray', `${p2} ${circumference}`);
+          s2.setAttribute('stroke-dashoffset', `-${p1}`);
+        }
+        if (s3) {
+          s3.setAttribute('stroke-dasharray', `${p3} ${circumference}`);
+          s3.setAttribute('stroke-dashoffset', `-${p1 + p2}`);
+        }
+      }
+    }
+
+    // Refresh Alarm History Table with real timestamps and delay data
+    renderAlarmHistoryTable();
   } catch (e) {
     // Show zeros on error instead of leaving --
     const ids = ['perf-accuracy', 'perf-score', 'perf-total', 'perf-avg-time'];
@@ -1683,5 +1788,70 @@ function startAlarmPolling() {
 document.addEventListener('DOMContentLoaded', () => {
   renderMyAlarms();
   loadCognitivePerformance();
+  loadHabitState();
   startAlarmPolling();
 });
+
+// ── HABIT SCORE INTERACTION ENGINE ─────────────────────────
+function toggleHabitItem(itemEl) {
+  if (!itemEl) return;
+  const checkbox = itemEl.querySelector('.hs-checkbox');
+  const isCompleted = itemEl.classList.contains('completed');
+  
+  if (isCompleted) {
+    itemEl.classList.remove('completed');
+    if (checkbox) checkbox.checked = false;
+  } else {
+    itemEl.classList.add('completed');
+    if (checkbox) checkbox.checked = true;
+  }
+  
+  updateHabitScoreProgress();
+}
+
+function updateHabitScoreProgress() {
+  const allItems = document.querySelectorAll('.hs-item');
+  if (!allItems.length) return;
+  const completedItems = document.querySelectorAll('.hs-item.completed');
+  
+  const total = allItems.length;
+  const count = completedItems.length;
+  const percent = Math.round((count / total) * 100);
+  
+  const percentEl = document.getElementById('habit-progress-percent');
+  const fillEl = document.getElementById('habit-progress-fill');
+  const subtextEl = document.getElementById('habit-subtext');
+  
+  if (percentEl) percentEl.textContent = `${percent}%`;
+  if (fillEl) fillEl.style.width = `${percent}%`;
+  if (subtextEl) subtextEl.textContent = `${count} of ${total} Daily Habits Completed`;
+
+  // Persist state to localStorage per user
+  try {
+    const userId = (user && user.id) ? user.id : 'guest';
+    const state = Array.from(allItems).map(el => el.classList.contains('completed'));
+    localStorage.setItem(`habit_state_${userId}`, JSON.stringify(state));
+  } catch (e) {}
+}
+
+function loadHabitState() {
+  try {
+    const userId = (user && user.id) ? user.id : 'guest';
+    const saved = localStorage.getItem(`habit_state_${userId}`);
+    if (saved) {
+      const state = JSON.parse(saved);
+      const allItems = document.querySelectorAll('.hs-item');
+      allItems.forEach((el, idx) => {
+        const checkbox = el.querySelector('.hs-checkbox');
+        if (state[idx]) {
+          el.classList.add('completed');
+          if (checkbox) checkbox.checked = true;
+        } else {
+          el.classList.remove('completed');
+          if (checkbox) checkbox.checked = false;
+        }
+      });
+      updateHabitScoreProgress();
+    }
+  } catch (e) {}
+}

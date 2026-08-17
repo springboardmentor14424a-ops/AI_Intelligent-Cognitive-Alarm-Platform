@@ -24,6 +24,16 @@ import os
 app = FastAPI(title="Wellspring API")
 Base.metadata.create_all(bind=engine)
 
+# Ensure database tables & schema migrations
+try:
+    Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        from sqlalchemy import text
+        conn.execute(text("ALTER TABLE challenge_logs ADD COLUMN IF NOT EXISTS alarm_id INTEGER REFERENCES alarms(id) ON DELETE SET NULL;"))
+        conn.commit()
+except Exception as e:
+    print(f"Startup DB migration info: {e}")
+
 # ── Middleware ───────────────────────────────────────────────
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "changeme"))
 app.add_middleware(
@@ -331,10 +341,12 @@ def verify_challenge(data: ChallengeVerifyRequest, db: Session = Depends(get_db)
     else:
         msg = f"Incorrect. The correct answer was: {data.answer_key}."
 
+    target_user_id = data.user_id if (data.user_id and data.user_id > 0) else 1
+
     # Log to DB
     try:
         log = ChallengeLog(
-            user_id=data.user_id,
+            user_id=target_user_id,
             alarm_id=data.alarm_id,
             challenge_type=data.challenge_type or "math",
             difficulty=data.difficulty or "medium",
@@ -345,6 +357,7 @@ def verify_challenge(data: ChallengeVerifyRequest, db: Session = Depends(get_db)
         db.add(log)
         db.commit()
     except Exception as e:
+        db.rollback()
         print(f"Error logging challenge: {e}")
 
     return ChallengeVerifyResponse(
@@ -364,7 +377,9 @@ def get_personalized_challenge(user_id: int, type: str = "math", db: Session = D
     - Failed attempt count
     Adaptive Rule: High performance (>80% accuracy) -> Level Up. Low performance (<40% accuracy) -> Level Down."""
     
-    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).limit(10).all()
+    logs = db.query(ChallengeLog).filter(
+        (ChallengeLog.user_id == user_id) | (ChallengeLog.user_id.is_(None) if user_id == 1 else False)
+    ).order_by(ChallengeLog.created_at.desc()).limit(10).all()
     
     levels = ["beginner", "easy", "medium", "hard", "expert"]
     target_difficulty = "medium"
@@ -389,8 +404,12 @@ def get_personalized_challenge(user_id: int, type: str = "math", db: Session = D
 
 @app.get("/challenges/performance/{user_id}")
 def get_user_performance(user_id: int, db: Session = Depends(get_db)):
-    """Returns analytics for Dashboard Challenge Performance Card."""
-    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).all()
+    """Returns analytics for Dashboard Challenge Performance Card, Streak & Pie Chart."""
+    from datetime import datetime, timedelta
+
+    logs = db.query(ChallengeLog).filter(
+        (ChallengeLog.user_id == user_id) | (ChallengeLog.user_id.is_(None) if user_id == 1 else False)
+    ).order_by(ChallengeLog.created_at.desc()).all()
     
     if not logs:
         return {
@@ -399,7 +418,10 @@ def get_user_performance(user_id: int, db: Session = Depends(get_db)):
             "total_score": 0,
             "avg_time_seconds": 0,
             "recommended_difficulty": "medium",
-            "recent_logs": []
+            "categories": {"math": 0, "memory": 0, "logic": 0, "speed": 0},
+            "recent_logs": [],
+            "day_streak": 0,
+            "breakdown": {"on_time": 0, "snoozed": 0, "failed": 0}
         }
     
     total = len(logs)
@@ -407,6 +429,47 @@ def get_user_performance(user_id: int, db: Session = Depends(get_db)):
     accuracy = round((successes / total) * 100, 1)
     total_score = sum(l.score for l in logs)
     avg_time = round(sum(l.time_taken_seconds for l in logs) / total, 1)
+
+    # Calculate streak (consecutive days with successful alarm challenge logs)
+    successful_dates = sorted(list(set(l.created_at.date() for l in logs if l.success)), reverse=True)
+    streak = 0
+    if successful_dates:
+        today = datetime.now().date()
+        curr = successful_dates[0]
+        if (today - curr).days <= 1:
+            streak = 1
+            for i in range(1, len(successful_dates)):
+                if (successful_dates[i-1] - successful_dates[i]).days == 1:
+                    streak += 1
+                else:
+                    break
+
+    # Calculate Breakdown for Pie Chart
+    on_time = sum(1 for l in logs if l.success and (l.time_taken_seconds or 0) <= 15)
+    snoozed = sum(1 for l in logs if l.success and (l.time_taken_seconds or 0) > 15)
+    failed = sum(1 for l in logs if not l.success)
+    breakdown = {"on_time": on_time, "snoozed": snoozed, "failed": failed}
+
+    # Category breakdown stats
+    cat_counts = {"math": 0, "memory": 0, "logic": 0, "speed": 0}
+    cat_successes = {"math": 0, "memory": 0, "logic": 0, "speed": 0}
+
+    for l in logs:
+        ctype = (l.challenge_type or "math").lower()
+        if ctype in ["math", "memory", "logic"]:
+            cat_key = ctype
+        else:
+            cat_key = "speed"
+        cat_counts[cat_key] += 1
+        if l.success:
+            cat_successes[cat_key] += 1
+
+    categories = {}
+    for k in cat_counts:
+        if cat_counts[k] > 0:
+            categories[k] = round((cat_successes[k] / cat_counts[k]) * 100)
+        else:
+            categories[k] = 0
     
     levels = ["beginner", "easy", "medium", "hard", "expert"]
     recent_diff = logs[0].difficulty if logs[0].difficulty in levels else "medium"
@@ -419,12 +482,41 @@ def get_user_performance(user_id: int, db: Session = Depends(get_db)):
     else:
         recommended = recent_diff
 
+    # Dynamic Productivity Insights calculation based on user logs
+    wake_hours = [l.created_at.hour + (l.created_at.minute / 60.0) for l in logs if l.created_at]
+    avg_hour = (sum(wake_hours) / len(wake_hours)) if wake_hours else 7.5
+    
+    peak_start_m = int((avg_hour * 60 + 30) % 1440)
+    peak_end_m = int((avg_hour * 60 + 120) % 1440)
+    
+    def fmt_m(m):
+        h = (m // 60) % 24
+        mins = m % 60
+        period = "AM" if h < 12 else "PM"
+        disp_h = h % 12 or 12
+        return f"{disp_h}:{mins:02d} {period}"
+
+    peak_start_str = fmt_m(peak_start_m)
+    peak_end_str = fmt_m(peak_end_m)
+    
+    insights = {
+        "peak_window": f"Peak: {peak_start_str} - {peak_end_str}",
+        "clarity_pill": f"{int(max(8, avg_time))} SEC AVG",
+        "clarity_desc": f"Your average cognitive response speed is {avg_time}s after alarm trigger.",
+        "synergy_pill": f"+{int(min(40, accuracy * 0.25))}% SPEED",
+        "synergy_desc": f"Maintaining a {accuracy}% success rate boosts overall daily focus and alertness."
+    }
+
     return {
         "total_attempts": total,
         "success_rate": accuracy,
         "total_score": total_score,
         "avg_time_seconds": avg_time,
         "recommended_difficulty": recommended,
+        "categories": categories,
+        "day_streak": max(1, streak),
+        "breakdown": breakdown,
+        "insights": insights,
         "recent_logs": [
             {
                 "id": l.id,
@@ -440,17 +532,48 @@ def get_user_performance(user_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/challenges/history")
-def get_challenge_history(db: Session = Depends(get_db)):
-    logs = db.query(ChallengeLog).order_by(ChallengeLog.created_at.desc()).limit(20).all()
-    return [
-        {
+def get_challenge_history(user_id: int = None, db: Session = Depends(get_db)):
+    query = db.query(ChallengeLog)
+    if user_id and user_id > 0:
+        query = query.filter((ChallengeLog.user_id == user_id) | (ChallengeLog.user_id.is_(None) if user_id == 1 else False))
+    
+    logs = query.order_by(ChallengeLog.created_at.desc()).limit(30).all()
+    
+    result = []
+    for l in logs:
+        alarm_label = "Cognitive Alarm"
+        set_time_str = "07:00 AM"
+        if l.alarm_id:
+            alarm = db.query(Alarm).filter(Alarm.id == l.alarm_id).first()
+            if alarm:
+                alarm_label = alarm.title or "Morning Alarm"
+                if alarm.alarm_time:
+                    set_time_str = alarm.alarm_time.strftime("%I:%M %p")
+
+        created_dt = l.created_at or datetime.now()
+        date_str = created_dt.strftime("%d %b %Y")
+        dismiss_time_str = created_dt.strftime("%I:%M:%S %p")
+        delay_val = round(l.time_taken_seconds, 1) if l.time_taken_seconds else 0.0
+        delay_str = f"{delay_val}s"
+        
+        ctype = (l.challenge_type or "Math").title()
+        cdiff = (l.difficulty or "Medium").title()
+
+        result.append({
             "id": l.id,
+            "date": date_str,
+            "set_time": set_time_str,
+            "label": alarm_label,
+            "alarm_type": ctype,
+            "dismiss_time": dismiss_time_str,
+            "delay": delay_str,
+            "puzzle_solved": f"{ctype} · {cdiff}",
             "success": l.success,
+            "status": "Solved" if l.success else "Failed",
             "score": l.score,
-            "time_taken": l.time_taken_seconds,
             "timestamp": str(l.created_at)
-        } for l in logs
-    ]
+        })
+    return result
 
 
 # ── Health check ─────────────────────────────────────────────

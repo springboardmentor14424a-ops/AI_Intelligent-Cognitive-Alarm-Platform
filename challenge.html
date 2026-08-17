@@ -444,7 +444,16 @@ async function submitAnswer() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        user_id:            (() => {
+          try {
+            const u = JSON.parse(localStorage.getItem('user'));
+            if (u && u.id) return parseInt(u.id);
+          } catch(e) {}
+          return 1;
+        })(),
         challenge_id:       currentChallenge.challenge_id,
+        challenge_type:     currentChallenge.type || params.get('type') || 'math',
+        difficulty:         currentChallenge.difficulty || params.get('difficulty') || 'medium',
         answer_key:         currentChallenge.answer_key,
         user_answer:        userAnswer,
         time_taken_seconds: timeTaken
@@ -467,7 +476,7 @@ async function submitAnswer() {
       correctStreak++;
       updateProgress();
 
-      if (correctStreak >= 3) {
+      if (correctStreak >= 1) {
         // Alarm dismissed
         setTimeout(() => {
           document.getElementById('challengeContent').style.display = 'none';
