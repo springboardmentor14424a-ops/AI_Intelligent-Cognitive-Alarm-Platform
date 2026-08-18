@@ -1304,91 +1304,187 @@ def build_challenge(
     challenge_type: str,
     difficulty: str
 ) -> tuple[str, str]:
+    """
+    Generate progressively harder cognitive challenges.
 
-    level = {
-        "beginner": 5,
-        "easy": 10,
-        "medium": 25,
-        "hard": 50,
-        "expert": 100
-    }[difficulty]
+    Five levels are supported:
+    beginner -> easy -> medium -> hard -> expert
 
+    The generated answer is always deterministic so the existing
+    challenge submission endpoint can validate it exactly.
+    """
+
+    if difficulty == "beginner":
+        if challenge_type == "math":
+            a = random.randint(2, 15)
+            b = random.randint(2, 15)
+            if random.choice([True, False]):
+                return f"Solve: {a} + {b}", str(a + b)
+            return f"Solve: {a} - {b}", str(a - b)
+
+        if challenge_type == "logic":
+            prompts = [
+                ("What comes next: 3, 6, 9, 12, ?", "15"),
+                ("What comes next: 5, 10, 15, 20, ?", "25"),
+                ("What comes next: 1, 4, 7, 10, ?", "13"),
+            ]
+            return random.choice(prompts)
+
+        prompts = [
+            ("I have hands but cannot clap. What am I?", "clock"),
+            ("I have a face and two hands but no arms or legs. What am I?", "clock"),
+            ("What has many teeth but cannot bite?", "comb"),
+        ]
+        return random.choice(prompts)
+
+    if difficulty == "easy":
+        if challenge_type == "math":
+            a = random.randint(5, 20)
+            b = random.randint(2, 12)
+            c = random.randint(2, 10)
+            if random.choice([True, False]):
+                answer = a + b - c
+                return f"Solve: {a} + {b} - {c}", str(answer)
+            answer = a * b + c
+            return f"Solve: {a} × {b} + {c}", str(answer)
+
+        if challenge_type == "logic":
+            prompts = [
+                ("What comes next: 2, 6, 12, 20, 30, ?", "42"),
+                ("What comes next: 1, 2, 4, 7, 11, ?", "16"),
+                ("What comes next: 81, 27, 9, 3, ?", "1"),
+            ]
+            return random.choice(prompts)
+
+        prompts = [
+            ("The more you take, the more you leave behind. What are they?", "footsteps"),
+            ("What can travel around the world while staying in one corner?", "stamp"),
+            ("What has one eye but cannot see?", "needle"),
+        ]
+        return random.choice(prompts)
+
+    if difficulty == "medium":
+        if challenge_type == "math":
+            a = random.randint(8, 25)
+            b = random.randint(3, 12)
+            c = random.randint(2, 9)
+            d = random.randint(2, 8)
+            choice = random.randint(1, 3)
+            if choice == 1:
+                answer = a * b - c
+                return f"Solve: {a} × {b} - {c}", str(answer)
+            if choice == 2:
+                answer = (a + b) * c
+                return f"Solve: ({a} + {b}) × {c}", str(answer)
+            answer = a + b * c - d
+            return f"Solve: {a} + {b} × {c} - {d}", str(answer)
+
+        if challenge_type == "logic":
+            prompts = [
+                ("What comes next: 2, 5, 10, 17, 26, ?", "37"),
+                ("What comes next: 3, 9, 27, 81, ?", "243"),
+                ("What comes next: 1, 1, 2, 3, 5, 8, ?", "13"),
+                ("A clock shows 3:15. What is the smaller angle between the hands in degrees?", "7.5"),
+            ]
+            return random.choice(prompts)
+
+        prompts = [
+            ("I am always in front of you but can never be seen. What am I?", "future"),
+            ("I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?", "echo"),
+            ("What disappears as soon as you say its name?", "silence"),
+        ]
+        return random.choice(prompts)
+
+    if difficulty == "hard":
+        if challenge_type == "math":
+            a = random.randint(12, 35)
+            b = random.randint(4, 12)
+            c = random.randint(3, 10)
+            d = random.randint(2, 8)
+            choice = random.randint(1, 3)
+            if choice == 1:
+                answer = (a - b) * c + d
+                return f"Solve: ({a} - {b}) × {c} + {d}", str(answer)
+            if choice == 2:
+                answer = a * b - c * d
+                return f"Solve: {a} × {b} - {c} × {d}", str(answer)
+            answer = (a + b) * c - d
+            return f"Solve: ({a} + {b}) × {c} - {d}", str(answer)
+
+        if challenge_type == "logic":
+            prompts = [
+                ("What comes next: 4, 7, 13, 25, 49, ?", "97"),
+                ("What comes next: 2, 3, 5, 9, 17, ?", "33"),
+                ("What comes next: 1, 4, 10, 22, 46, ?", "94"),
+                ("A farmer has chickens and rabbits. There are 12 heads and 32 legs. How many rabbits are there?", "4"),
+                ("If 5 machines make 5 items in 5 minutes, how many minutes do 100 machines need to make 100 items?", "5"),
+            ]
+            return random.choice(prompts)
+
+        prompts = [
+            ("A man shaves several times a day, yet still has a beard. Who is he?", "barber"),
+            ("I have cities but no houses, forests but no trees, and rivers but no water. What am I?", "map"),
+            ("The more there is, the less you see. What is it?", "darkness"),
+        ]
+        return random.choice(prompts)
+
+    # EXPERT
     if challenge_type == "math":
+        choice = random.randint(1, 4)
+        if choice == 1:
+            a = random.randint(10, 20)
+            b = random.randint(4, 9)
+            c = random.randint(2, 6)
+            answer = (a + b) * c - a
+            return f"Solve: ({a} + {b}) × {c} - {a}", str(answer)
 
-        left = random.randint(
-            1,
-            level
-        )
+        if choice == 2:
+            a = random.randint(8, 15)
+            b = random.randint(3, 7)
+            c = random.randint(2, 5)
+            answer = a ** 2 - b * c
+            return f"Solve: {a}² - ({b} × {c})", str(answer)
 
-        right = random.randint(
-            1,
-            level
-        )
-
-        if difficulty in {
-            "beginner",
-            "easy"
-        }:
-
-            operator = random.choice(
-                ["+", "-"]
+        if choice == 3:
+            divisor = random.randint(3, 9)
+            quotient = random.randint(8, 20)
+            remainder = random.randint(1, divisor - 1)
+            dividend = divisor * quotient + remainder
+            answer = dividend
+            return (
+                f"Find the smallest positive number that leaves remainder {remainder} "
+                f"when divided by {divisor} and is at least {divisor * quotient}.",
+                str(answer)
             )
 
-        else:
-
-            operator = random.choice(
-                ["+", "-", "*"]
-            )
-
-        if operator == "+":
-
-            answer = left + right
-
-        elif operator == "-":
-
-            answer = left - right
-
-        else:
-
-            answer = left * right
-
-        return (
-            f"Solve: {left} {operator} {right}",
-            str(answer)
-        )
+        a = random.randint(5, 12)
+        b = random.randint(3, 8)
+        c = random.randint(2, 6)
+        d = random.randint(2, 5)
+        answer = (a * b) + (c ** 2) - d
+        return f"Solve: ({a} × {b}) + ({c}²) - {d}", str(answer)
 
     if challenge_type == "logic":
-
         prompts = [
-            (
-                "What comes next: 2, 4, 8, 16, ?",
-                "32"
-            ),
-            (
-                "If all alarms are reminders and this is an alarm, is it a reminder? (yes/no)",
-                "yes"
-            )
+            ("What comes next: 3, 8, 18, 38, 78, ?", "158"),
+            ("What comes next: 1, 2, 6, 24, 120, ?", "720"),
+            ("What comes next: 2, 12, 36, 80, 150, ?", "252"),
+            ("A sequence follows n² + n. What is the 8th term?", "72"),
+            ("A box contains 5 red, 4 blue, and 3 green balls. What is the minimum number drawn blind to guarantee two of the same color?", "4"),
+            ("You have 8 identical-looking balls and one is heavier. Using a balance scale, what is the minimum number of weighings needed to guarantee finding it?", "2"),
         ]
+        return random.choice(prompts)
 
-    else:
-
-        prompts = [
-            (
-                "I get wetter the more I dry. What am I?",
-                "towel"
-            ),
-            (
-                "What has keys but cannot open locks?",
-                "piano"
-            )
-        ]
-
-    return random.choice(
-        prompts
-    )
+    prompts = [
+        ("What word becomes shorter when you add two letters to it?", "short"),
+        ("I am taken from a mine and shut inside a wooden case, from which I am never released. What am I?", "pencil lead"),
+        ("A word I know, six letters it contains. Remove one letter and twelve remains. What is it?", "dozens"),
+        ("What has branches but no fruit, trunk, or leaves?", "bank"),
+        ("What can be broken without being held?", "promise"),
+    ]
+    return random.choice(prompts)
 
 
-# ============================================================
 # GENERATE CHALLENGE
 # ============================================================
 

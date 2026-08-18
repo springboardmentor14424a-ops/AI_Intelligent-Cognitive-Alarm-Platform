@@ -1,1 +1,70 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Alarms | Cognitive Alarm</title><link rel="stylesheet" href="/static/styles.css"></head><body><main><section class="hero"><p class="eyebrow">ALARM SCHEDULING</p><h1>Your alarms.</h1><p>Create daily, weekday, weekend, one-time, or smart adaptive alarms.</p></section><section class="card"><div id="message"></div><form id="alarm-form"><h2>Set alarm</h2><label>Alarm label<input id="title" required placeholder="Morning focus"></label><label>Time<input id="alarm_time" type="time" required></label><label>Alarm type<select id="alarm_type"><option value="daily">Daily</option><option value="weekday">Weekday</option><option value="weekend">Weekend</option><option value="one_time">One-time</option><option value="smart_adaptive">Smart adaptive</option></select></label><button>Create alarm</button></form><section id="alarm-list"></section><a class="back-link" href="/">← Return to account</a></section></main><script src="/static/alarms.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Alarms | Cognitive Alarm</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">ALARM SCHEDULING</p>
+      <h1>Your alarms.</h1>
+      <p>Create daily, weekday, weekend, one-time, or smart adaptive alarms.</p>
+    </section>
+
+    <section class="card">
+      <div id="message"></div>
+
+      <form id="alarm-form">
+        <h2>Set alarm</h2>
+
+        <label>
+          Alarm label
+          <input id="title" required maxlength="80" placeholder="Morning focus">
+        </label>
+
+        <label>
+          Time
+          <input id="alarm_time" type="time" required>
+        </label>
+
+        <label>
+          Alarm type
+          <select id="alarm_type">
+            <option value="daily">Daily</option>
+            <option value="weekday">Weekday</option>
+            <option value="weekend">Weekend</option>
+            <option value="one_time">One-time</option>
+            <option value="smart_adaptive">Smart adaptive</option>
+          </select>
+        </label>
+
+        <label>
+          Difficulty level
+          <select id="difficulty_level">
+            <option value="beginner">Beginner</option>
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+            <option value="expert">Expert</option>
+          </select>
+        </label>
+
+        <p id="adaptive-info" class="status-message">
+          Smart adaptive can use your recent challenge performance to recommend a difficulty.
+        </p>
+
+        <button type="submit">Create alarm</button>
+      </form>
+
+      <section id="alarm-list"></section>
+
+      <a class="back-link" href="/">← Return to account</a>
+    </section>
+  </main>
+
+  <script src="/static/alarms.js"></script>
+</body>
+</html>
