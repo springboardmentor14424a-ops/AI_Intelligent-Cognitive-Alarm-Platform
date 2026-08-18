@@ -1381,6 +1381,8 @@ async function loadCognitivePerformance() {
 
     // Refresh Alarm History Table with real timestamps and delay data
     renderAlarmHistoryTable();
+    loadAchievements();
+    loadCognitiveTrends();
   } catch (e) {
     // Show zeros on error instead of leaving --
     const ids = ['perf-accuracy', 'perf-score', 'perf-total', 'perf-avg-time'];
@@ -1388,6 +1390,80 @@ async function loadCognitivePerformance() {
     ids.forEach((id, i) => { const el = document.getElementById(id); if (el) el.textContent = defaults[i]; });
   }
 }
+
+async function loadAchievements() {
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+  const grid = document.getElementById('achievements-grid');
+  const badgeEl = document.getElementById('ach-unlocked-badge');
+  if (!grid) return;
+
+  try {
+    const res = await fetch(`http://localhost:8000/achievements/${userId}`);
+    if (!res.ok) return;
+    const items = await res.json();
+
+    const unlockedCount = items.filter(i => i.unlocked).length;
+    if (badgeEl) badgeEl.textContent = `${unlockedCount} / ${items.length} Unlocked`;
+
+    grid.innerHTML = items.map(item => `
+      <div class="ach-item ${item.unlocked ? 'unlocked' : 'locked'}">
+        <div class="ach-top-row">
+          <div class="ach-icon-box">${item.icon}</div>
+          <span class="ach-status-tag ${item.unlocked ? 'unlocked' : 'locked'}">
+            ${item.unlocked ? 'UNLOCKED' : 'LOCKED'}
+          </span>
+        </div>
+        <h4 class="ach-title">${item.title}</h4>
+        <p class="ach-desc">${item.description}</p>
+        <div class="ach-progress-track">
+          <div class="ach-progress-fill" style="width: ${item.progress_percent}%;"></div>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.warn('Error loading achievements:', e);
+  }
+}
+
+async function loadCognitiveTrends() {
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+  try {
+    const res = await fetch(`http://localhost:8000/challenges/trends/${userId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const growthEl = document.getElementById('lt-growth-val');
+    const speedEl = document.getElementById('lt-speed-val');
+    const strongTag = document.getElementById('lt-strongest-tag');
+    const focusTag = document.getElementById('lt-focus-tag');
+    const recEl = document.getElementById('lt-recommendation-text');
+    const barsContainer = document.getElementById('lt-domain-bars');
+
+    if (growthEl) growthEl.textContent = `+${data.growth_rate_percent}%`;
+    if (speedEl) speedEl.textContent = `+${data.speed_improvement_percent}%`;
+    if (strongTag) strongTag.textContent = `Strong: ${data.strongest_domain}`;
+    if (focusTag) focusTag.textContent = `Focus: ${data.focus_domain}`;
+    if (recEl) recEl.textContent = data.recommendation;
+
+    if (barsContainer && data.category_balance) {
+      barsContainer.innerHTML = Object.keys(data.category_balance).map(cat => {
+        const val = data.category_balance[cat];
+        return `
+          <div class="lt-domain-row">
+            <span class="lt-domain-name">${cat}</span>
+            <div class="lt-domain-bar-track">
+              <div class="lt-domain-bar-fill" style="width: ${val}%;"></div>
+            </div>
+            <span class="lt-domain-percent">${val}%</span>
+          </div>
+        `;
+      }).join('');
+    }
+  } catch (e) {
+    console.warn('Error loading learning trends:', e);
+  }
+}
+
 
 // ── Web Audio Synth Engine for Dynamic Sound Synthesis ────
 class AlarmAudioEngine {

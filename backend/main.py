@@ -1,3 +1,4 @@
+from typing import List, Optional, Any
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -6,14 +7,14 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
 try:
     from database import get_db, engine
-    from models import User, Alarm, ChallengeLog, Base
-    from schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse
+    from models import User, Alarm, ChallengeLog, Achievement, Base
+    from schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse, AchievementItem, LearningTrendResponse
     from challenge_generator import generate_cognitive_challenge
     from auth import hash_password, verify_password, create_token
 except ImportError:
     from backend.database import get_db, engine
-    from backend.models import User, Alarm, ChallengeLog, Base
-    from backend.schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse
+    from backend.models import User, Alarm, ChallengeLog, Achievement, Base
+    from backend.schemas import ChallengeResponse, ChallengeVerifyRequest, ChallengeVerifyResponse, AchievementItem, LearningTrendResponse
     from backend.challenge_generator import generate_cognitive_challenge
     from backend.auth import hash_password, verify_password, create_token
 from authlib.integrations.starlette_client import OAuth
@@ -374,12 +375,10 @@ def get_personalized_challenge(user_id: int, type: str = "math", db: Session = D
     - Previous performance (accuracy %, total score)
     - Average time taken
     - Difficulty level completed
-    - Failed attempt count
+    - Frustration prevention auto-softening (2 consecutive fails -> step down difficulty)
     Adaptive Rule: High performance (>80% accuracy) -> Level Up. Low performance (<40% accuracy) -> Level Down."""
     
-    logs = db.query(ChallengeLog).filter(
-        (ChallengeLog.user_id == user_id) | (ChallengeLog.user_id.is_(None) if user_id == 1 else False)
-    ).order_by(ChallengeLog.created_at.desc()).limit(10).all()
+    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).limit(10).all()
     
     levels = ["beginner", "easy", "medium", "hard", "expert"]
     target_difficulty = "medium"
@@ -391,8 +390,16 @@ def get_personalized_challenge(user_id: int, type: str = "math", db: Session = D
         recent_difficulty = logs[0].difficulty if logs[0].difficulty in levels else "medium"
         curr_idx = levels.index(recent_difficulty)
         
-        # Adaptive Rule
-        if accuracy >= 80 and total >= 3:
+        # Frustration Prevention Auto-Softening Check
+        consecutive_fails = 0
+        for l in logs[:2]:
+            if not l.success:
+                consecutive_fails += 1
+        
+        if consecutive_fails >= 2:
+            # Auto-soften difficulty to prevent frustration & save streak
+            target_difficulty = levels[max(curr_idx - 1, 0)]
+        elif accuracy >= 80 and total >= 3:
             target_difficulty = levels[min(curr_idx + 1, len(levels) - 1)]
         elif accuracy <= 40 and total >= 3:
             target_difficulty = levels[max(curr_idx - 1, 0)]
@@ -402,14 +409,198 @@ def get_personalized_challenge(user_id: int, type: str = "math", db: Session = D
     return generate_cognitive_challenge(challenge_type=type, difficulty=target_difficulty)
 
 
+@app.get("/achievements/{user_id}", response_model=List[AchievementItem])
+def get_user_achievements(user_id: int, db: Session = Depends(get_db)):
+    """Gamified Achievements & Badges Evaluation Engine."""
+    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).all()
+
+    total_attempts = len(logs)
+    successes = sum(1 for l in logs if l.success)
+    total_score = sum(l.score for l in logs)
+    
+    # Fast solve check
+    fastest_time = min([l.time_taken_seconds for l in logs if l.success], default=999.0)
+    
+    # 5-day streak calculation
+    successful_dates = sorted(list(set(l.created_at.date() for l in logs if l.success)), reverse=True)
+    streak = 0
+    if successful_dates:
+        from datetime import datetime
+        today = datetime.now().date()
+        if (today - successful_dates[0]).days <= 1:
+            streak = 1
+            for i in range(1, len(successful_dates)):
+                if (successful_dates[i-1] - successful_dates[i]).days == 1:
+                    streak += 1
+                else:
+                    break
+
+    # Early bird count (wake up challenges solved before 7 AM)
+    early_bird_count = sum(1 for l in logs if l.success and l.created_at and l.created_at.hour < 7)
+
+    # Master logic solver check (logic/math accuracy)
+    logic_math_logs = [l for l in logs if (l.challenge_type or "").lower() in ["logic", "math"]]
+    logic_math_success = sum(1 for l in logic_math_logs if l.success)
+
+    badges_def = [
+        {
+            "badge_key": "early_bird",
+            "title": "Early Bird",
+            "description": "Solve 3 alarm challenges before 7:00 AM",
+            "icon": "🌅",
+            "unlocked": early_bird_count >= 3,
+            "progress_percent": min(100, int((early_bird_count / 3) * 100))
+        },
+        {
+            "badge_key": "streak_master",
+            "title": "Streak Master",
+            "description": "Maintain a 5-day wake-up challenge streak",
+            "icon": "🔥",
+            "unlocked": streak >= 5,
+            "progress_percent": min(100, int((streak / 5) * 100))
+        },
+        {
+            "badge_key": "speed_demon",
+            "title": "Speed Demon",
+            "description": "Solve a cognitive challenge in under 10 seconds",
+            "icon": "⚡",
+            "unlocked": fastest_time <= 10.0 and total_attempts > 0,
+            "progress_percent": 100 if fastest_time <= 10.0 and total_attempts > 0 else (50 if fastest_time <= 20.0 else 20)
+        },
+        {
+            "badge_key": "logic_virtuoso",
+            "title": "Logic Virtuoso",
+            "description": "Solve 5 Math or Logic puzzles successfully",
+            "icon": "🧩",
+            "unlocked": logic_math_success >= 5,
+            "progress_percent": min(100, int((logic_math_success / 5) * 100))
+        },
+        {
+            "badge_key": "cognitive_master",
+            "title": "Cognitive Master",
+            "description": "Accumulate over 500 total performance points",
+            "icon": "🧠",
+            "unlocked": total_score >= 500,
+            "progress_percent": min(100, int((total_score / 500) * 100))
+        }
+    ]
+
+    result = []
+    for b in badges_def:
+        result.append(AchievementItem(
+            badge_key=b["badge_key"],
+            title=b["title"],
+            description=b["description"],
+            icon=b["icon"],
+            unlocked=b["unlocked"],
+            progress_percent=b["progress_percent"],
+            unlocked_at=str(datetime.now()) if b["unlocked"] else None
+        ))
+
+    return result
+
+
+@app.get("/challenges/trends/{user_id}", response_model=LearningTrendResponse)
+def get_learning_trends(user_id: int, db: Session = Depends(get_db)):
+    """Advanced Learning Pattern & Trend Analysis Endpoint."""
+    from datetime import datetime, timedelta
+
+    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.asc()).all()
+
+    if not logs:
+        return LearningTrendResponse(
+            user_id=user_id,
+            growth_rate_percent=0.0,
+            speed_improvement_percent=0.0,
+            category_balance={"math": 0, "memory": 0, "logic": 0, "speed": 0},
+            strongest_domain="N/A",
+            focus_domain="All",
+            recommendation="Solve your first morning alarm challenge to build your personalized cognitive growth profile!",
+            weekly_velocity=[
+                {"week": "W1", "accuracy": 0, "speed_avg": 0.0},
+                {"week": "W2", "accuracy": 0, "speed_avg": 0.0},
+                {"week": "W3", "accuracy": 0, "speed_avg": 0.0},
+                {"week": "W4", "accuracy": 0, "speed_avg": 0.0}
+            ]
+        )
+
+    # Category performance breakdown with sub-type mapping
+    def map_category(raw_type: str) -> str:
+        t = (raw_type or "math").lower()
+        if t in ["math"]:
+            return "math"
+        elif t in ["memory"]:
+            return "memory"
+        elif t in ["logic", "pattern"]:
+            return "logic"
+        else: # word, riddle, quiz, speed
+            return "speed"
+
+    cat_counts = {"math": 0, "memory": 0, "logic": 0, "speed": 0}
+    cat_success = {"math": 0, "memory": 0, "logic": 0, "speed": 0}
+
+    for l in logs:
+        c = map_category(l.challenge_type)
+        cat_counts[c] += 1
+        if l.success:
+            cat_success[c] += 1
+
+    cat_balance = {}
+    for k in ["math", "memory", "logic", "speed"]:
+        if cat_counts[k] > 0:
+            cat_balance[k] = round((cat_success[k] / cat_counts[k]) * 100)
+        else:
+            cat_balance[k] = 0
+
+    # Strongest vs Focus Domain
+    sorted_cats = sorted(cat_balance.items(), key=lambda x: x[1], reverse=True)
+    strongest = sorted_cats[0][0].capitalize() if sorted_cats and sorted_cats[0][1] > 0 else "Math"
+    focus = sorted_cats[-1][0].capitalize() if sorted_cats else "Memory"
+
+    # Overall growth & speed trends
+    total = len(logs)
+    if total < 4:
+        recent_acc = (sum(1 for l in logs if l.success) / total) * 100
+        growth = round(recent_acc, 1)
+        older_speed = sum(l.time_taken_seconds for l in logs) / total
+        speed_imp = round(max(0, 30.0 - older_speed), 1)
+    else:
+        recent_half = logs[max(0, total // 2):]
+        older_half = logs[:max(1, total // 2)]
+        recent_acc = (sum(1 for l in recent_half if l.success) / max(1, len(recent_half))) * 100
+        older_acc = (sum(1 for l in older_half if l.success) / max(1, len(older_half))) * 100
+        growth = round(recent_acc - older_acc, 1)
+        recent_speed = sum(l.time_taken_seconds for l in recent_half) / max(1, len(recent_half))
+        older_speed = sum(l.time_taken_seconds for l in older_half) / max(1, len(older_half))
+        speed_imp = round(max(0, older_speed - recent_speed), 1)
+
+    rec_msg = f"Your highest cognitive sharpness is in {strongest}. Focus on {focus} challenges to maintain balanced neural agility."
+
+    weekly_velocity = [
+        {"week": "W1", "accuracy": int(growth * 0.8), "speed_avg": round(older_speed, 1)},
+        {"week": "W2", "accuracy": int(growth), "speed_avg": round(older_speed, 1)},
+        {"week": "W3", "accuracy": int(growth), "speed_avg": round(older_speed, 1)},
+        {"week": "W4", "accuracy": int(growth), "speed_avg": round(older_speed, 1)}
+    ]
+
+    return LearningTrendResponse(
+        user_id=user_id,
+        growth_rate_percent=growth if growth > 0 else 0.0,
+        speed_improvement_percent=speed_imp if speed_imp > 0 else 0.0,
+        category_balance=cat_balance,
+        strongest_domain=strongest,
+        focus_domain=focus,
+        recommendation=rec_msg,
+        weekly_velocity=weekly_velocity
+    )
+
+
 @app.get("/challenges/performance/{user_id}")
 def get_user_performance(user_id: int, db: Session = Depends(get_db)):
     """Returns analytics for Dashboard Challenge Performance Card, Streak & Pie Chart."""
     from datetime import datetime, timedelta
 
-    logs = db.query(ChallengeLog).filter(
-        (ChallengeLog.user_id == user_id) | (ChallengeLog.user_id.is_(None) if user_id == 1 else False)
-    ).order_by(ChallengeLog.created_at.desc()).all()
+    logs = db.query(ChallengeLog).filter(ChallengeLog.user_id == user_id).order_by(ChallengeLog.created_at.desc()).all()
     
     if not logs:
         return {

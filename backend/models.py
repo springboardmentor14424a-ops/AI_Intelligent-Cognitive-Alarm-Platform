@@ -24,6 +24,7 @@ class User(Base):
 
     alarms         = relationship("Alarm", back_populates="user", cascade="all, delete-orphan")
     challenge_logs = relationship("ChallengeLog", back_populates="user", cascade="all, delete-orphan")
+    achievements   = relationship("Achievement", back_populates="user", cascade="all, delete-orphan")
 
 
 class Alarm(Base):
@@ -64,3 +65,19 @@ class ChallengeLog(Base):
     created_at         = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="challenge_logs")
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    badge_key   = Column(String(50), nullable=False)
+    title       = Column(String(100), nullable=False)
+    description = Column(String(255), nullable=False)
+    icon        = Column(String(20), nullable=False, default="🏆")
+    unlocked    = Column(Boolean, nullable=False, default=False)
+    unlocked_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="achievements")
+

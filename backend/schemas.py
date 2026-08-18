@@ -33,3 +33,24 @@ class ChallengeVerifyResponse(BaseModel):
     message: str
     correct_answer: str
     score: int
+
+class AchievementItem(BaseModel):
+    id: Optional[int] = None
+    badge_key: str
+    title: str
+    description: str
+    icon: str
+    unlocked: bool
+    progress_percent: int = 0
+    unlocked_at: Optional[str] = None
+
+class LearningTrendResponse(BaseModel):
+    user_id: int
+    growth_rate_percent: float
+    speed_improvement_percent: float
+    category_balance: dict
+    strongest_domain: str
+    focus_domain: str
+    recommendation: str
+    weekly_velocity: List[dict]
+

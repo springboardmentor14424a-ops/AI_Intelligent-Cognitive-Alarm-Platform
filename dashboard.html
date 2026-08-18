@@ -717,6 +717,83 @@
                   </div>
                 </div>
               </div>
+
+              <!-- Card: Badges & Achievements -->
+              <div class="dashboard-card ach-card-container" id="achievements-card">
+                <div class="ach-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                  <div>
+                    <h3 style="margin:0;font-size:1.15rem;display:flex;align-items:center;gap:8px;">
+                      <span>🏆 Badges & Achievements</span>
+                    </h3>
+                    <p style="margin:2px 0 0 0;font-size:0.8rem;color:var(--text-muted);">Earn rewards by conquering morning cognitive challenges</p>
+                  </div>
+                  <span id="ach-unlocked-badge" class="badge-pill" style="background:#e0f2fe;color:#0369a1;font-weight:700;font-size:0.78rem;padding:4px 12px;border-radius:999px;">
+                    0 / 5 Unlocked
+                  </span>
+                </div>
+
+                <div class="ach-grid" id="achievements-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:12px;">
+                  <!-- Dynamically rendered by dashboard.js -->
+                </div>
+              </div>
+
+              <!-- Card: Learning Patterns & Cognitive Growth -->
+              <div class="dashboard-card grid-col-span-2 lt-card-container" id="learning-trends-card">
+                <div class="lt-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                  <div>
+                    <h3 style="margin:0;font-size:1.15rem;display:flex;align-items:center;gap:8px;">
+                      <span>📈 Learning Patterns & Cognitive Growth</span>
+                    </h3>
+                    <p style="margin:2px 0 0 0;font-size:0.8rem;color:var(--text-muted);">Multi-week velocity analytics & cognitive skill balance</p>
+                  </div>
+                  <span class="pi-ai-badge" style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;font-size:0.75rem;padding:4px 10px;border-radius:999px;font-weight:600;">
+                    Pattern Engine Active
+                  </span>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">
+                  <div style="background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;">
+                    <div style="width:42px;height:42px;border-radius:10px;background:#dbeafe;color:#2563eb;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">
+                      🚀
+                    </div>
+                    <div>
+                      <div style="font-size:0.72rem;color:#64748b;font-weight:600;text-transform:uppercase;">Cognitive Velocity</div>
+                      <div id="lt-growth-val" style="font-size:1.35rem;font-weight:800;color:#1e40af;">+12.5%</div>
+                      <div style="font-size:0.7rem;color:#10b981;font-weight:600;">Accuracy Growth</div>
+                    </div>
+                  </div>
+
+                  <div style="background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #e2e8f0;display:flex;align-items:center;gap:12px;">
+                    <div style="width:42px;height:42px;border-radius:10px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">
+                      ⚡
+                    </div>
+                    <div>
+                      <div style="font-size:0.72rem;color:#64748b;font-weight:600;text-transform:uppercase;">Response Speed</div>
+                      <div id="lt-speed-val" style="font-size:1.35rem;font-weight:800;color:#b45309;">+15.0%</div>
+                      <div style="font-size:0.7rem;color:#10b981;font-weight:600;">Solve Velocity Boost</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Domain Balance Bar -->
+                <div style="background:#f8fafc;padding:14px;border-radius:12px;border:1px solid #e2e8f0;margin-bottom:14px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:0.82rem;font-weight:700;color:#334155;">Cognitive Domain Strengths</span>
+                    <div style="display:flex;gap:8px;">
+                      <span id="lt-strongest-tag" class="badge-pill" style="background:#dcfce7;color:#15803d;font-size:0.72rem;padding:2px 8px;font-weight:600;border-radius:6px;">Strong: Logic</span>
+                      <span id="lt-focus-tag" class="badge-pill" style="background:#fef2f2;color:#b91c1c;font-size:0.72rem;padding:2px 8px;font-weight:600;border-radius:6px;">Focus: Memory</span>
+                    </div>
+                  </div>
+                  <div id="lt-domain-bars" style="display:flex;flex-direction:column;gap:8px;">
+                    <!-- Dynamically rendered -->
+                  </div>
+                </div>
+
+                <!-- Recommendation box -->
+                <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:12px 14px;border-radius:0 10px 10px 0;font-size:0.83rem;color:#1e3a8a;line-height:1.4;">
+                  <strong>AI Recommendation:</strong> <span id="lt-recommendation-text">Practice Memory challenges to equalize your cognitive index across all 5 difficulty levels.</span>
+                </div>
+              </div>
             </div>
           </section>
 
