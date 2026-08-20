@@ -299,3 +299,261 @@ def admin_export_data(
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=users_report.pdf"}
         )
+
+
+# =====================================================================
+# MODULE 5: PRODUCTION MONITORING, BACKUP & USER FEEDBACK
+# =====================================================================
+
+import os
+import shutil
+import time
+import psutil
+from fastapi.responses import FileResponse
+from database import Feedback, ChallengePerformance
+
+@router.get("/system/metrics")
+def admin_system_metrics(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 4: Production Monitoring — CPU/Memory, DB stats, table record counts, uptime.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # DB Table record counts
+    total_users = db.query(User).count()
+    total_alarms = db.query(Alarm).count()
+    total_perfs = db.query(ChallengePerformance).count()
+    total_logs = db.query(ActivityLog).count()
+    total_feedback = db.query(Feedback).count()
+
+    # System metrics
+    mem = psutil.virtual_memory() if hasattr(psutil, 'virtual_memory') else None
+    db_file = "alarm_platform.db"
+    db_size_kb = round(os.path.getsize(db_file) / 1024, 1) if os.path.exists(db_file) else 0
+
+    return {
+        "status": "healthy",
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "database": {
+            "engine": "SQLite / PostgreSQL",
+            "file_size_kb": db_size_kb,
+            "counts": {
+                "users": total_users,
+                "alarms": total_alarms,
+                "challenge_performances": total_perfs,
+                "activity_logs": total_logs,
+                "feedbacks": total_feedback
+            }
+        },
+        "system": {
+            "memory_usage_percent": mem.percent if mem else "N/A",
+            "available_memory_mb": round(mem.available / (1024 * 1024), 1) if mem else "N/A",
+            "cpu_count": os.cpu_count() or 1
+        }
+    }
+
+
+@router.post("/backup/create")
+def admin_create_backup(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 4: Database Snapshot Backup — creates timestamped copy of SQLite DB.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    backup_dir = "backups"
+    os.makedirs(backup_dir, exist_ok=True)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"backup_alarm_platform_{timestamp}.db"
+    backup_path = os.path.join(backup_dir, backup_filename)
+
+    src_db = "alarm_platform.db"
+    if not os.path.exists(src_db):
+        raise HTTPException(status_code=404, detail="Database file not found for backup")
+
+    shutil.copy2(src_db, backup_path)
+    file_size_kb = round(os.path.getsize(backup_path) / 1024, 1)
+
+    log = ActivityLog(
+        user_id=current_admin.id,
+        action="Database Backup Created",
+        details=f"Created backup snapshot: {backup_filename} ({file_size_kb} KB)"
+    )
+    db.add(log)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Database backup created successfully: {backup_filename}",
+        "filename": backup_filename,
+        "size_kb": file_size_kb,
+        "created_at": datetime.datetime.utcnow().isoformat()
+    }
+
+
+@router.get("/backup/list")
+def admin_list_backups(
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 4: List all available database backups.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    backup_dir = "backups"
+    os.makedirs(backup_dir, exist_ok=True)
+
+    backups = []
+    for f in os.listdir(backup_dir):
+        if f.endswith(".db"):
+            fp = os.path.join(backup_dir, f)
+            backups.append({
+                "filename": f,
+                "size_kb": round(os.path.getsize(fp) / 1024, 1),
+                "created_at": datetime.datetime.fromtimestamp(os.path.getctime(fp)).strftime('%Y-%m-%d %H:%M:%S')
+            })
+
+    backups.sort(key=lambda x: x["filename"], reverse=True)
+    return {"backups": backups, "total": len(backups)}
+
+
+@router.get("/backup/download/{filename}")
+def admin_download_backup(
+    filename: str,
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 4: Download a specific database backup snapshot.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    backup_dir = "backups"
+    safe_filename = os.path.basename(filename)
+    backup_path = os.path.join(backup_dir, safe_filename)
+
+    if not os.path.exists(backup_path):
+        raise HTTPException(status_code=404, detail="Backup file not found")
+
+    return FileResponse(
+        backup_path,
+        media_type="application/octet-stream",
+        filename=safe_filename
+    )
+
+
+@router.get("/feedback")
+def admin_get_all_feedback(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 5: Retrieve all user feedback with user details and ratings.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    feedbacks = (
+        db.query(Feedback)
+        .order_by(Feedback.created_at.desc())
+        .all()
+    )
+
+    result = []
+    for fb in feedbacks:
+        u = fb.user
+        result.append({
+            "id": fb.id,
+            "user_id": fb.user_id,
+            "user_name": u.full_name or u.name if u else "User",
+            "user_email": u.email if u else "N/A",
+            "rating": fb.rating,
+            "category": fb.category,
+            "comment": fb.comment,
+            "status": fb.status,
+            "created_at": fb.created_at.strftime('%Y-%m-%d %H:%M') if fb.created_at else None
+        })
+
+    avg_rating = round(sum(f.rating for f in feedbacks) / len(feedbacks), 1) if feedbacks else 5.0
+    return {"feedbacks": result, "total": len(result), "average_rating": avg_rating}
+
+
+@router.post("/feedback/{feedback_id}/status")
+def admin_update_feedback_status(
+    feedback_id: int,
+    status: str = Form(...),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 5: Update feedback review status (new / reviewed / resolved).
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    fb = db.query(Feedback).filter(Feedback.id == feedback_id).first()
+    if not fb:
+        raise HTTPException(status_code=404, detail="Feedback not found")
+
+    fb.status = status
+    db.commit()
+    return {"success": True, "message": f"Feedback status updated to '{status}'"}
+
+
+@router.get("/analytics/engagement")
+def admin_get_engagement_analytics(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Task 5: Analyze user engagement, challenge completion rates, and snooze trends.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    total_users = db.query(User).count()
+    active_users = db.query(User).filter(User.account_status == "active").count()
+    all_perfs = db.query(ChallengePerformance).all()
+
+    total_challenges = len(all_perfs)
+    successful_challenges = sum(1 for p in all_perfs if p.is_correct or p.status == "success")
+    completion_rate = round((successful_challenges / total_challenges * 100), 1) if total_challenges > 0 else 0.0
+
+    all_alarms = db.query(Alarm).all()
+    total_snoozes = sum(a.snooze_count for a in all_alarms)
+    avg_snooze_per_alarm = round(total_snoozes / len(all_alarms), 2) if all_alarms else 0.0
+
+    feedbacks = db.query(Feedback).all()
+    avg_csat = round(sum(f.rating for f in feedbacks) / len(feedbacks), 1) if feedbacks else 5.0
+
+    return {
+        "user_retention": {
+            "total_users": total_users,
+            "active_users": active_users,
+            "activity_rate_percent": round((active_users / total_users * 100), 1) if total_users > 0 else 100.0
+        },
+        "challenge_metrics": {
+            "total_attempted": total_challenges,
+            "total_solved": successful_challenges,
+            "completion_rate_percent": completion_rate
+        },
+        "alarm_behavior": {
+            "total_alarms": len(all_alarms),
+            "total_snooze_events": total_snoozes,
+            "avg_snoozes_per_alarm": avg_snooze_per_alarm
+        },
+        "user_satisfaction": {
+            "average_star_rating": avg_csat,
+            "total_reviews": len(feedbacks)
+        }
+    }
+

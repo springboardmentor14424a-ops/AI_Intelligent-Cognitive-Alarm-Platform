@@ -568,49 +568,15 @@ def simulate_alarm_form(
 # ==============================================================================
 
 def calculate_adapted_difficulty(user_id: int, challenge_type: str, base_difficulty: str, db: Session) -> str:
-    """Personalized Challenge Selection logic based on performance history."""
-    levels = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
-    
-    # 1. Fetch latest 5 attempts for this challenge type or overall
-    history = (
-        db.query(ChallengePerformance)
-        .filter(ChallengePerformance.user_id == user_id, ChallengePerformance.challenge_type == challenge_type)
-        .order_by(ChallengePerformance.created_at.desc())
-        .limit(5)
-        .all()
-    )
-    
-    if not history:
-        history = (
-            db.query(ChallengePerformance)
-            .filter(ChallengePerformance.user_id == user_id)
-            .order_by(ChallengePerformance.created_at.desc())
-            .limit(5)
-            .all()
-        )
-        
-    if not history:
-        return base_difficulty if base_difficulty in levels else "Medium"
-        
-    success_count = sum(1 for p in history if p.status == "success" or p.is_correct)
-    total_attempts = len(history)
-    avg_accuracy = sum(p.accuracy for p in history) / total_attempts
-    avg_time = sum(p.time_taken for p in history) / total_attempts
-    total_failed_attempts = sum(p.failed_attempts for p in history)
-    
+    """Personalized Challenge Selection logic powered by Adaptive Difficulty Engine."""
     try:
-        idx = levels.index(base_difficulty if base_difficulty in levels else "Medium")
-    except ValueError:
-        idx = 2  # Medium
-        
-    # Increase difficulty on strong performance (>=80% acc, <30s time, <=2 failed attempts)
-    if success_count >= 2 and avg_accuracy >= 80 and avg_time < 35 and total_failed_attempts <= 2:
-        idx = min(len(levels) - 1, idx + 1)
-    # Decrease difficulty on poor performance (<=1 success, <60% acc, >60s time, >3 failed attempts)
-    elif success_count <= 1 or avg_accuracy < 60 or avg_time > 60 or total_failed_attempts > 3:
-        idx = max(0, idx - 1)
-        
-    return levels[idx]
+        from ml_engine import MLEngine
+        adj = MLEngine.calculate_difficulty_adjustment(user_id, challenge_type, base_difficulty, db)
+        return adj.get("adjusted_difficulty", base_difficulty or "Medium")
+    except Exception:
+        levels = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
+        return base_difficulty if base_difficulty in levels else "Medium"
+
 
 
 @router.get("/challenges/generate", response_class=JSONResponse)

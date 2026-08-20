@@ -198,6 +198,44 @@ def send_15min_reminders():
         db.close()
 
 
+def check_and_send_bedtime_reminders():
+    """
+    Task 3: Scheduled check running every minute to notify users ~30 min before bedtime.
+    """
+    now = datetime.datetime.now()
+    current_time_str = now.strftime("%H:%M")
+
+    db = SessionLocal()
+    try:
+        from notification_service import send_bedtime_reminder
+        profiles = db.query(UserProfile).all()
+        for p in profiles:
+            if not p.sleep_time:
+                continue
+            try:
+                sh, sm = map(int, p.sleep_time.split(":"))
+                total_mins = sh * 60 + sm
+                reminder_mins = (total_mins - 30) % 1440
+                rh, rm = divmod(reminder_mins, 60)
+                reminder_time = f"{rh:02d}:{rm:02d}"
+
+                if current_time_str == reminder_time:
+                    user = db.query(User).filter(User.id == p.user_id).first()
+                    fcm = getattr(user, "fcm_token", None) if user else None
+                    send_bedtime_reminder(
+                        user_id=p.user_id,
+                        sleep_time=p.sleep_time,
+                        target_wake=p.wake_up_time or "07:00",
+                        fcm_token=fcm
+                    )
+            except Exception as e:
+                logger.debug(f"Bedtime check parse error for user {p.user_id}: {e}")
+    except Exception as e:
+        logger.error(f"Bedtime reminder error: {e}")
+    finally:
+        db.close()
+
+
 # ==============================================================================
 # SCHEDULER LIFECYCLE
 # ==============================================================================
@@ -213,6 +251,7 @@ def start_scheduler() -> BackgroundScheduler:
     Jobs:
       - check_and_fire_alarms : every 1 minute (CronTrigger)
       - send_15min_reminders  : every 1 minute (CronTrigger)
+      - check_and_send_bedtime_reminders: every 1 minute (CronTrigger)
 
     Called once on FastAPI startup via lifespan event handler.
     """
@@ -242,6 +281,15 @@ def start_scheduler() -> BackgroundScheduler:
         CronTrigger(minute="*"),
         id="reminder_job",
         name="15-Min Reminder Sender",
+        replace_existing=True
+    )
+
+    # Job 3: Check & send circadian bedtime reminders
+    _scheduler.add_job(
+        check_and_send_bedtime_reminders,
+        CronTrigger(minute="*"),
+        id="bedtime_reminder_job",
+        name="Bedtime Circadian Reminder",
         replace_existing=True
     )
 

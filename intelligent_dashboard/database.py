@@ -184,12 +184,27 @@ class ChallengePerformance(Base):
     user = relationship("User", backref="performances")
     alarm = relationship("Alarm", backref="performances")
 
+class Feedback(Base):
+    __tablename__ = "feedbacks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    rating = Column(Integer, nullable=False, default=5) # 1 to 5 stars
+    category = Column(String(50), default="general") # alarm, challenge, ui, performance, general
+    comment = Column(String, nullable=False)
+    status = Column(String(20), default="new") # new, reviewed, resolved
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", backref="feedbacks")
+
 def ensure_db_schema():
     Base.metadata.create_all(bind=engine)
     try:
         from sqlalchemy import inspect, text
         inspector = inspect(engine)
-        if "challenge_performances" in inspector.get_table_names():
+        tables = inspector.get_table_names()
+
+        if "challenge_performances" in tables:
             columns = [c["name"] for c in inspector.get_columns("challenge_performances")]
             with engine.connect() as conn:
                 if "score" not in columns:
@@ -227,3 +242,4 @@ def get_db():
         yield db
     finally:
         db.close()
+

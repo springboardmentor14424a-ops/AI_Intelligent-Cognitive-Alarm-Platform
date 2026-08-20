@@ -147,3 +147,112 @@ def send_upcoming_reminder(user_id: int, alarm_title: str, minutes_until: int, f
         logger.error(f"Failed to save reminder notification: {e}")
     finally:
         db.close()
+
+
+def send_bedtime_reminder(user_id: int, sleep_time: str, target_wake: str, fcm_token: str = None):
+    """
+    Task 3: Send an automated bedtime circadian reminder (e.g. 30-45m before sleep time).
+    """
+    title = "🌙 Bedtime Wind-Down Alert"
+    body = f"Time to wind down! Your target sleep is {sleep_time} for a {target_wake} wake-up. Rest well for optimal morning alertness!"
+
+    if fcm_token:
+        send_fcm_push(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data={"type": "bedtime_reminder", "sleep_time": sleep_time, "target_wake": target_wake}
+        )
+
+    db = SessionLocal()
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=body,
+            type="bedtime",
+            read_status=False
+        )
+        db.add(notif)
+        db.commit()
+        logger.info(f"Bedtime reminder saved for user {user_id}")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save bedtime reminder: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def send_habit_reminder(user_id: int, streak_days: int, habit_score: int, fcm_token: str = None):
+    """
+    Task 3: Send a daily habit streak and circadian score maintenance reminder.
+    """
+    title = f"🔥 Streak Reminder: {streak_days} Days Active!"
+    body = f"You are on a {streak_days}-day streak with a Habit Score of {habit_score}! Keep it up tomorrow morning!"
+
+    if fcm_token:
+        send_fcm_push(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data={"type": "habit_reminder", "streak": str(streak_days), "score": str(habit_score)}
+        )
+
+    db = SessionLocal()
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=body,
+            type="habit",
+            read_status=False
+        )
+        db.add(notif)
+        db.commit()
+        logger.info(f"Habit reminder saved for user {user_id}")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save habit reminder: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def send_progress_notification(user_id: int, total_score: float, avg_accuracy: float, fcm_token: str = None):
+    """
+    Task 3: Send weekly cognitive performance milestone digest.
+    """
+    title = "📊 Weekly Cognitive Progress Digest"
+    body = f"Great work! You have accumulated {total_score:.0f} points with {avg_accuracy:.0f}% average challenge accuracy. Check your analytics dashboard!"
+
+    if fcm_token:
+        send_fcm_push(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data={"type": "progress_digest", "score": str(total_score), "accuracy": str(avg_accuracy)}
+        )
+
+    db = SessionLocal()
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=body,
+            type="progress",
+            read_status=False
+        )
+        db.add(notif)
+        db.commit()
+        logger.info(f"Progress notification saved for user {user_id}")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save progress notification: {e}")
+        return False
+    finally:
+        db.close()
+

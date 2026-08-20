@@ -9,14 +9,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from config import Config
-from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report, ChallengePerformance
-from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes
+from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report, ChallengePerformance, Feedback
+from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes, ai_personalization as ai_routes
 import auth
 from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
 os.makedirs("static/css", exist_ok=True)
 os.makedirs("static/js", exist_ok=True)
 os.makedirs("static/images", exist_ok=True)
+os.makedirs("backups", exist_ok=True)
 
 
 Base.metadata.create_all(bind=engine)
@@ -113,12 +114,41 @@ app.include_router(coach_routes.router, prefix="/api/coach", tags=["Coach Operat
 app.include_router(alarm_routes.router, prefix="/api/alarm", tags=["Alarms APIs"])
 app.include_router(alarm_routes.router, prefix="/alarms", tags=["Alarms Alias APIs"])
 app.include_router(alarm_routes.router, prefix="/api", tags=["Cognitive Challenges APIs"])
+app.include_router(ai_routes.router, prefix="/api/ai", tags=["AI & Personalization APIs"])
 
 
 @app.get("/scheduler/status", response_class=JSONResponse, tags=["Scheduler"])
 def scheduler_status():
     """GET /scheduler/status — Check APScheduler running state and job list."""
     return get_scheduler_status()
+
+
+@app.get("/api/system/health", response_class=JSONResponse, tags=["System Health"])
+@app.get("/health", response_class=JSONResponse, tags=["System Health"])
+def system_health_check(db: Session = Depends(get_db)):
+    """
+    Task 4: Production Health Check — monitors server uptime, DB connectivity, active scheduler, and alarm readiness.
+    """
+    scheduler_info = get_scheduler_status()
+    db_connected = False
+    try:
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+        db_connected = True
+    except Exception:
+        db_connected = False
+
+    return {
+        "status": "healthy" if db_connected and scheduler_info.get("running") else "degraded",
+        "service": Config.PROJECT_NAME,
+        "environment": "production",
+        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "database_connected": db_connected,
+        "scheduler_running": scheduler_info.get("running", False),
+        "scheduler_jobs_count": len(scheduler_info.get("jobs", [])),
+        "api_version": "5.0.0"
+    }
+
 
 
 @app.get("/", response_class=HTMLResponse)

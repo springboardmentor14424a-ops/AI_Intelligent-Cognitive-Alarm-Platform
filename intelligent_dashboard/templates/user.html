@@ -54,7 +54,8 @@
                     <button onclick="setTab('overview-tab', this)" class="nav-btn active">📊 Overview</button>
                     <button onclick="setTab('alarms-tab', this)" class="nav-btn">⏰ Alarm Centre</button>
                     <button onclick="setTab('challenges-tab', this)" class="nav-btn">🧠 Challenges</button>
-                    <button onclick="setTab('analytics-tab', this)" class="nav-btn">📈 Sleep Analytics</button>
+                    <button onclick="setTab('analytics-tab', this)" class="nav-btn">📈 Analytics</button>
+                    <button onclick="setTab('personalization-tab', this); loadPersonalizationTab();" class="nav-btn" style="background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa; font-weight: 600;">🎯 AI Personalization</button>
                     <button onclick="setTab('profile-tab', this)" class="nav-btn">⚙ Profile Settings</button>
                 </nav>
             </div>
@@ -159,21 +160,71 @@
                         <div class="glass-card">
                             <h3 style="margin-bottom: 12px;">Wellness Reports</h3>
                             <div style="display: flex; flex-direction: column; gap: 10px;">
-                                <a href="/api/admin/export?format=pdf" class="btn btn-secondary" style="justify-content: flex-start;">📄 Download PDF Report</a>
-                                <a href="/api/admin/export?format=excel" class="btn btn-secondary" style="justify-content: flex-start;">📊 Download Excel Report</a>
-                                <a href="/api/admin/export?format=csv" class="btn btn-secondary" style="justify-content: flex-start;">📝 Download CSV Report</a>
+                                <a href="/api/user/export?format=pdf" class="btn btn-secondary" style="justify-content: flex-start;">📄 Download PDF Report</a>
+                                <a href="/api/user/export?format=excel" class="btn btn-secondary" style="justify-content: flex-start;">📊 Download Excel Report</a>
+                                <a href="/api/user/export?format=csv" class="btn btn-secondary" style="justify-content: flex-start;">📝 Download CSV Report</a>
                             </div>
                         </div>
 
-                        <div class="glass-card">
-                            <h3>Coach Recommendations & Notes</h3>
-                            <p style="font-size: 13px; color: var(--text-secondary); font-style: italic; margin-top: 10px; line-height: 1.5;">
-                                {% if profile and profile.productivity_goal %}
-                                    {{ profile.productivity_goal }}
-                                {% else %}
-                                    "Establish an optimized waking sequence. Minimize snooze clicks to maximize streak metrics."
-                                {% endif %}
-                            </p>
+                        <!-- User Feedback Card -->
+                        <div class="glass-card" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(234, 88, 12, 0.05) 100%);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <h3 style="font-size: 16px;">⭐ Platform Feedback</h3>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Help us optimize your cognitive waking experience.</p>
+                            <button onclick="openModal('user-feedback-modal')" class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 8px;">✍ Submit Feedback & Rating</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Circadian & Snooze Prediction Widget -->
+                <div class="glass-card" style="margin-top: 24px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.08) 100%); border: 1px solid rgba(139, 92, 246, 0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 22px;">🤖</span>
+                                <h3 style="font-size: 18px; font-weight: 800; color: var(--text-primary);">AI Circadian & ML Personalization Engine</h3>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Real-time predictive behavior modeling and personalized waking recommendations.</p>
+                        </div>
+                        <button onclick="applyAIPersonalization()" class="btn btn-primary" style="font-size: 12px; padding: 8px 16px; background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);">
+                            ✨ Apply AI Recommendations
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                        <!-- Snooze / Oversleep Risk Predictor -->
+                        <div style="background: var(--bg-card); padding: 14px; border-radius: 10px; border: 1px solid var(--border-card);">
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Snooze & Oversleep Risk</div>
+                            <div style="display: flex; align-items: baseline; gap: 8px; margin: 6px 0;">
+                                <span id="ai-snooze-prob" style="font-size: 24px; font-weight: 800; color: #38bdf8;">--%</span>
+                                <span id="ai-risk-badge" class="badge" style="font-size: 11px;">Calculating...</span>
+                            </div>
+                            <p id="ai-risk-rec" style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">Analyzing recent wake patterns...</p>
+                        </div>
+
+                        <!-- Optimal Bedtime Recommendation -->
+                        <div style="background: var(--bg-card); padding: 14px; border-radius: 10px; border: 1px solid var(--border-card);">
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Optimal Bedtime Window</div>
+                            <div style="font-size: 24px; font-weight: 800; color: #a78bfa; margin: 6px 0;" id="ai-optimal-bedtime">--:--</div>
+                            <p style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">For a <strong style="color: var(--text-primary);">{{ profile.wake_up_time if profile else '07:00' }}</strong> wake-up target ({{ profile.sleep_duration if profile else 8.0 }}h sleep goal).</p>
+                        </div>
+
+                        <!-- AI Recommended Challenge & Difficulty -->
+                        <div style="background: var(--bg-card); padding: 14px; border-radius: 10px; border: 1px solid var(--border-card);">
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Top Clearance Challenge</div>
+                            <div style="font-size: 20px; font-weight: 800; color: #4ade80; margin: 6px 0;" id="ai-top-challenge">--</div>
+                            <p style="font-size: 11px; color: var(--text-secondary); line-height: 1.4;">Recommended Level: <strong id="ai-top-diff" style="color: #f59e0b;">Medium</strong></p>
+                        </div>
+                    </div>
+
+                    <!-- Real-Time Notification Test Bar -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.15); padding: 10px 14px; border-radius: 8px; flex-wrap: wrap; gap: 10px;">
+                        <span style="font-size: 12px; color: var(--text-secondary);">🔔 <strong>Real-Time Notifications:</strong> Test automated push & in-app alerts</span>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="testNotification('bedtime')" class="btn btn-secondary" style="font-size: 11px; padding: 5px 10px;">🌙 Test Bedtime Alert</button>
+                            <button onclick="testNotification('habit')" class="btn btn-secondary" style="font-size: 11px; padding: 5px 10px;">🔥 Test Habit Alert</button>
+                            <button onclick="testNotification('progress')" class="btn btn-secondary" style="font-size: 11px; padding: 5px 10px;">📊 Test Progress Alert</button>
                         </div>
                     </div>
                 </div>
@@ -504,7 +555,212 @@
                 </div>
             </div>
 
-            <!-- TAB 4: PROFILE SETTINGS -->
+            <!-- ============================================================ -->
+            <!-- TAB 5: AI PERSONALIZATION & ENGAGEMENT OPTIMIZATION (MODULE 5) -->
+            <!-- ============================================================ -->
+            <div id="personalization-tab" class="switch-tab">
+
+                <!-- Header Banner -->
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%); border: 1px solid rgba(139,92,246,0.3);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+                                <span style="font-size: 28px;">🤖</span>
+                                <h2 style="font-size: 22px; font-weight: 800;">AI Personalization & Engagement Optimization</h2>
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 13px; max-width: 620px;">
+                                Adaptive ML engine continuously analyzes your waking behavior, challenge performance, and circadian patterns to deliver fully personalized recommendations. Apply them instantly to optimize your morning routine.
+                            </p>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            <button onclick="applyAIPersonalization()" class="btn btn-primary" style="background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%);">
+                                ✨ Apply All AI Recommendations
+                            </button>
+                            <button onclick="loadPersonalizationTab()" class="btn btn-secondary" style="font-size: 12px;">
+                                🔄 Refresh AI Analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI Row: Risk + Bedtime + Challenge + Difficulty -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <div class="glass-card" style="text-align: center;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Snooze Risk</div>
+                        <div id="pe-snooze-prob" style="font-size: 36px; font-weight: 900; color: #38bdf8; margin: 6px 0;">--%</div>
+                        <div id="pe-risk-badge" class="badge" style="font-size: 12px;">Loading...</div>
+                    </div>
+                    <div class="glass-card" style="text-align: center;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Optimal Bedtime</div>
+                        <div id="pe-bedtime" style="font-size: 36px; font-weight: 900; color: #a78bfa; margin: 6px 0;">--:--</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Wind-down reminder: <span id="pe-reminder-time" style="color: var(--text-primary);">--:--</span></div>
+                    </div>
+                    <div class="glass-card" style="text-align: center;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Best Challenge Type</div>
+                        <div id="pe-top-challenge" style="font-size: 20px; font-weight: 800; color: #4ade80; margin: 6px 0;">--</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Recommended Difficulty: <strong id="pe-difficulty" style="color: #f59e0b;">--</strong></div>
+                    </div>
+                    <div class="glass-card" style="text-align: center;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">Habit Score</div>
+                        <div id="pe-habit-score" style="font-size: 36px; font-weight: 900; color: #10b981; margin: 6px 0;">{{ profile.habit_score if profile else '--' }}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Streak: <strong style="color: #f59e0b;">{{ profile.streak if profile else 0 }} days</strong></div>
+                    </div>
+                </div>
+
+                <!-- AI Insights Panel -->
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">💡 AI-Generated Insights & Recommendations</h3>
+                    <div id="pe-insights-list" style="display: flex; flex-direction: column; gap: 10px;">
+                        <div style="color: var(--text-secondary); font-size: 13px; font-style: italic;">Analyzing your behavioral data...</div>
+                    </div>
+                </div>
+
+                <!-- Two Column: Challenge Rankings + Risk Factors -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-wrap: wrap;">
+
+                    <!-- Challenge Efficacy Rankings -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">🏆 Personalized Challenge Efficacy Rankings</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Ranked by waking inertia clearance speed, accuracy, and win rate for your cognitive profile.</p>
+                        <div id="pe-challenge-rankings" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="color: var(--text-secondary); font-size: 12px;">Loading rankings...</div>
+                        </div>
+                    </div>
+
+                    <!-- Risk Factors -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">⚠️ Behavioral Risk Factors</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Contributing factors detected from your recent alarm & challenge history.</p>
+                        <div id="pe-risk-factors" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="color: var(--text-secondary); font-size: 12px;">Loading risk analysis...</div>
+                        </div>
+                        <div id="pe-recommendation" style="margin-top: 14px; padding: 12px; background: rgba(99,102,241,0.08); border-radius: 8px; border-left: 3px solid #8b5cf6; font-size: 13px; color: var(--text-primary); display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- NEW: Adaptive Difficulty & Learning Patterns Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; flex-wrap: wrap;">
+
+                    <!-- Adaptive Difficulty Engine Card -->
+                    <div class="glass-card" style="border: 1px solid rgba(139,92,246,0.3);">
+                        <h3 style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">🎯 Adaptive Difficulty Engine</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Real-time difficulty adjustment across <strong>Beginner ➔ Easy ➔ Medium ➔ Hard ➔ Expert</strong>.</p>
+                        
+                        <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 8px; padding: 14px; margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-size: 12px; color: var(--text-secondary);">Current Adaptive Level:</span>
+                                <span id="pe-diff-level-badge" class="badge" style="background: rgba(139,92,246,0.2); color: #a78bfa; font-weight: 700; font-size: 13px;">Medium</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">
+                                <span>Beginner</span><span>Easy</span><span>Medium</span><span>Hard</span><span>Expert</span>
+                            </div>
+                            <div style="background: var(--bg-card); border-radius: 6px; height: 6px; overflow: hidden;">
+                                <div id="pe-diff-progressbar" style="width: 60%; height: 100%; background: linear-gradient(90deg, #38bdf8, #8b5cf6, #ec4899); border-radius: 6px; transition: width 0.6s ease;"></div>
+                            </div>
+                            <div id="pe-diff-reason" style="margin-top: 10px; font-size: 12px; color: var(--text-primary); line-height: 1.4;">Evaluating performance thresholds...</div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 6px; padding: 8px 10px;">
+                                <div style="font-size: 10px; color: var(--text-secondary);">Cognitive Speed</div>
+                                <div id="pe-cog-speed" style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-top: 2px;">--</div>
+                            </div>
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 6px; padding: 8px 10px;">
+                                <div style="font-size: 10px; color: var(--text-secondary);">Mastery Score</div>
+                                <div id="pe-mastery-score" style="font-size: 13px; font-weight: 700; color: #4ade80; margin-top: 2px;">-- / 100</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Learning Patterns & Engagement Optimization -->
+                    <div class="glass-card" style="border: 1px solid rgba(56,189,248,0.3);">
+                        <h3 style="margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">📈 Learning Pattern Analysis & Engagement</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">Longitudinal neuro-cognitive growth and waking momentum trajectory.</p>
+
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+                            <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 6px; padding: 8px; text-align: center;">
+                                <div style="font-size: 10px; color: var(--text-secondary);">Trajectory</div>
+                                <div id="pe-learning-trend" style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-top: 2px;">--</div>
+                            </div>
+                            <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 6px; padding: 8px; text-align: center;">
+                                <div style="font-size: 10px; color: var(--text-secondary);">Speed Gain</div>
+                                <div id="pe-speed-gain" style="font-size: 12px; font-weight: 700; color: #4ade80; margin-top: 2px;">--%</div>
+                            </div>
+                            <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 6px; padding: 8px; text-align: center;">
+                                <div style="font-size: 10px; color: var(--text-secondary);">Retention Index</div>
+                                <div id="pe-retention-idx" style="font-size: 12px; font-weight: 700; color: #a78bfa; margin-top: 2px;">-- / 100</div>
+                            </div>
+                        </div>
+
+                        <div id="pe-pattern-insights" style="display: flex; flex-direction: column; gap: 6px;">
+                            <div style="font-size: 12px; color: var(--text-secondary);">Loading pattern trajectory...</div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Engagement: Real-Time Notifications -->
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(5,150,105,0.05) 100%); border: 1px solid rgba(16,185,129,0.2);">
+                    <h3 style="margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">🔔 Real-Time Engagement Notifications</h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px;">Test automated alerts: bedtime wind-down reminders, habit streak nudges, and weekly progress digests. These fire automatically based on your schedule.</p>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px; padding: 14px;">
+                            <div style="font-size: 20px; margin-bottom: 8px;">🌙</div>
+                            <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">Bedtime Wind-Down</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Fires 30 min before your optimal bedtime to start your sleep routine.</div>
+                            <button onclick="testNotification('bedtime')" class="btn btn-secondary" style="width: 100%; font-size: 11px; padding: 6px;">▶ Test Bedtime Alert</button>
+                        </div>
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px; padding: 14px;">
+                            <div style="font-size: 20px; margin-bottom: 8px;">🔥</div>
+                            <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">Habit Streak Reminder</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Evening reminder to protect your active streak and prevent backsliding.</div>
+                            <button onclick="testNotification('habit')" class="btn btn-secondary" style="width: 100%; font-size: 11px; padding: 6px;">▶ Test Habit Alert</button>
+                        </div>
+                        <div style="background: var(--bg-card); border: 1px solid var(--border-card); border-radius: 10px; padding: 14px;">
+                            <div style="font-size: 20px; margin-bottom: 8px;">📊</div>
+                            <div style="font-size: 13px; font-weight: 600; margin-bottom: 4px;">Weekly Progress Digest</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Sunday summary of challenges solved, score earned, and sleep consistency.</div>
+                            <button onclick="testNotification('progress')" class="btn btn-secondary" style="width: 100%; font-size: 11px; padding: 6px;">▶ Test Progress Digest</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Applied Settings Panel -->
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 12px;">⚙️ Currently Applied Personalization Settings</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">
+                        <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                            <div style="font-size: 11px; color: var(--text-secondary);">Wake-Up Time</div>
+                            <div style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ profile.wake_up_time if profile else '07:00' }}</div>
+                        </div>
+                        <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                            <div style="font-size: 11px; color: var(--text-secondary);">Target Sleep Duration</div>
+                            <div style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ profile.sleep_duration if profile else 8.0 }} hrs</div>
+                        </div>
+                        <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                            <div style="font-size: 11px; color: var(--text-secondary);">AI Challenge Preference</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #a78bfa; margin-top: 4px;" id="pe-applied-challenge">{{ profile.challenge_preference if profile and profile.challenge_preference else 'Not set yet' }}</div>
+                        </div>
+                        <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                            <div style="font-size: 11px; color: var(--text-secondary);">AI Difficulty Level</div>
+                            <div style="font-size: 15px; font-weight: 700; color: #4ade80; margin-top: 4px;" id="pe-applied-difficulty">{{ profile.difficulty_level.title() if profile and profile.difficulty_level else 'Not set yet' }}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback CTA -->
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(234,88,12,0.05) 100%); border: 1px solid rgba(245,158,11,0.2); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h3 style="font-size: 16px; margin-bottom: 4px;">⭐ Help Improve AI Personalization</h3>
+                        <p style="font-size: 12px; color: var(--text-secondary);">Your feedback directly improves the ML model's recommendations for your profile.</p>
+                    </div>
+                    <button onclick="openModal('user-feedback-modal')" class="btn btn-primary" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); white-space: nowrap;">
+                        ✍ Submit AI Feedback
+                    </button>
+                </div>
+            </div>
+
+            <!-- TAB 5 (was 4): PROFILE SETTINGS -->
             <div id="profile-tab" class="switch-tab">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                     <div class="glass-card">
@@ -574,24 +830,16 @@
                     <label>Alarm Time</label>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         <select id="alarm-hour" class="form-input" style="background: var(--bg-secondary); color: var(--text-primary); flex: 1;">
-                            <option value="01">01</option><option value="02">02</option><option value="03">03</option>
-                            <option value="04">04</option><option value="05">05</option><option value="06">06</option>
-                            <option value="07" selected>07</option><option value="08">08</option><option value="09">09</option>
-                            <option value="10">10</option><option value="11">11</option><option value="12">12</option>
                         </select>
                         <span style="font-size: 18px; font-weight: bold;">:</span>
                         <select id="alarm-min" class="form-input" style="background: var(--bg-secondary); color: var(--text-primary); flex: 1;">
-                            <option value="00">00</option><option value="05">05</option><option value="10">10</option>
-                            <option value="15">15</option><option value="20">20</option><option value="25">25</option>
-                            <option value="30">30</option><option value="35">35</option><option value="40">40</option>
-                            <option value="45">45</option><option value="50">50</option><option value="55">55</option>
                         </select>
                         <select id="alarm-period" class="form-input" style="background: var(--bg-secondary); color: var(--text-primary); flex: 1;">
                             <option value="AM">AM</option>
                             <option value="PM">PM</option>
                         </select>
                     </div>
-                    <!-- Hidden input carries the normalized time to the server -->
+                    <!-- Hidden input carries the normalized HH:MM (24h) time to the server -->
                     <input type="hidden" name="alarm_time" id="alarm-time-hidden">
                 </div>
                 <div class="form-group">
@@ -724,33 +972,100 @@
         </div>
     </div>
 
-    <!-- Weekly Preference Prompt Modal -->
-    <div id="weekly-pref-modal" class="modal-overlay">
-        <div class="modal-content" style="max-width: 440px; text-align: center;">
-            <div style="font-size: 40px; margin-bottom: 8px;">🧠</div>
-            <h3 style="margin-bottom: 8px;">Weekly Challenge Preference</h3>
-            <p id="weekly-pref-text" style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Would you like to play similar puzzles this week?</p>
-
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button type="button" onclick="confirmWeeklyPreference(true)" class="btn btn-primary" style="padding: 10px;">Yes, set as my weekly preference! 👍</button>
-                <button type="button" onclick="confirmWeeklyPreference(false)" class="btn btn-secondary" style="padding: 10px;">No thanks, keep existing setup</button>
+    <!-- Module 5: User Feedback Modal -->
+    <div id="user-feedback-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="display: flex; align-items: center; gap: 8px;">⭐ Platform Feedback</h3>
+                <button onclick="closeModal('user-feedback-modal')" style="background: none; border: none; font-size: 20px; color: var(--text-secondary); cursor: pointer;">✕</button>
             </div>
+            <form onsubmit="submitFeedbackForm(event)">
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label>Overall Experience Rating</label>
+                    <div style="display: flex; gap: 10px; font-size: 24px; cursor: pointer; margin-top: 4px;" id="star-rating-container">
+                        <span onclick="setRating(1)" class="star-item" data-val="1">★</span>
+                        <span onclick="setRating(2)" class="star-item" data-val="2">★</span>
+                        <span onclick="setRating(3)" class="star-item" data-val="3">★</span>
+                        <span onclick="setRating(4)" class="star-item" data-val="4">★</span>
+                        <span onclick="setRating(5)" class="star-item" data-val="5" style="color: #f59e0b;">★</span>
+                    </div>
+                    <input type="hidden" id="fb-rating" value="5">
+                </div>
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label>Feedback Category</label>
+                    <select id="fb-category" class="form-input" style="background: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="alarm">⏰ Alarm Schedules & Triggers</option>
+                        <option value="challenge">🧠 Cognitive Challenges & AI Difficulty</option>
+                        <option value="personalization">🤖 AI Personalization & Recommendations</option>
+                        <option value="ui">🎨 UI & Dashboard Design</option>
+                        <option value="performance">⚡ Performance & Speed</option>
+                        <option value="general" selected>💡 General Suggestions</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label>Your Comments & Suggestions</label>
+                    <textarea id="fb-comment" required class="form-input" rows="4" style="background: var(--bg-secondary); color: var(--text-primary); resize: vertical;" placeholder="Tell us how we can make your morning routine even better..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Submit Feedback</button>
+            </form>
         </div>
     </div>
 
     <script src="/static/js/app.js"></script>
+
     <script>
+        // =====================================================================
+        // ALARM TIME PICKER — populate all hours (1-12) and minutes (00-59)
+        // =====================================================================
+        (function buildTimePicker() {
+            const hourSel = document.getElementById('alarm-hour');
+            const minSel  = document.getElementById('alarm-min');
+
+            // Build hours 01 – 12
+            for (let h = 1; h <= 12; h++) {
+                const opt = document.createElement('option');
+                opt.value = String(h).padStart(2, '0');
+                opt.textContent = String(h).padStart(2, '0');
+                hourSel.appendChild(opt);
+            }
+
+            // Build minutes 00 – 59 (every single minute)
+            for (let m = 0; m <= 59; m++) {
+                const opt = document.createElement('option');
+                opt.value = String(m).padStart(2, '0');
+                opt.textContent = String(m).padStart(2, '0');
+                minSel.appendChild(opt);
+            }
+
+            // Pre-select current local time
+            const now = new Date();
+            let hNow = now.getHours();
+            const mNow = now.getMinutes();
+            const period = hNow >= 12 ? 'PM' : 'AM';
+            let h12 = hNow % 12 || 12;
+
+            hourSel.value = String(h12).padStart(2, '0');
+            minSel.value  = String(mNow).padStart(2, '0');
+            document.getElementById('alarm-period').value = period;
+        })();
+
         // =====================================================================
         // AM/PM Alarm Time Builder — fills hidden input before form submit
         // =====================================================================
         document.querySelector('#add-alarm-modal form').addEventListener('submit', function(e) {
-            const h = parseInt(document.getElementById('alarm-hour').value);
+            const h = parseInt(document.getElementById('alarm-hour').value, 10);
             const m = document.getElementById('alarm-min').value;
             const period = document.getElementById('alarm-period').value;
+            if (!m || m === '') {
+                e.preventDefault();
+                alert('Please select a valid minute.');
+                return;
+            }
             let h24 = h;
-            if (period === 'PM' && h < 12) h24 = h + 12;
+            if (period === 'PM' && h !== 12) h24 = h + 12;
             if (period === 'AM' && h === 12) h24 = 0;
-            document.getElementById('alarm-time-hidden').value = `${String(h24).padStart(2,'0')}:${m}`;
+            document.getElementById('alarm-time-hidden').value =
+                `${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
         });
 
         // =====================================================================
@@ -1512,6 +1827,301 @@
                     scales: { y: { min: 0, max: 100 } }
                 }
             });
+        }
+
+        // =====================================================================
+        // MODULE 5: AI PERSONALIZATION & FEEDBACK JAVASCRIPT HANDLERS
+        // =====================================================================
+
+        async function loadAIPersonalization() {
+            try {
+                const res = await fetch('/api/ai/personalization-summary');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                // Update Snooze / Oversleep Risk
+                const snoozeProbEl = document.getElementById('ai-snooze-prob');
+                const riskBadgeEl = document.getElementById('ai-risk-badge');
+                const riskRecEl = document.getElementById('ai-risk-rec');
+
+                if (snoozeProbEl) snoozeProbEl.textContent = `${data.snooze_probability}%`;
+                if (riskBadgeEl) {
+                    riskBadgeEl.textContent = `${data.oversleep_risk} Risk`;
+                    riskBadgeEl.className = `badge ${data.oversleep_risk === 'High' ? 'badge-danger' : (data.oversleep_risk === 'Moderate' ? 'badge-warning' : 'badge-active')}`;
+                    if (data.oversleep_risk === 'High') {
+                        riskBadgeEl.style.background = 'rgba(239, 68, 68, 0.2)';
+                        riskBadgeEl.style.color = '#ef4444';
+                    } else if (data.oversleep_risk === 'Moderate') {
+                        riskBadgeEl.style.background = 'rgba(245, 158, 11, 0.2)';
+                        riskBadgeEl.style.color = '#f59e0b';
+                    } else {
+                        riskBadgeEl.style.background = 'rgba(34, 197, 94, 0.2)';
+                        riskBadgeEl.style.color = '#22c55e';
+                    }
+                }
+                if (riskRecEl && data.ai_insights && data.ai_insights.length > 0) {
+                    riskRecEl.textContent = data.ai_insights[0];
+                }
+
+                // Update Optimal Bedtime
+                const bedtimeEl = document.getElementById('ai-optimal-bedtime');
+                if (bedtimeEl) bedtimeEl.textContent = data.optimal_bedtime || '22:30';
+
+                // Update Top Challenge
+                const topChalEl = document.getElementById('ai-top-challenge');
+                const topDiffEl = document.getElementById('ai-top-diff');
+                if (topChalEl) topChalEl.textContent = data.recommended_challenge_type || 'Math Problems';
+                if (topDiffEl) topDiffEl.textContent = data.recommended_difficulty || 'Medium';
+
+            } catch (err) {
+                console.error('Failed to load AI Personalization:', err);
+            }
+        }
+
+        // Auto load on page load
+        document.addEventListener('DOMContentLoaded', loadAIPersonalization);
+        loadAIPersonalization();
+
+        async function applyAIPersonalization() {
+            try {
+                showToast('Applying AI recommendations...', 'info');
+                const res = await fetch('/api/ai/apply-recommendations', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    showToast(data.detail || 'Failed to apply recommendations', 'error');
+                }
+            } catch (err) {
+                showToast('Network error while applying AI recommendations', 'error');
+            }
+        }
+
+        async function testNotification(type) {
+            try {
+                showToast(`Triggering test ${type} notification...`, 'info');
+                const res = await fetch(`/api/ai/test-notification?notif_type=${type}`, { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(data.message, 'success');
+                    // Refresh notifications count
+                    pollNotifications();
+                } else {
+                    showToast('Notification trigger failed', 'warning');
+                }
+            } catch (err) {
+                showToast('Error sending notification', 'error');
+            }
+        }
+
+        function setRating(val) {
+            document.getElementById('fb-rating').value = val;
+            const stars = document.querySelectorAll('.star-item');
+            stars.forEach((s, idx) => {
+                s.style.color = (idx < val) ? '#f59e0b' : 'var(--text-secondary)';
+            });
+        }
+
+        async function submitFeedbackForm(e) {
+            e.preventDefault();
+            const rating = document.getElementById('fb-rating').value;
+            const category = document.getElementById('fb-category').value;
+            const comment = document.getElementById('fb-comment').value;
+
+            const formData = new FormData();
+            formData.append('rating', rating);
+            formData.append('category', category);
+            formData.append('comment', comment);
+
+            try {
+                const res = await fetch('/api/user/feedback', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('⭐ ' + data.message, 'success');
+                    closeModal('user-feedback-modal');
+                    document.getElementById('fb-comment').value = '';
+                } else {
+                    showToast(data.detail || 'Failed to submit feedback', 'error');
+                }
+            } catch (err) {
+                showToast('Network error while submitting feedback', 'error');
+            }
+        }
+
+        // =====================================================================
+        // MODULE 5: FULL PERSONALIZATION & ADAPTIVE DIFFICULTY ENGINE LOADER
+        // =====================================================================
+
+        async function loadPersonalizationTab() {
+            try {
+                // Fetch prediction + personalization summary + engagement optimization in parallel
+                const [predRes, summaryRes, engageRes] = await Promise.all([
+                    fetch('/api/ai/predictions'),
+                    fetch('/api/ai/personalization-summary'),
+                    fetch('/api/ai/engagement-optimization')
+                ]);
+                if (!predRes.ok || !summaryRes.ok) {
+                    showToast('Could not load AI data', 'warning');
+                    return;
+                }
+                const pred = await predRes.json();
+                const summary = await summaryRes.json();
+                const engage = engageRes.ok ? await engageRes.json() : null;
+
+                // --- KPI Cards ---
+                const snoozeEl = document.getElementById('pe-snooze-prob');
+                const riskBadgeEl = document.getElementById('pe-risk-badge');
+                const bedtimeEl = document.getElementById('pe-bedtime');
+                const reminderEl = document.getElementById('pe-reminder-time');
+                const topChalEl = document.getElementById('pe-top-challenge');
+                const diffEl = document.getElementById('pe-difficulty');
+
+                if (snoozeEl) snoozeEl.textContent = `${pred.snooze_probability}%`;
+                if (riskBadgeEl) {
+                    riskBadgeEl.textContent = `${pred.oversleep_risk} Risk`;
+                    const riskColors = { 'High': ['rgba(239,68,68,0.2)', '#ef4444'], 'Moderate': ['rgba(245,158,11,0.2)', '#f59e0b'], 'Low': ['rgba(34,197,94,0.2)', '#22c55e'] };
+                    const [bg, fg] = riskColors[pred.oversleep_risk] || riskColors['Low'];
+                    riskBadgeEl.style.background = bg;
+                    riskBadgeEl.style.color = fg;
+                    if (snoozeEl) snoozeEl.style.color = fg;
+                }
+                if (bedtimeEl) bedtimeEl.textContent = summary.optimal_bedtime || '--:--';
+                if (reminderEl) reminderEl.textContent = summary.bedtime_reminder_time || '--:--';
+                if (topChalEl) topChalEl.textContent = summary.recommended_challenge_type || '--';
+                if (diffEl) diffEl.textContent = summary.recommended_difficulty || '--';
+
+                // --- AI Insights Panel ---
+                const insightsList = document.getElementById('pe-insights-list');
+                if (insightsList && summary.ai_insights && summary.ai_insights.length > 0) {
+                    insightsList.innerHTML = summary.ai_insights.map((insight, idx) => {
+                        const icons = ['💡', '🎯', '⚡', '🌙', '📊'];
+                        return `
+                            <div style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: rgba(99,102,241,0.06); border: 1px solid rgba(139,92,246,0.15); border-radius: 8px;">
+                                <span style="font-size: 16px; flex-shrink: 0;">${icons[idx] || '✦'}</span>
+                                <span style="font-size: 13px; color: var(--text-primary); line-height: 1.5;">${insight}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // --- Challenge Rankings ---
+                const rankingsEl = document.getElementById('pe-challenge-rankings');
+                if (rankingsEl && summary.challenge_rankings && summary.challenge_rankings.length > 0) {
+                    rankingsEl.innerHTML = summary.challenge_rankings.map(r => {
+                        const pct = Math.min(100, Math.max(0, r.efficacy_score));
+                        const barColor = r.rank === 1 ? '#4ade80' : (r.rank <= 3 ? '#38bdf8' : '#8b5cf6');
+                        const medal = r.rank === 1 ? '🥇' : (r.rank === 2 ? '🥈' : (r.rank === 3 ? '🥉' : `#${r.rank}`));
+                        return `
+                            <div style="background: var(--bg-secondary); border: 1px solid var(--border-card); border-radius: 8px; padding: 10px 12px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 14px;">${medal}</span>
+                                        <span style="font-size: 13px; font-weight: 600;">${r.challenge_type}</span>
+                                        ${r.attempts === 0 ? '<span style="font-size: 10px; color: var(--text-secondary); background: rgba(255,255,255,0.05); padding: 1px 6px; border-radius: 4px;">new</span>' : ''}
+                                    </div>
+                                    <span style="font-size: 12px; font-weight: 700; color: ${barColor};">${r.efficacy_score} score</span>
+                                </div>
+                                <div style="background: var(--bg-card); border-radius: 4px; height: 4px; overflow: hidden;">
+                                    <div style="width: ${pct}%; height: 100%; background: ${barColor}; border-radius: 4px; transition: width 0.6s ease;"></div>
+                                </div>
+                                <div style="display: flex; gap: 12px; margin-top: 6px; font-size: 10px; color: var(--text-secondary);">
+                                    <span>Accuracy: <strong style="color: var(--text-primary);">${r.accuracy}%</strong></span>
+                                    <span>Avg Time: <strong style="color: var(--text-primary);">${r.avg_time}s</strong></span>
+                                    <span>Win Rate: <strong style="color: var(--text-primary);">${r.win_rate}%</strong></span>
+                                    <span>Attempts: <strong style="color: var(--text-primary);">${r.attempts}</strong></span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                // --- Risk Factors ---
+                const riskFactorsEl = document.getElementById('pe-risk-factors');
+                const recEl = document.getElementById('pe-recommendation');
+                if (riskFactorsEl && pred.factors && pred.factors.length > 0) {
+                    const riskColor = pred.oversleep_risk === 'High' ? '#ef4444' : (pred.oversleep_risk === 'Moderate' ? '#f59e0b' : '#22c55e');
+                    riskFactorsEl.innerHTML = pred.factors.map(f => `
+                        <div style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; background: rgba(99,102,241,0.05); border: 1px solid var(--border-card); border-radius: 6px;">
+                            <span style="color: ${riskColor}; font-size: 14px; flex-shrink: 0;">◆</span>
+                            <span style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">${f}</span>
+                        </div>
+                    `).join('');
+                } else if (riskFactorsEl) {
+                    riskFactorsEl.innerHTML = '<div style="font-size: 12px; color: #22c55e;">✅ No significant risk factors detected. Circadian alignment is healthy.</div>';
+                }
+                if (recEl && pred.recommendation) {
+                    recEl.textContent = `💬 ${pred.recommendation}`;
+                    recEl.style.display = 'block';
+                }
+
+                // --- 5. ADAPTIVE DIFFICULTY ENGINE & LEARNING PATTERNS POPULATION ---
+                if (engage) {
+                    const diffBadge = document.getElementById('pe-diff-level-badge');
+                    const diffProgress = document.getElementById('pe-diff-progressbar');
+                    const diffReason = document.getElementById('pe-diff-reason');
+                    const cogSpeed = document.getElementById('pe-cog-speed');
+                    const masteryScore = document.getElementById('pe-mastery-score');
+
+                    const diffLevelMap = { "Beginner": 20, "Easy": 40, "Medium": 60, "Hard": 80, "Expert": 100 };
+                    const diffColors = {
+                        "Beginner": ["rgba(56,189,248,0.2)", "#38bdf8"],
+                        "Easy": ["rgba(34,197,94,0.2)", "#22c55e"],
+                        "Medium": ["rgba(139,92,246,0.2)", "#a78bfa"],
+                        "Hard": ["rgba(245,158,11,0.2)", "#f59e0b"],
+                        "Expert": ["rgba(239,68,68,0.2)", "#ef4444"]
+                    };
+
+                    const adDiff = engage.adaptive_difficulty || "Medium";
+                    if (diffBadge) {
+                        diffBadge.textContent = adDiff;
+                        const [dbg, dfg] = diffColors[adDiff] || diffColors["Medium"];
+                        diffBadge.style.background = dbg;
+                        diffBadge.style.color = dfg;
+                    }
+                    if (diffProgress) {
+                        diffProgress.style.width = `${diffLevelMap[adDiff] || 60}%`;
+                    }
+                    if (diffReason && engage.difficulty_reason) {
+                        diffReason.textContent = `⚡ ${engage.difficulty_reason}`;
+                    }
+
+                    if (cogSpeed && engage.performance_metrics) {
+                        cogSpeed.textContent = engage.performance_metrics.cognitive_speed_status || 'Fast & Alert';
+                    }
+                    if (masteryScore && engage.performance_metrics) {
+                        masteryScore.textContent = `${engage.performance_metrics.mastery_score} / 100`;
+                    }
+
+                    // Learning patterns
+                    const learnTrend = document.getElementById('pe-learning-trend');
+                    const speedGain = document.getElementById('pe-speed-gain');
+                    const retentionIdx = document.getElementById('pe-retention-idx');
+                    const patternInsights = document.getElementById('pe-pattern-insights');
+
+                    if (engage.learning_patterns) {
+                        if (learnTrend) learnTrend.textContent = engage.learning_patterns.learning_curve_trend || 'Steady Growth';
+                        if (speedGain) speedGain.textContent = `${engage.learning_patterns.speed_improvement_pct >= 0 ? '+' : ''}${engage.learning_patterns.speed_improvement_pct}%`;
+                        if (retentionIdx) retentionIdx.textContent = `${engage.learning_patterns.retention_index} / 100`;
+
+                        if (patternInsights && engage.learning_patterns.pattern_insights) {
+                            patternInsights.innerHTML = engage.learning_patterns.pattern_insights.map(pi => `
+                                <div style="display: flex; gap: 6px; align-items: flex-start; font-size: 11px; color: var(--text-secondary);">
+                                    <span style="color: #38bdf8;">✦</span>
+                                    <span>${pi}</span>
+                                </div>
+                            `).join('');
+                        }
+                    }
+                }
+
+            } catch (err) {
+                console.error('Failed to load personalization tab:', err);
+                showToast('Error loading AI Personalization data', 'error');
+            }
         }
     </script>
 </body>

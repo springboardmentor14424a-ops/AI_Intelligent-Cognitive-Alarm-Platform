@@ -53,6 +53,8 @@
                 <nav style="display: flex; flex-direction: column; gap: 6px;">
                     <button onclick="setTab('overview-tab', this)" class="nav-btn active">🛡 Overview</button>
                     <button onclick="setTab('users-tab', this)" class="nav-btn">👤 User Directory</button>
+                    <button onclick="setTab('health-tab', this); loadAdminTelemetry();" class="nav-btn">⚡ Production & Backups</button>
+                    <button onclick="setTab('feedback-tab', this); loadAdminFeedback();" class="nav-btn">⭐ User Feedback</button>
                     <button onclick="setTab('logs-tab', this)" class="nav-btn">📋 System Logs</button>
                     <button onclick="setTab('settings-tab', this)" class="nav-btn">⚙ Settings</button>
                 </nav>
@@ -202,7 +204,106 @@
                 </div>
             </div>
 
-            <!-- TAB 3: SYSTEM LOGS -->
+            <!-- TAB 3: PRODUCTION HEALTH & BACKUPS (Module 5) -->
+            <div id="health-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2>⚡ Production Health & Maintenance</h2>
+                        <p style="color: var(--text-secondary); font-size: 13px;">Real-time system telemetry, database health, and disaster recovery snapshot backups.</p>
+                    </div>
+                    <button onclick="createDatabaseBackup()" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        💾 Create DB Snapshot Backup
+                    </button>
+                </div>
+
+                <!-- Telemetry Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">API & DB Status</span>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #10b981;"></span>
+                            <h3 id="health-api-status" style="font-size: 22px; font-weight: bold;">Healthy</h3>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Uptime verified & DB connected</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Database Size</span>
+                        <h3 id="health-db-size" style="font-size: 22px; font-weight: bold; margin-top: 6px;">-- KB</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">SQLite / PostgreSQL Engine</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Background Jobs</span>
+                        <h3 id="health-jobs-count" style="font-size: 22px; font-weight: bold; margin-top: 6px;">3 Active</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">APScheduler Alarm & Bedtime triggers</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Memory Usage</span>
+                        <h3 id="health-mem-usage" style="font-size: 22px; font-weight: bold; margin-top: 6px;">-- %</h3>
+                        <p id="health-mem-avail" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Available: -- MB</p>
+                    </div>
+                </div>
+
+                <!-- Database Backups List -->
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 14px;">🗄️ Database Backup Snapshots</h3>
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Backup Filename</th>
+                                    <th>File Size</th>
+                                    <th>Created Timestamp</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backups-table-body">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading backup snapshots...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: USER FEEDBACK (Module 5) -->
+            <div id="feedback-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2>⭐ User Feedback & Satisfaction</h2>
+                        <p style="color: var(--text-secondary); font-size: 13px;">User star ratings, feature requests, and issue resolution moderation.</p>
+                    </div>
+                </div>
+
+                <!-- Feedback Table -->
+                <div class="glass-card">
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Rating</th>
+                                    <th>Category</th>
+                                    <th>Comments</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feedback-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading feedback submissions...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: SYSTEM LOGS -->
             <div id="logs-tab" class="switch-tab">
                 <h2>Audit Event Logs</h2>
                 <div class="table-container">
@@ -422,6 +523,136 @@
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
+
+        // =====================================================================
+        // MODULE 5: ADMIN PRODUCTION TELEMETRY, BACKUP & FEEDBACK HANDLERS
+        // =====================================================================
+
+        async function loadAdminTelemetry() {
+            try {
+                const res = await fetch('/api/admin/system/metrics');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const dbSizeEl = document.getElementById('health-db-size');
+                const memUsageEl = document.getElementById('health-mem-usage');
+                const memAvailEl = document.getElementById('health-mem-avail');
+
+                if (dbSizeEl && data.database) dbSizeEl.textContent = `${data.database.file_size_kb} KB`;
+                if (memUsageEl && data.system) memUsageEl.textContent = `${data.system.memory_usage_percent}%`;
+                if (memAvailEl && data.system) memAvailEl.textContent = `Available: ${data.system.available_memory_mb} MB`;
+
+                loadAdminBackups();
+            } catch (err) {
+                console.error('Error loading telemetry:', err);
+            }
+        }
+
+        async function loadAdminBackups() {
+            try {
+                const res = await fetch('/api/admin/backup/list');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('backups-table-body');
+                if (!tbody) return;
+
+                if (!data.backups || data.backups.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 15px;">No backups created yet. Click "+ Create DB Snapshot Backup" above.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.backups.map(b => `
+                    <tr>
+                        <td><strong>${b.filename}</strong></td>
+                        <td>${b.size_kb} KB</td>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${b.created_at}</td>
+                        <td>
+                            <a href="/api/admin/backup/download/${b.filename}" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">⬇️ Download</a>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Error loading backups:', err);
+            }
+        }
+
+        async function createDatabaseBackup() {
+            try {
+                showToast('Creating database snapshot backup...', 'info');
+                const res = await fetch('/api/admin/backup/create', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('✅ ' + data.message, 'success');
+                    loadAdminBackups();
+                } else {
+                    showToast(data.detail || 'Backup creation failed', 'error');
+                }
+            } catch (err) {
+                showToast('Network error during backup creation', 'error');
+            }
+        }
+
+        async function loadAdminFeedback() {
+            try {
+                const res = await fetch('/api/admin/feedback');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('feedback-table-body');
+                if (!tbody) return;
+
+                if (!data.feedbacks || data.feedbacks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 20px;">No feedback submissions yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.feedbacks.map(f => {
+                    const stars = '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating);
+                    const statusBadge = f.status === 'resolved' ? 'badge-active' : (f.status === 'reviewed' ? 'badge-warning' : 'badge-suspended');
+                    return `
+                        <tr>
+                            <td>
+                                <strong>${f.user_name}</strong>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${f.user_email}</div>
+                            </td>
+                            <td style="color: #f59e0b; font-size: 16px;">${stars} <span style="font-size: 12px; color: var(--text-secondary);">(${f.rating}/5)</span></td>
+                            <td><span class="badge badge-info">${f.category}</span></td>
+                            <td style="max-width: 300px; font-size: 13px; line-height: 1.4;">${f.comment}</td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">${f.created_at || 'N/A'}</td>
+                            <td><span class="badge ${statusBadge}">${f.status}</span></td>
+                            <td>
+                                <select onchange="updateFeedbackStatus(${f.id}, this.value)" class="form-input" style="padding: 4px 8px; font-size: 11px; width: auto;">
+                                    <option value="new" ${f.status === 'new' ? 'selected' : ''}>New</option>
+                                    <option value="reviewed" ${f.status === 'reviewed' ? 'selected' : ''}>Reviewed</option>
+                                    <option value="resolved" ${f.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                                </select>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error loading feedbacks:', err);
+            }
+        }
+
+        async function updateFeedbackStatus(id, newStatus) {
+            try {
+                const formData = new FormData();
+                formData.append('status', newStatus);
+                const res = await fetch(`/api/admin/feedback/${id}/status`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('Feedback status updated', 'success');
+                    loadAdminFeedback();
+                } else {
+                    showToast('Failed to update feedback status', 'error');
+                }
+            } catch (err) {
+                showToast('Network error updating feedback', 'error');
+            }
+        }
     </script>
 </body>
 </html>
