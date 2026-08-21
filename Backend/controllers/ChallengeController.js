@@ -724,8 +724,8 @@ async function getPersonalizedChallenge(req, res) {
 
         const userId = Number(req.params.userId);
 
-        const challengeType =
-            req.query.challengeType || "math";
+        let challengeType =
+    req.query.challengeType;
 
 
         if (!userId) {
@@ -792,6 +792,98 @@ async function getPersonalizedChallenge(req, res) {
         const totalAttempts =
             Number(stats.total_attempts);
 
+        // ---------------------------------------------
+// Learning Pattern Analysis
+// ---------------------------------------------
+
+const patternResult = await pool.query(
+    `
+    SELECT
+        challenge_type,
+        COUNT(*) AS total,
+        COUNT(*) FILTER (
+            WHERE correct = true
+        ) AS correct,
+        COALESCE(
+            ROUND(AVG(time_taken)),
+            0
+        ) AS average_time,
+        COALESCE(
+            ROUND(AVG(score)),
+            0
+        ) AS average_score
+
+    FROM challenge_performance
+
+    WHERE user_id = $1
+
+    GROUP BY challenge_type
+
+    ORDER BY challenge_type
+    `,
+    [userId]
+);
+
+
+const learningPatterns =
+    patternResult.rows.map(item => {
+
+        const total =
+            Number(item.total);
+
+        const correct =
+            Number(item.correct);
+
+        const typeAccuracy =
+            total > 0
+                ? Math.round(
+                    (correct / total) * 100
+                )
+                : 0;
+
+
+        let performanceLevel = "Needs Improvement";
+
+
+        if (typeAccuracy >= 85) {
+
+            performanceLevel = "Strong";
+
+        }
+        else if (typeAccuracy >= 65) {
+
+            performanceLevel = "Moderate";
+
+        }
+
+
+        return {
+
+            challengeType:
+                item.challenge_type,
+
+            totalChallenges:
+                total,
+
+            correctChallenges:
+                correct,
+
+            accuracy:
+                typeAccuracy,
+
+            averageTime:
+                Number(item.average_time),
+
+            averageScore:
+                Number(item.average_score),
+
+            performance:
+                performanceLevel
+
+        };
+
+    });
+
 
         // ---------------------------------------------
         // Calculate accuracy
@@ -809,43 +901,138 @@ async function getPersonalizedChallenge(req, res) {
         // ---------------------------------------------
         // Select difficulty
         // ---------------------------------------------
+// ---------------------------------------------
+// ADAPTIVE DIFFICULTY ENGINE
+// ---------------------------------------------
 
-        let difficulty = "Easy";
+let difficulty = "Beginner";
 
 
-        // New user
-        if (totalChallenges < 3) {
+// ---------------------------------------------
+// 1. New user
+// ---------------------------------------------
 
-            difficulty = "Easy";
+if (totalChallenges < 3) {
+
+    difficulty = "Beginner";
+
+}
+
+
+// ---------------------------------------------
+// 2. Very low performance
+// ---------------------------------------------
+
+else if (
+    accuracy < 50 ||
+    averageScore < 50
+) {
+
+    difficulty = "Beginner";
+
+}
+
+
+// ---------------------------------------------
+// 3. Low / developing performance
+// ---------------------------------------------
+
+else if (
+    accuracy < 65 ||
+    averageScore < 65
+) {
+
+    difficulty = "Easy";
+
+}
+
+
+// ---------------------------------------------
+// 4. Good performance
+// ---------------------------------------------
+
+else if (
+    accuracy < 80 ||
+    averageScore < 75
+) {
+
+    difficulty = "Medium";
+
+}
+
+
+// ---------------------------------------------
+// 5. Very good performance
+// ---------------------------------------------
+
+else if (
+    accuracy < 90 ||
+    averageScore < 85
+) {
+
+    difficulty = "Hard";
+
+}
+
+
+// ---------------------------------------------
+// 6. Excellent and consistent performance
+// ---------------------------------------------
+
+else {
+
+    difficulty = "Expert";
+
+}
+// ---------------------------------------------
+// Engagement Optimization
+// Select challenge type adaptively
+// ---------------------------------------------
+
+if (!challengeType) {
+
+    const weakPatterns =
+        learningPatterns
+            .filter(
+                item => item.accuracy < 80
+            )
+            .sort(
+                (a, b) =>
+                    a.accuracy - b.accuracy
+            );
+
+    if (weakPatterns.length > 0) {
+
+        challengeType =
+            weakPatterns[0].challengeType;
+
+    } else {
+
+        const availableTypes =
+            learningPatterns.map(
+                item => item.challengeType
+            );
+
+        if (availableTypes.length > 0) {
+
+            const randomIndex =
+                Math.floor(
+                    Math.random() *
+                    availableTypes.length
+                );
+
+            challengeType =
+                availableTypes[randomIndex];
+
+        } else {
+
+            challengeType = "math";
 
         }
 
-        // Excellent performance
-        else if (
-            accuracy >= 85 &&
-            averageScore >= 80 &&
-            totalAttempts <= totalChallenges + 2
-        ) {
+    }
 
-            difficulty = "Medium";
-
-        }
-
-        // Moderate performance
-        else if (accuracy >= 60) {
-
-            difficulty = "Easy";
-
-        }
-
-        // Poor performance
-        else {
-
-            difficulty = "Beginner";
-
-        }
-
-
+}
         // ---------------------------------------------
         // Generate challenge
         // ---------------------------------------------
@@ -921,9 +1108,12 @@ async function getPersonalizedChallenge(req, res) {
 
                 averageScore,
 
-                totalAttempts
+                totalAttempts,
+
+                learningPatterns
 
             },
+            
 
             question: challenge.question,
 
