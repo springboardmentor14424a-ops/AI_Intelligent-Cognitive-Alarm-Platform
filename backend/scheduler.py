@@ -8,15 +8,30 @@ from models import Alarm, User
 
 from services.gemini_service import generate_cognitive_challenge, map_challenge_type
 from services.challenge_store import add_session, find_session_by_alarm
-from services.personalization_service import calculate_personalized_difficulty, get_time_limit_for_difficulty
+from services.personalization_service import (
+    get_adaptive_recommendation,
+    calculate_personalized_difficulty,
+    get_time_limit_for_difficulty,
+    normalize_difficulty
+)
 
 logger = logging.getLogger("alarm_scheduler")
 
 triggered_alarms = []
 
+
+def deactivate_one_time_alarm_if_needed(db_session: Session, alarm: Alarm) -> bool:
+    """Disable one-time alarms immediately after they trigger to prevent repeat firings."""
+    if alarm.alarm_type == "One-Time" and alarm.is_active:
+        alarm.is_active = False
+        if db_session is not None:
+            db_session.commit()
+        return True
+    return False
+
+
 # Mock function simulating checking user sleep/cognitive metrics for smart adaptive alarms
 def check_user_wellness_metrics(db_session: Session, user_id: int):
-    # In a full app, this would query user sleep logs / cognitive scores from the DB
     user = db_session.query(User).filter(User.id == user_id).first()
     if user and user.name.lower() == "john":
         return {
@@ -24,7 +39,6 @@ def check_user_wellness_metrics(db_session: Session, user_id: int):
             "sleep_hours": 5.5,        # Low sleep duration (< 6 hrs)
             "cognitive_accuracy": 68   # Low cognitive score (< 70)
         }
-    # Default simulated wellness data
     return {
         "sleep_quality_score": 85,
         "sleep_hours": 7.5,
@@ -123,12 +137,25 @@ async def alarm_scheduler_loop():
                 cache_key = (alarm.id, today_str, target_time)
                 if current_time_str == target_time and cache_key not in triggered_cache:
                     triggered_cache.add(cache_key)
-                    
-                    if alarm.alarm_type == "Smart Adaptive":
-                        diff_level = adaptive_info["difficulty"] if adaptive_info else (alarm.difficulty_level or "Medium")
+
+                    if alarm.alarm_type == "One-Time":
+                        deactivate_one_time_alarm_if_needed(db, alarm)
+
+                    # Query Adaptive Difficulty Engine for personalized difficulty and challenge type
+                    rec = get_adaptive_recommendation(
+                        db=db,
+                        user_id=alarm.user_id,
+                        base_difficulty=alarm.difficulty_level or "Medium",
+                        preferred_type=alarm.challenge
+                    )
+
+                    if alarm.alarm_type == "Smart Adaptive" and adaptive_info:
+                        diff_level = adaptive_info["difficulty"]
                     else:
-                        diff_level = alarm.difficulty_level or "Medium"
-                    ch_type = alarm.challenge if (alarm.challenge and alarm.challenge.lower() != "none") else "Math Problems"
+                        diff_level = rec["recommended_difficulty"]
+
+                    # Challenge Type from recommendation
+                    ch_type = rec["recommended_challenge_type"]
                     normalized_type = map_challenge_type(ch_type)
 
                     existing = find_session_by_alarm(alarm.id, alarm.user_id)
@@ -140,6 +167,8 @@ async def alarm_scheduler_loop():
                         challenge_payload["id"] = session_id
                         challenge_payload["user_id"] = alarm.user_id
                         challenge_payload["recommended_difficulty"] = diff_level
+                        challenge_payload["recommended_challenge_type"] = ch_type
+                        challenge_payload["adaptive_reason"] = rec["reason"]
                         challenge_payload["alarm_id"] = alarm.id
                         challenge_payload["time_limit"] = get_time_limit_for_difficulty(diff_level)
                         add_session(session_id, challenge_payload)
@@ -153,6 +182,7 @@ async def alarm_scheduler_loop():
                         "time": target_time,
                         "alarm_type": alarm.alarm_type,
                         "challenge_type": ch_type,
+                        "adaptive_reason": rec["reason"],
                         "challenge": challenge_payload
                     })
 
@@ -162,6 +192,8 @@ async def alarm_scheduler_loop():
                     print(f"Trigger Time: {target_time} (Configured: {alarm.alarm_time})")
                     print(f"Customization: Sound={alarm.sound if not adaptive_info else adaptive_info['sound']}, "
                           f"Vibration={alarm.vibration}, Difficulty={diff_level}")
+                    print(f"Adaptive Difficulty Engine: Level='{diff_level}', Type='{normalized_type}'")
+                    print(f"Reason: {rec['reason']}")
                     print(f"Cognitive Challenge Attached: ID='{challenge_payload.get('id')}', Type='{challenge_payload.get('type')}', Question='{challenge_payload.get('question')}'")
 
                     if adaptive_info:
@@ -170,7 +202,7 @@ async def alarm_scheduler_loop():
                             print(f"  - {rule}")
                     print("="*80 + "\n")
 
-                    logger.info(f"Alarm '{alarm.title}' (ID: {alarm.id}) triggered with challenge for User {alarm.user_id} at {target_time}")
+                    logger.info(f"Alarm '{alarm.title}' (ID: {alarm.id}) triggered with personalized {diff_level} challenge for User {alarm.user_id} at {target_time}")
 
             db.close()
         except Exception as e:

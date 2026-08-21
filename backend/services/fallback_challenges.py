@@ -444,6 +444,7 @@ def get_fallback_challenge(challenge_type: str, difficulty: str) -> dict:
         "Medium": "Medium",
         "Hard": "Difficult",
         "Difficult": "Difficult",
+        "Expert": "Advanced",
         "Advanced": "Advanced"
     }
 
@@ -453,6 +454,6 @@ def get_fallback_challenge(challenge_type: str, difficulty: str) -> dict:
 
     pool = FALLBACK_CHALLENGES[mapped_type].get(target_diff, FALLBACK_CHALLENGES[mapped_type]["Medium"])
     challenge = random.choice(pool).copy()
-    challenge["difficulty"] = normalized_diff if normalized_diff in ["Beginner", "Easy", "Medium", "Difficult", "Advanced"] else target_diff
+    challenge["difficulty"] = normalized_diff if normalized_diff in ["Beginner", "Easy", "Medium", "Hard", "Expert", "Difficult", "Advanced"] else target_diff
     logger.info(f"Serving cognitive challenge for type '{mapped_type}' ({challenge['difficulty']})")
     return challenge

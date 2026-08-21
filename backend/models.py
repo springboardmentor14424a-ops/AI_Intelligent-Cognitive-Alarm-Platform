@@ -46,7 +46,6 @@ class Alarm(Base):
     - difficulty_level: Beginner, Easy, Medium, Difficult, Advanced
     - sound: Alarm tone name
     - vibration: Vibration pattern
-    - snooze_duration: Snooze duration in minutes
     - created_at: Timestamp of creation
     - updated_at: Timestamp of update
     """
@@ -63,7 +62,6 @@ class Alarm(Base):
     difficulty_level = Column(String(50), nullable=False, default="Medium")
     sound = Column(String(100), nullable=False, default="Radar")
     vibration = Column(String(50), nullable=False, default="Standard")
-    snooze_duration = Column(Integer, nullable=False, default=5)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -114,5 +112,6 @@ class ChallengeAttempt(Base):
 
     def __repr__(self):
         return f"<ChallengeAttempt(id={self.id}, user_id={self.user_id}, type='{self.challenge_type}', difficulty='{self.difficulty}', correct={self.is_correct})>"
+
 
 

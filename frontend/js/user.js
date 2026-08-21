@@ -858,7 +858,6 @@ window.editAlarm = (id) => {
     document.getElementById('alarm-difficulty').value = alarm.difficulty_level || 'Medium';
     document.getElementById('alarm-sound').value = alarm.sound || 'Radar';
     document.getElementById('alarm-vibration').value = alarm.vibration || 'Standard';
-    document.getElementById('alarm-snooze').value = alarm.snooze_duration || 5;
 
     const activeDays = alarm.repeat_days ? alarm.repeat_days.split(',') : [];
     document.querySelectorAll('#custom-days-container input[type="checkbox"]').forEach(cb => {
@@ -1168,7 +1167,6 @@ if (addAlarmForm) {
         const difficulty_level = getInputValue(['alarm-difficulty'], 'Medium');
         const sound = getInputValue(['alarm-sound'], 'Radar');
         const vibration = getInputValue(['alarm-vibration'], 'Standard');
-        const snooze_duration = parseInt(getInputValue(['alarm-snooze'], '5')) || 5;
 
         const checkedDays = [];
         addAlarmForm.querySelectorAll('#custom-days-container input[type="checkbox"]:checked').forEach(cb => {
@@ -1215,8 +1213,7 @@ if (addAlarmForm) {
             challenge,
             difficulty_level,
             sound,
-            vibration,
-            snooze_duration
+            vibration
         };
 
         try {
@@ -1351,15 +1348,24 @@ async function fetchAnalyticsData() {
 
         // 1. Summary Metrics
         const summaryRes = await fetch(`${window.API_BASE_URL}/api/analytics/summary`, { headers });
+        let strongTypes = [];
+        let weakTypes = [];
+
         if (summaryRes.ok) {
             const summary = await summaryRes.json();
-            
+            strongTypes = summary.strong_types || [];
+            weakTypes = summary.weak_types || [];
+
             const accStr = `${summary.overall_accuracy}%`;
             const passedStr = summary.passed_challenges;
             const failedStr = summary.failed_challenges;
             const timeStr = `${summary.average_completion_time}s`;
             const streakStr = `${summary.current_streak} Days 🔥`;
             const diffStr = `Recommended: ${summary.recommended_difficulty}`;
+            const cognitiveScore = summary.cognitive_score != null ? Math.round(summary.cognitive_score) : 50;
+            const rawTrend = (summary.trend || 'stable').toLowerCase();
+            const trendLabel = rawTrend === 'improving' ? 'Improving 🚀' : (rawTrend === 'declining' ? 'Declining 📉' : 'Stable ⚖️');
+            const reasonText = summary.recommendation_reason || 'Calibrating personalized challenge difficulty.';
 
             ['analytics-accuracy', 'db-analytics-accuracy'].forEach(id => {
                 const el = document.getElementById(id);
@@ -1390,13 +1396,50 @@ async function fetchAnalyticsData() {
                 const el = document.getElementById(id);
                 if (el) el.textContent = diffStr;
             });
+
+            // Populate Cognitive Score & Trend
+            ['cognitive-score-val', 'db-cognitive-score-val'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = cognitiveScore;
+            });
+
+            ['performance-trend-val', 'db-performance-trend-val'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = trendLabel;
+            });
+
+            // Populate Adaptive Recommendation Reason
+            ['adaptive-reason-text', 'db-adaptive-reason-text'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = reasonText;
+            });
+
+            // Populate Strong Types List
+            const strongHtml = strongTypes.length > 0
+                ? strongTypes.map(t => `<span style="background: rgba(34, 197, 94, 0.18); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-check-circle"></i> ${t}</span>`).join('')
+                : '<span style="color: var(--text-muted); font-size: 0.82rem;">Complete more sessions with &ge;85% accuracy to unlock domain mastery.</span>';
+
+            ['strong-types-list', 'db-strong-types-list'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = strongHtml;
+            });
+
+            // Populate Weak Types List
+            const weakHtml = weakTypes.length > 0
+                ? weakTypes.map(t => `<span style="background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;"><i class="fas fa-exclamation-triangle"></i> ${t}</span>`).join('')
+                : '<span style="color: #4ade80; font-size: 0.82rem;"><i class="fas fa-shield-alt"></i> No weak challenge domains detected (&ge;70% across domains).</span>';
+
+            ['weak-types-list', 'db-weak-types-list'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = weakHtml;
+            });
         }
 
-        // 2. Performance by Type
+        // 2. Performance by Type (with strong/weak domain badges)
         const byTypeRes = await fetch(`${window.API_BASE_URL}/api/analytics/by-type`, { headers });
         if (byTypeRes.ok) {
             const typeData = await byTypeRes.json();
-            renderAnalyticsBreakdown('by-type', typeData);
+            renderAnalyticsBreakdown('by-type', typeData, strongTypes, weakTypes);
         }
 
         // 3. Performance by Difficulty
@@ -1419,7 +1462,7 @@ async function fetchAnalyticsData() {
     }
 }
 
-function renderAnalyticsBreakdown(mode, items) {
+function renderAnalyticsBreakdown(mode, items, strongTypes = [], weakTypes = []) {
     const isType = mode === 'by-type';
     const containers = isType
         ? ['analytics-by-type-container', 'db-analytics-by-type-container']
@@ -1441,10 +1484,22 @@ function renderAnalyticsBreakdown(mode, items) {
             else if (accuracy >= 50) barColor = '#f59e0b';
             else if (total > 0) barColor = '#ef4444';
 
+            let typeBadgeHtml = '';
+            if (isType) {
+                if (strongTypes.includes(title)) {
+                    typeBadgeHtml = `<span style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.35); font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-left: 6px;">💪 Strong Domain</span>`;
+                } else if (weakTypes.includes(title)) {
+                    typeBadgeHtml = `<span style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.35); font-size: 0.72rem; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-left: 6px;">⚠️ Needs Practice</span>`;
+                }
+            }
+
             html += `
                 <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-weight: 600; font-size: 0.9rem;">${title}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-weight: 600; font-size: 0.9rem;">${title}</span>
+                            ${typeBadgeHtml}
+                        </div>
                         <span style="font-weight: 700; color: ${barColor}; font-size: 0.9rem;">${accuracy}% (${passed}/${total})</span>
                     </div>
                     <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; margin-bottom: 6px;">
@@ -1548,7 +1603,7 @@ function renderAnalyticsHistoryTable(logs) {
             const resBadge = log.is_correct
                 ? '<span class="badge badge-success">✓ Pass</span>'
                 : '<span class="badge badge-danger">✗ Fail</span>';
-            
+
             rowsHtml += `
                 <tr>
                     <td>${log.date || 'Just Now'}</td>

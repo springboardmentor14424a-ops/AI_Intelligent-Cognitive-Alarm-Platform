@@ -19,7 +19,6 @@ from schemas import (
 from services.gemini_service import (
     generate_cognitive_challenge,
     ALLOWED_TYPES,
-    ALLOWED_DIFFICULTIES,
     map_challenge_type
 )
 from services.challenge_store import (
@@ -30,8 +29,10 @@ from services.challenge_store import (
 )
 from services.personalization_service import (
     calculate_personalized_difficulty,
+    get_adaptive_recommendation,
     get_time_limit_for_difficulty,
     step_difficulty,
+    normalize_difficulty,
     DIFFICULTY_LEVELS
 )
 from routes.auth import get_current_user
@@ -57,13 +58,13 @@ def get_challenge_types():
     """
     return ChallengeTypesResponse(
         challenge_types=ALLOWED_TYPES,
-        difficulty_levels=ALLOWED_DIFFICULTIES
+        difficulty_levels=DIFFICULTY_LEVELS
     )
 
 @router.get("/generate", response_model=ChallengeResponse)
 def generate_challenge(
     challenge_type: str = Query(..., description="Challenge type (e.g. Math Problems, Logic Puzzles, etc.)"),
-    difficulty: Optional[str] = Query(None, description="Difficulty level (Beginner, Easy, Medium, Difficult, Advanced)"),
+    difficulty: Optional[str] = Query(None, description="Difficulty level (Beginner, Easy, Medium, Hard, Expert)"),
     alarm_id: Optional[int] = Query(None, description="Associated Alarm ID"),
     db: Session = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_user)
@@ -80,32 +81,35 @@ def generate_challenge(
             detail=f"Invalid challenge_type '{challenge_type}'. Must be one of: {', '.join(ALLOWED_TYPES)}"
         )
 
-    base_diff = difficulty.title().strip() if difficulty else "Medium"
+    base_diff = normalize_difficulty(difficulty) if difficulty else "Medium"
+    adaptive_reason = None
+    pref_type = challenge_type
 
-    # 1. Personalization: If the caller explicitly provided a difficulty, honor it.
-    #    Otherwise, if the user is authenticated, compute a personalized recommendation.
-    if difficulty:
-        if base_diff not in ALLOWED_DIFFICULTIES:
-            base_diff = "Medium"
-        recommended_diff = base_diff
+    # 1. Personalization: If caller explicitly provided difficulty, honor it.
+    #    Otherwise, compute personalized recommendation from Adaptive Engine.
+    if current_user:
+        rec = get_adaptive_recommendation(
+            db=db,
+            user_id=current_user.id,
+            base_difficulty=base_diff,
+            preferred_type=challenge_type
+        )
+        recommended_diff = rec["recommended_difficulty"] if not difficulty else base_diff
+        pref_type = rec["recommended_challenge_type"] if challenge_type.lower() in ("none", "") else challenge_type
+        adaptive_reason = rec["reason"]
     else:
-        if current_user:
-            recommended_diff = calculate_personalized_difficulty(db, current_user.id, base_diff)
-        else:
-            recommended_diff = base_diff if base_diff in ALLOWED_DIFFICULTIES else "Medium"
+        recommended_diff = base_diff
+        adaptive_reason = f"Standard baseline difficulty: {recommended_diff}."
 
-    normalized_type = map_challenge_type(challenge_type)
+    normalized_type = map_challenge_type(pref_type)
 
     # 2. If this request is for an alarm and an active session already exists, return it.
-    #    If the caller is unauthenticated, lookup the alarm owner and return the session only
-    #    if it belongs to the alarm owner (prevents returning another user's session).
     if alarm_id:
         if current_user:
             existing = find_session_by_alarm(alarm_id, current_user.id)
             if existing:
                 return ChallengeResponse(**existing)
         else:
-            # unauthenticated: resolve alarm owner and check for session
             try:
                 alarm_obj = db.query(Alarm).filter(Alarm.id == alarm_id).first()
                 if alarm_obj:
@@ -115,13 +119,15 @@ def generate_challenge(
             except Exception:
                 logger.debug("Could not resolve alarm owner for alarm_id lookup")
 
-    # 3. Call Gemini Service (manual or no existing session)
+    # 3. Call Gemini Service (or local fallback)
     challenge_data = generate_cognitive_challenge(normalized_type, recommended_diff)
 
-    # 3. Generate session ID and store server-side
+    # 4. Generate session ID and store server-side
     session_id = f"chal_{uuid.uuid4().hex[:12]}"
     challenge_data["id"] = session_id
     challenge_data["recommended_difficulty"] = recommended_diff
+    challenge_data["recommended_challenge_type"] = pref_type
+    challenge_data["adaptive_reason"] = adaptive_reason
     challenge_data["alarm_id"] = alarm_id
     challenge_data["time_limit"] = get_time_limit_for_difficulty(recommended_diff)
 
@@ -153,7 +159,7 @@ def validate_challenge(
     correct_ans = ""
     explanation = ""
     ch_type = payload.challenge_type or "Math Problems"
-    diff = payload.difficulty or "Medium"
+    diff = normalize_difficulty(payload.difficulty or "Medium")
     question_text = payload.question or "Challenge question"
 
     # 1. Lookup session details if session ID is provided (user-scoped)
@@ -161,13 +167,11 @@ def validate_challenge(
     if payload.challenge_id:
         session_data = get_challenge_session(payload.challenge_id)
         if session_data:
-            # enforce user scoping
             sess_user = session_data.get("user_id")
             if current_user:
                 if sess_user != current_user.id:
                     session_data = None
             else:
-                # unauthenticated requests only match sessions assigned to default user 1
                 if sess_user != 1:
                     session_data = None
 
@@ -175,7 +179,7 @@ def validate_challenge(
         correct_ans = normalize_answer(session_data.get("answer", ""))
         explanation = session_data.get("explanation", "")
         ch_type = session_data.get("type", ch_type)
-        diff = session_data.get("difficulty", diff)
+        diff = normalize_difficulty(session_data.get("difficulty", diff))
         question_text = session_data.get("question", question_text)
     elif payload.correct_answer:
         correct_ans = normalize_answer(payload.correct_answer)
@@ -191,7 +195,6 @@ def validate_challenge(
         is_correct = True
         msg = "✓ Correct! Challenge completed."
     else:
-        # Numeric equality check (e.g. "378" == "378.0" or "43" == "43")
         try:
             if user_ans and float(user_ans) == float(correct_ans):
                 is_correct = True
@@ -228,10 +231,12 @@ def validate_challenge(
         logger.error(f"Error logging challenge attempt to database: {err}")
         db.rollback()
 
-    # 4. If incorrect, lower difficulty and generate a fresh new question
+    # 4. Determine adaptive recommendation and next challenge
+    rec = get_adaptive_recommendation(db=db, user_id=user_id, base_difficulty=diff, preferred_type=ch_type)
     next_challenge_obj = None
+
     if not is_correct:
-        # Step down difficulty (e.g. Advanced -> Difficult -> Medium -> Easy -> Beginner)
+        # Step down difficulty (e.g. Expert -> Hard -> Medium -> Easy -> Beginner)
         new_diff = step_difficulty(diff, -1)
         normalized_type = map_challenge_type(ch_type)
 
@@ -241,6 +246,8 @@ def validate_challenge(
             new_data["id"] = session_id
             new_data["user_id"] = user_id
             new_data["recommended_difficulty"] = new_diff
+            new_data["recommended_challenge_type"] = ch_type
+            new_data["adaptive_reason"] = rec["reason"]
             new_data["alarm_id"] = payload.alarm_id
             new_data["time_limit"] = get_time_limit_for_difficulty(new_diff)
             add_session(session_id, new_data)
@@ -255,13 +262,12 @@ def validate_challenge(
         else:
             msg = f"{prefix} Try this new question:"
     else:
-        next_diff = calculate_personalized_difficulty(db, user_id, diff)
+        next_diff = rec["recommended_difficulty"]
 
     # 5. If the challenge was completed successfully, remove active session so future alarms can regenerate
     if is_correct and payload.challenge_id:
         try:
             remove_challenge_session(payload.challenge_id)
-            # Also remove from scheduler.triggered_alarms if present
             try:
                 import scheduler
                 scheduler.triggered_alarms = [t for t in scheduler.triggered_alarms if not (t.get("challenge", {}).get("id") == payload.challenge_id or t.get("id") == payload.alarm_id)]
@@ -276,6 +282,8 @@ def validate_challenge(
         explanation=explanation or "Double check your response and try again.",
         attempt_number=attempt_num,
         next_recommended_difficulty=next_diff,
+        next_recommended_type=rec["recommended_challenge_type"],
+        adaptive_reason=rec["reason"],
         next_challenge=next_challenge_obj
     )
 
@@ -294,19 +302,27 @@ def get_user_performance(
         .all()
     )
 
-    total_attempts = len(attempts)
-    total_passed = sum(1 for a in attempts if a.is_correct)
-    accuracy_percentage = (total_passed / total_attempts * 100.0) if total_attempts > 0 else 0.0
-    avg_time = (sum(a.time_taken for a in attempts) / total_attempts) if total_attempts > 0 else 0.0
+    rec = get_adaptive_recommendation(db, current_user.id, "Medium")
+    analysis = rec["analysis"]
 
-    recommended_diff = calculate_personalized_difficulty(db, current_user.id, "Medium")
+    total_attempts = analysis["total_attempts"]
+    total_passed = analysis["passed_attempts"]
+    accuracy_percentage = analysis["overall_accuracy"]
+    avg_time = analysis["avg_time_taken"]
 
     return UserPerformanceResponse(
         user_id=current_user.id,
         total_attempts=total_attempts,
         total_passed=total_passed,
-        accuracy_percentage=round(accuracy_percentage, 1),
-        average_time_taken=round(avg_time, 1),
-        recommended_difficulty=recommended_diff,
+        accuracy_percentage=accuracy_percentage,
+        average_time_taken=avg_time,
+        recommended_difficulty=rec["recommended_difficulty"],
+        preferred_challenge_type=rec["recommended_challenge_type"],
+        reason=rec["reason"],
+        score=analysis.get("score", 50.0),
+        trend=analysis.get("trend", "stable"),
+        strong_types=analysis.get("strong_types", []),
+        weak_types=analysis.get("weak_types", []),
+        type_breakdown=analysis.get("type_breakdown", {}),
         recent_attempts=[ChallengeAttemptResponse.model_validate(a) for a in attempts[:10]]
     )

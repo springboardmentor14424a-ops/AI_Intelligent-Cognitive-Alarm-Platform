@@ -8,7 +8,7 @@
     <!-- CSS Dependencies -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="../css/style.css">
-    
+
 </head>
 
 <audio id="alarm-audio" loop preload="auto">
@@ -337,23 +337,85 @@
                 <!-- ================= TAB: ANALYTICS ================= -->
                 <div id="tab-analytics" class="tab-content-section">
                     <div class="glass-card primary-hover" style="margin-bottom: 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
                             <div>
-                                <h2 style="margin: 0; font-size: 1.5rem;"><i class="fas fa-chart-line grad-text"></i> Performance & Cognitive Analytics</h2>
+                                <h2 style="margin: 0; font-size: 1.5rem;"><i class="fas fa-chart-line grad-text"></i>
+                                    Performance & Cognitive Analytics</h2>
                                 <p style="color: var(--text-secondary); margin-top: 4px; font-size: 0.85rem;">
                                     Calculated from your personal challenge attempts in the database.
                                 </p>
                             </div>
                             <div>
-                                <span class="badge badge-info" id="db-recommended-diff-badge" style="padding: 6px 12px; font-size: 0.8rem;">
+                                <span class="badge badge-info" id="db-recommended-diff-badge"
+                                    style="padding: 6px 12px; font-size: 0.8rem;">
                                     Recommended: Medium
                                 </span>
                             </div>
                         </div>
                     </div>
 
+                    <!-- ADAPTIVE COGNITIVE PROFILE & STRENGTH/WEAKNESS BOARD -->
+                    <div class="glass-card" style="margin-bottom: 24px; border: 1px solid rgba(168, 85, 247, 0.35); background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(59, 130, 246, 0.06)); box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #a855f7, #6366f1); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(168,85,247,0.4);">
+                                    <i class="fas fa-brain" style="font-size: 1.1rem;"></i>
+                                </div>
+                                <div>
+                                    <h3 style="margin: 0; font-size: 1.15rem;">Cognitive Strengths & Adaptive Engine Profile</h3>
+                                    <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Real-time cognitive domain analysis and personalization</p>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                <span class="badge" id="db-cognitive-score-badge" style="background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.4); padding: 6px 12px; font-weight: 600; border-radius: 20px;">
+                                    🧠 Cognitive Score: <strong id="db-cognitive-score-val">--</strong>/100
+                                </span>
+                                <span class="badge" id="db-performance-trend-badge" style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 6px 12px; font-weight: 600; border-radius: 20px;">
+                                    📈 Trend: <strong id="db-performance-trend-val">Stable</strong>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Strong and Weak Domain Tags Grid -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;" class="dashboard-grid">
+                            <!-- Strong Domains -->
+                            <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 12px; padding: 14px;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <span style="font-size: 1.1rem;">💪</span>
+                                    <span style="font-weight: 700; color: #4ade80; font-size: 0.95rem;">Strong Challenge Types</span>
+                                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">High Mastery (≥85%)</span>
+                                </div>
+                                <div id="db-strong-types-list" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; align-items: center;">
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;">Analyzing domain strengths...</span>
+                                </div>
+                            </div>
+
+                            <!-- Weak Domains -->
+                            <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 14px;">
+                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                    <span style="font-size: 1.1rem;">🎯</span>
+                                    <span style="font-weight: 700; color: #f87171; font-size: 0.95rem;">Weak Challenge Types</span>
+                                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">Needs Practice (&lt;70%)</span>
+                                </div>
+                                <div id="db-weak-types-list" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; align-items: center;">
+                                    <span style="color: var(--text-muted); font-size: 0.85rem;">Analyzing skill recovery areas...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Adaptive Recommendation Banner -->
+                        <div style="background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 12px 16px; border-left: 4px solid var(--primary); display: flex; align-items: center; gap: 12px;">
+                            <i class="fas fa-lightbulb" style="color: #fbbf24; font-size: 1.1rem;"></i>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                                <strong style="color: white;">Next Alarm Personalization:</strong> <span id="db-adaptive-reason-text">Loading personalized recommendation...</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- 5 STAT SUMMARY CARDS GRID -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px;">
                         <div class="stat-card">
                             <div class="stat-icon" style="background: rgba(168,85,247,0.15); color: var(--primary);">
                                 <i class="fas fa-bullseye"></i>
@@ -407,28 +469,35 @@
 
                     <!-- ACCURACY OVER TIME CHART -->
                     <div class="glass-card secondary-hover" style="margin-bottom: 24px;">
-                        <h3 style="margin-bottom: 16px;"><i class="fas fa-line-chart grad-text"></i> Daily Performance Trend</h3>
+                        <h3 style="margin-bottom: 16px;"><i class="fas fa-line-chart grad-text"></i> Daily Performance
+                            Trend</h3>
                         <div class="chart-container" style="height: 320px;">
                             <canvas id="detailedSleepChart"></canvas>
                         </div>
                     </div>
 
                     <!-- BREAKDOWN GRIDS: BY TYPE & BY DIFFICULTY -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;" class="dashboard-grid">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;"
+                        class="dashboard-grid">
                         <div class="glass-card accent-hover">
-                            <h3 style="margin-bottom: 16px;"><i class="fas fa-puzzle-piece grad-text"></i> Performance by Type</h3>
-                            <div id="db-analytics-by-type-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                            <h3 style="margin-bottom: 16px;"><i class="fas fa-puzzle-piece grad-text"></i> Performance
+                                by Type</h3>
+                            <div id="db-analytics-by-type-container"
+                                style="display: flex; flex-direction: column; gap: 12px;"></div>
                         </div>
 
                         <div class="glass-card primary-hover">
-                            <h3 style="margin-bottom: 16px;"><i class="fas fa-layer-group grad-text"></i> Performance by Difficulty</h3>
-                            <div id="db-analytics-by-diff-container" style="display: flex; flex-direction: column; gap: 12px;"></div>
+                            <h3 style="margin-bottom: 16px;"><i class="fas fa-layer-group grad-text"></i> Performance by
+                                Difficulty</h3>
+                            <div id="db-analytics-by-diff-container"
+                                style="display: flex; flex-direction: column; gap: 12px;"></div>
                         </div>
                     </div>
 
                     <!-- RECENT ATTEMPT HISTORY TABLE -->
                     <div class="glass-card success-hover">
-                        <h3 style="margin-bottom: 16px;"><i class="fas fa-history grad-text"></i> Recent Attempt Logs</h3>
+                        <h3 style="margin-bottom: 16px;"><i class="fas fa-history grad-text"></i> Recent Attempt Logs
+                        </h3>
                         <div class="table-responsive">
                             <table class="custom-table" id="db-analytics-history-table">
                                 <thead>
@@ -552,25 +621,32 @@
                     <div id="custom-days-container" class="form-group" style="margin-bottom: 16px; display: none;">
                         <label>Repeat Days</label>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 5px;">
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Mon"> Mon
                             </label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Tue"> Tue
                             </label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Wed"> Wed
                             </label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Thu"> Thu
                             </label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Fri"> Fri
                             </label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Sat"> Sat
                             </label>
-                            <label style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
+                            <label
+                                style="font-size: 0.8rem; display: flex; align-items: center; gap: 4px; text-transform: none;">
                                 <input type="checkbox" value="Sun"> Sun
                             </label>
                         </div>
@@ -615,10 +691,6 @@
                             <option value="None">None</option>
                         </select>
                     </div>
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label for="alarm-snooze">Snooze Duration (minutes)</label>
-                        <input type="number" id="alarm-snooze" class="form-control" min="1" max="60" value="5" required>
-                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary modal-cancel-btn">Cancel</button>
@@ -632,35 +704,48 @@
     <div id="challenge-modal" class="modal-overlay">
         <div class="modal-container" style="max-width: 480px;">
             <div class="modal-header">
-                <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening Drill</span></h3>
+                <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening
+                        Drill</span></h3>
             </div>
             <div class="modal-body">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
                     <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
                     <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
-                    <span class="badge badge-primary" id="challenge-attempt-badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4);">Attempt 1</span>
+                    <span class="badge badge-primary" id="challenge-attempt-badge"
+                        style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4);">Attempt
+                        1</span>
                 </div>
-                <div id="challenge-timer-container" style="margin-bottom: 14px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;"><i class="fas fa-clock" style="color: #f59e0b; margin-right: 6px;"></i>Time Remaining:</span>
-                    <span id="challenge-timer-display" style="font-size: 1.1rem; font-weight: 700; color: #f59e0b; font-family: monospace;">00:20</span>
+                <div id="challenge-timer-container"
+                    style="margin-bottom: 14px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;"><i
+                            class="fas fa-clock" style="color: #f59e0b; margin-right: 6px;"></i>Time Remaining:</span>
+                    <span id="challenge-timer-display"
+                        style="font-size: 1.1rem; font-weight: 700; color: #f59e0b; font-family: monospace;">00:20</span>
                 </div>
-                <p id="challenge-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
+                <p id="challenge-subtitle"
+                    style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
                     Solve the challenge to silence the wake-up alarm!
                 </p>
-                <div class="challenge-math-question" id="challenge-question" style="font-size: 1.1rem; padding: 14px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight:600; line-height: 1.4;">8 x 7 + 12</div>
-                
+                <div class="challenge-math-question" id="challenge-question"
+                    style="font-size: 1.1rem; padding: 14px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight:600; line-height: 1.4;">
+                    8 x 7 + 12</div>
+
                 <!-- Dynamic Options Container for Multiple Choice -->
-                <div id="challenge-options-container" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;"></div>
+                <div id="challenge-options-container"
+                    style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;"></div>
 
                 <!-- Text Input Container -->
                 <div class="form-group" id="challenge-input-group">
                     <input type="text" id="challenge-answer" class="form-control" placeholder="Enter answer here..."
                         required style="text-align: center; font-size: 1.1rem;">
                 </div>
-                <div class="challenge-feedback" id="challenge-feedback" style="margin-top: 10px; font-weight: 600; text-align: center; min-height: 24px;"></div>
+                <div class="challenge-feedback" id="challenge-feedback"
+                    style="margin-top: 10px; font-weight: 600; text-align: center; min-height: 24px;"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">SUBMIT ANSWER</button>
+                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">SUBMIT
+                    ANSWER</button>
             </div>
         </div>
     </div>

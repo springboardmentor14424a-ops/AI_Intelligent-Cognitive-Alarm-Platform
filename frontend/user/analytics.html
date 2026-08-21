@@ -45,6 +45,64 @@
                 </div>
             </div>
 
+            <!-- ADAPTIVE COGNITIVE PROFILE & STRENGTH/WEAKNESS BOARD -->
+            <div class="glass-card" style="margin-bottom: 24px; border: 1px solid rgba(168, 85, 247, 0.35); background: linear-gradient(135deg, rgba(168, 85, 247, 0.1), rgba(59, 130, 246, 0.06)); box-shadow: 0 8px 32px rgba(0,0,0,0.2);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: linear-gradient(135deg, #a855f7, #6366f1); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(168,85,247,0.4);">
+                            <i class="fas fa-brain" style="font-size: 1.1rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.15rem;">Cognitive Strengths & Adaptive Engine Profile</h3>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Real-time cognitive domain analysis and personalization</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                        <span class="badge" id="cognitive-score-badge" style="background: rgba(168, 85, 247, 0.2); color: #d8b4fe; border: 1px solid rgba(168, 85, 247, 0.4); padding: 6px 12px; font-weight: 600; border-radius: 20px;">
+                            🧠 Cognitive Score: <strong id="cognitive-score-val">--</strong>/100
+                        </span>
+                        <span class="badge" id="performance-trend-badge" style="background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); padding: 6px 12px; font-weight: 600; border-radius: 20px;">
+                            📈 Trend: <strong id="performance-trend-val">Stable</strong>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Strong and Weak Domain Tags Grid -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px;" class="dashboard-grid">
+                    <!-- Strong Domains -->
+                    <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 12px; padding: 14px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 1.1rem;">💪</span>
+                            <span style="font-weight: 700; color: #4ade80; font-size: 0.95rem;">Strong Challenge Types</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">High Mastery (≥85%)</span>
+                        </div>
+                        <div id="strong-types-list" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; align-items: center;">
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">Analyzing domain strengths...</span>
+                        </div>
+                    </div>
+
+                    <!-- Weak Domains -->
+                    <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 12px; padding: 14px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 1.1rem;">🎯</span>
+                            <span style="font-weight: 700; color: #f87171; font-size: 0.95rem;">Weak Challenge Types</span>
+                            <span style="font-size: 0.72rem; color: var(--text-muted); margin-left: auto;">Needs Practice (&lt;70%)</span>
+                        </div>
+                        <div id="weak-types-list" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; align-items: center;">
+                            <span style="color: var(--text-muted); font-size: 0.85rem;">Analyzing skill recovery areas...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Adaptive Recommendation Banner -->
+                <div style="background: rgba(0, 0, 0, 0.3); border-radius: 8px; padding: 12px 16px; border-left: 4px solid var(--primary); display: flex; align-items: center; gap: 12px;">
+                    <i class="fas fa-lightbulb" style="color: #fbbf24; font-size: 1.1rem;"></i>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+                        <strong style="color: white;">Next Alarm Personalization:</strong> <span id="adaptive-reason-text">Loading personalized recommendation...</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- 5 STAT SUMMARY CARDS GRID -->
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 24px;">
                 <div class="stat-card">

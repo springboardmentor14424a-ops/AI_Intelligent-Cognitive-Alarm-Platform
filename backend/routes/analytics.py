@@ -9,10 +9,13 @@ from database import get_db
 from models import ChallengeAttempt, User
 from routes.auth import get_current_user
 from services.personalization_service import (
+    get_adaptive_recommendation,
     calculate_personalized_difficulty,
+    normalize_difficulty,
     DIFFICULTY_LEVELS
 )
 from services.gemini_service import ALLOWED_TYPES
+from schemas import AdaptiveRecommendationResponse
 
 logger = logging.getLogger(__name__)
 
@@ -32,19 +35,28 @@ def get_analytics_summary(
     - average_completion_time (seconds)
     - current_streak (consecutive active days with passed challenges)
     - recommended_difficulty
+    - preferred_challenge_type
+    - recommendation_reason
+    - cognitive_score
+    - trend
+    - strong_types
+    - weak_types
     """
     attempts = (
         db.query(ChallengeAttempt)
         .filter(ChallengeAttempt.user_id == current_user.id)
+        .order_by(desc(ChallengeAttempt.created_at))
         .all()
     )
 
-    total = len(attempts)
-    passed = sum(1 for a in attempts if a.is_correct)
-    failed = total - passed
-    overall_accuracy = round((passed / total * 100.0), 1) if total > 0 else 0.0
+    rec = get_adaptive_recommendation(db, current_user.id, "Medium")
+    analysis = rec["analysis"]
 
-    avg_time = round((sum(a.time_taken for a in attempts if a.time_taken > 0) / total), 1) if total > 0 else 0.0
+    total = analysis["total_attempts"]
+    passed = analysis["passed_attempts"]
+    failed = analysis["failed_attempts"]
+    overall_accuracy = analysis["overall_accuracy"]
+    avg_time = analysis["avg_time_taken"]
 
     # Calculate streak (consecutive calendar days going back from today with at least 1 passed attempt)
     passed_dates = (
@@ -68,8 +80,6 @@ def get_analytics_summary(
         else:
             break
 
-    recommended_diff = calculate_personalized_difficulty(db, current_user.id, "Medium")
-
     return {
         "user_id": current_user.id,
         "overall_accuracy": overall_accuracy,
@@ -78,8 +88,37 @@ def get_analytics_summary(
         "failed_challenges": failed,
         "average_completion_time": avg_time,
         "current_streak": streak,
-        "recommended_difficulty": recommended_diff
+        "recommended_difficulty": rec["recommended_difficulty"],
+        "preferred_challenge_type": rec["recommended_challenge_type"],
+        "recommendation_reason": rec["reason"],
+        "cognitive_score": analysis.get("score", 50.0),
+        "trend": analysis.get("trend", "stable"),
+        "strong_types": analysis.get("strong_types", []),
+        "weak_types": analysis.get("weak_types", [])
     }
+
+@router.get("/adaptive-profile", response_model=AdaptiveRecommendationResponse)
+def get_adaptive_profile(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Returns full Adaptive Difficulty Engine profile and breakdown for the logged-in user.
+    """
+    rec = get_adaptive_recommendation(db, current_user.id, "Medium")
+    analysis = rec["analysis"]
+
+    return AdaptiveRecommendationResponse(
+        user_id=current_user.id,
+        recommended_difficulty=rec["recommended_difficulty"],
+        recommended_challenge_type=rec["recommended_challenge_type"],
+        reason=rec["reason"],
+        strong_types=analysis.get("strong_types", []),
+        weak_types=analysis.get("weak_types", []),
+        score=analysis.get("score", 50.0),
+        trend=analysis.get("trend", "stable"),
+        analysis=analysis
+    )
 
 @router.get("/by-type")
 def get_analytics_by_type(
@@ -161,7 +200,7 @@ def get_analytics_by_difficulty(
         }
 
     for a in attempts:
-        diff = a.difficulty or "Medium"
+        diff = normalize_difficulty(a.difficulty or "Medium")
         if diff not in by_diff:
             by_diff[diff] = {
                 "difficulty": diff,
@@ -180,7 +219,8 @@ def get_analytics_by_difficulty(
         by_diff[diff]["avg_time_taken"] += (a.time_taken or 0)
 
     result = []
-    for diff, data in by_diff.items():
+    for diff in DIFFICULTY_LEVELS:
+        data = by_diff[diff]
         tot = data["total_attempts"]
         if tot > 0:
             data["accuracy_percentage"] = round((data["passed"] / tot * 100.0), 1)

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import re
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -56,7 +56,7 @@ class AlarmBase(BaseModel):
     difficulty_level: str = Field(default="Medium")
     sound: str = Field(default="Radar")
     vibration: str = Field(default="Standard")
-    snooze_duration: int = Field(default=5, ge=1, le=60)
+    snooze_duration: int = Field(default=5, description="Snooze duration in minutes")
 
     @field_validator("alarm_time")
     @classmethod
@@ -76,16 +76,21 @@ class AlarmBase(BaseModel):
     @field_validator("difficulty_level")
     @classmethod
     def validate_difficulty(cls, v):
-        # Accept common aliases (e.g. 'Hard') and normalize to the canonical set
         if v is None:
             return v
         normalized = v.title().strip()
-        if normalized == "Hard":
-            normalized = "Difficult"
-        valid_difficulties = {"Beginner", "Easy", "Medium", "Difficult", "Advanced"}
-        if normalized not in valid_difficulties:
-            raise ValueError(f"difficulty_level must be one of {valid_difficulties}")
-        return normalized
+        alias_map = {
+            "Beginner": "Beginner",
+            "Easy": "Easy",
+            "Medium": "Medium",
+            "Hard": "Hard",
+            "Difficult": "Hard",
+            "Expert": "Expert",
+            "Advanced": "Expert"
+        }
+        if normalized not in alias_map:
+            raise ValueError(f"difficulty_level must be one of {list(alias_map.keys())}")
+        return alias_map[normalized]
 
 class AlarmCreate(AlarmBase):
     pass
@@ -100,7 +105,7 @@ class AlarmUpdate(BaseModel):
     difficulty_level: Optional[str] = None
     sound: Optional[str] = None
     vibration: Optional[str] = None
-    snooze_duration: Optional[int] = Field(None, ge=1, le=60)
+    snooze_duration: Optional[int] = None
 
     @field_validator("alarm_time")
     @classmethod
@@ -122,14 +127,19 @@ class AlarmUpdate(BaseModel):
     @classmethod
     def validate_difficulty(cls, v):
         if v is not None:
-            # Accept common aliases (e.g. 'Hard') and normalize to the canonical set
             normalized = v.title().strip()
-            if normalized == "Hard":
-                normalized = "Difficult"
-            valid_difficulties = {"Beginner", "Easy", "Medium", "Difficult", "Advanced"}
-            if normalized not in valid_difficulties:
-                raise ValueError(f"difficulty_level must be one of {valid_difficulties}")
-            return normalized
+            alias_map = {
+                "Beginner": "Beginner",
+                "Easy": "Easy",
+                "Medium": "Medium",
+                "Hard": "Hard",
+                "Difficult": "Hard",
+                "Expert": "Expert",
+                "Advanced": "Expert"
+            }
+            if normalized not in alias_map:
+                raise ValueError(f"difficulty_level must be one of {list(alias_map.keys())}")
+            return alias_map[normalized]
         return v
 
 class AlarmResponse(AlarmBase):
@@ -165,6 +175,8 @@ class ChallengeResponse(BaseModel):
     explanation: str
     time_limit: int = 30
     recommended_difficulty: Optional[str] = None
+    recommended_challenge_type: Optional[str] = None
+    adaptive_reason: Optional[str] = None
     alarm_id: Optional[int] = None
 
 class ChallengeValidateRequest(BaseModel):
@@ -186,6 +198,8 @@ class ChallengeValidateResponse(BaseModel):
     explanation: str
     attempt_number: int = 1
     next_recommended_difficulty: Optional[str] = None
+    next_recommended_type: Optional[str] = None
+    adaptive_reason: Optional[str] = None
     next_challenge: Optional[ChallengeResponse] = None
 
 class ChallengeAttemptResponse(BaseModel):
@@ -213,7 +227,22 @@ class UserPerformanceResponse(BaseModel):
     accuracy_percentage: float
     average_time_taken: float
     recommended_difficulty: str
+    preferred_challenge_type: Optional[str] = None
+    reason: Optional[str] = None
+    score: Optional[float] = None
+    trend: Optional[str] = None
+    strong_types: List[str] = []
+    weak_types: List[str] = []
+    type_breakdown: Optional[Dict[str, Any]] = None
     recent_attempts: List[ChallengeAttemptResponse] = []
 
-
-
+class AdaptiveRecommendationResponse(BaseModel):
+    user_id: int
+    recommended_difficulty: str
+    recommended_challenge_type: str
+    reason: str
+    strong_types: List[str] = []
+    weak_types: List[str] = []
+    score: float
+    trend: str
+    analysis: Dict[str, Any]

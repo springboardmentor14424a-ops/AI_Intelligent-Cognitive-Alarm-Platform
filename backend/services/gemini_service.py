@@ -4,6 +4,7 @@ import logging
 import requests
 from config import settings
 from services.fallback_challenges import get_fallback_challenge
+from services.personalization_service import normalize_difficulty, get_time_limit_for_difficulty
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +18,7 @@ ALLOWED_TYPES = [
     "Quick Quizzes"
 ]
 
-ALLOWED_DIFFICULTIES = ["Beginner", "Easy", "Medium", "Difficult", "Advanced"]
+ALLOWED_DIFFICULTIES = ["Beginner", "Easy", "Medium", "Hard", "Expert"]
 
 def map_challenge_type(input_type: str) -> str:
     """Normalize input challenge types or shortcuts to standard types."""
@@ -54,15 +55,16 @@ def build_gemini_prompt(challenge_type: str, difficulty: str) -> str:
     """
     Constructs a strong prompt for Gemini to generate a wake-up cognitive challenge.
     """
+    normalized_diff = normalize_difficulty(difficulty)
     difficulty_instructions = {
         "Beginner": "Very gentle, basic calculations, simple direct questions, or 2-item memory tasks for gentle morning wakeups.",
         "Easy": "Simple calculations, basic patterns, direct riddles, or simple memory tasks that kickstart alertness.",
         "Medium": "Multi-step reasoning, moderate arithmetic, complex word/pattern matching, or multi-item memory tasks.",
-        "Difficult": "Challenging multi-step logic, complex math equations, deep pattern recognition, or multi-element recall.",
-        "Advanced": "Rapid, high-intensity cognitive arousal drills, advanced algebra/logic, multi-layered memory recall."
+        "Hard": "Challenging multi-step logic, complex math equations, deep pattern recognition, or multi-element recall.",
+        "Expert": "Rapid, high-intensity cognitive arousal drills, advanced algebra/logic, multi-layered memory recall."
     }
 
-    diff_desc = difficulty_instructions.get(difficulty, difficulty_instructions["Medium"])
+    diff_desc = difficulty_instructions.get(normalized_diff, difficulty_instructions["Medium"])
 
     prompt = f"""
 You are an AI Cognitive Engine for WakeWise AI, an intelligent alarm platform.
@@ -70,7 +72,7 @@ Your task is to generate ONE single WAKE-UP cognitive challenge to help a user w
 
 Requirements:
 - Challenge Type: {challenge_type}
-- Difficulty Level: {difficulty} ({diff_desc})
+- Difficulty Level: {normalized_diff} ({diff_desc})
 - The question must be unambiguous, clear, appropriate for waking up, and have exactly ONE correct answer.
 - Do NOT generate offensive, impossible, or trick questions.
 - Provide 4 multiple-choice options in the "options" array whenever suitable (e.g. for Math, Logic, Quizzes, Patterns, Word Games, Memory). Make sure the exact correct answer is included in the options list!
@@ -80,7 +82,7 @@ Requirements:
 You MUST return strictly a JSON object with NO markdown wrapping, matching this exact schema:
 {{
     "type": "{challenge_type}",
-    "difficulty": "{difficulty}",
+    "difficulty": "{normalized_diff}",
     "question": "<string>",
     "options": ["<option1>", "<option2>", "<option3>", "<option4>"],
     "answer": "<string exact match of the correct answer or choice>",
@@ -95,7 +97,7 @@ def generate_cognitive_challenge(challenge_type: str, difficulty: str) -> dict:
     If Gemini API key is missing, or request fails/times out, returns a local fallback challenge.
     """
     normalized_type = map_challenge_type(challenge_type)
-    normalized_diff = difficulty.title() if difficulty and difficulty.title() in ALLOWED_DIFFICULTIES else "Medium"
+    normalized_diff = normalize_difficulty(difficulty)
 
     api_key = settings.GEMINI_API_KEY or os.getenv("GEMINI_API_KEY", "")
 
@@ -182,8 +184,6 @@ def generate_cognitive_challenge(challenge_type: str, difficulty: str) -> dict:
             
         challenge_obj["answer"] = str(challenge_obj["answer"]).strip()
         challenge_obj["explanation"] = str(challenge_obj["explanation"]).strip()
-
-        from services.personalization_service import get_time_limit_for_difficulty
         challenge_obj["time_limit"] = get_time_limit_for_difficulty(normalized_diff)
 
         logger.info(f"Successfully generated Gemini cognitive challenge for '{normalized_type}' ({normalized_diff})")

@@ -35,8 +35,7 @@ def create_alarm(payload: AlarmCreate, db: Session = Depends(get_db), current_us
         challenge=payload.challenge,
         difficulty_level=payload.difficulty_level,
         sound=payload.sound,
-        vibration=payload.vibration,
-        snooze_duration=payload.snooze_duration
+        vibration=payload.vibration
     )
     db.add(db_alarm)
     db.commit()
