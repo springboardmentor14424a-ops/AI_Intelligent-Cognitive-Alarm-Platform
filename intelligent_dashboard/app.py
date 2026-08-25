@@ -10,7 +10,11 @@ from sqlalchemy import func
 
 from config import Config
 from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report, ChallengePerformance, Feedback
-from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes, ai_personalization as ai_routes
+from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes, ai_personalization as ai_routes, verification_analytics as verification_routes
+from database import Announcement, WakeLog, WakeUpConfirmation, HabitScoreLog
+from habit_engine import HabitScoringEngine
+from behavioral_engine import BehavioralAnalyticsEngine
+from recommendation_engine import RecommendationEngine
 import auth
 from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
@@ -115,6 +119,7 @@ app.include_router(alarm_routes.router, prefix="/api/alarm", tags=["Alarms APIs"
 app.include_router(alarm_routes.router, prefix="/alarms", tags=["Alarms Alias APIs"])
 app.include_router(alarm_routes.router, prefix="/api", tags=["Cognitive Challenges APIs"])
 app.include_router(ai_routes.router, prefix="/api/ai", tags=["AI & Personalization APIs"])
+app.include_router(verification_routes.router, prefix="/api", tags=["Verification & Analytics APIs"])
 
 
 @app.get("/scheduler/status", response_class=JSONResponse, tags=["Scheduler"])
@@ -126,9 +131,6 @@ def scheduler_status():
 @app.get("/api/system/health", response_class=JSONResponse, tags=["System Health"])
 @app.get("/health", response_class=JSONResponse, tags=["System Health"])
 def system_health_check(db: Session = Depends(get_db)):
-    """
-    Task 4: Production Health Check — monitors server uptime, DB connectivity, active scheduler, and alarm readiness.
-    """
     scheduler_info = get_scheduler_status()
     db_connected = False
     try:
@@ -188,16 +190,21 @@ def get_admin_dashboard(request: Request, db: Session = Depends(get_db), current
     users = db.query(User).all()
     coaches = db.query(User).filter(User.role == "coach").all()
     logs = db.query(ActivityLog).order_by(ActivityLog.created_at.desc()).limit(30).all()
+    announcements = db.query(Announcement).order_by(Announcement.created_at.desc()).all()
     
-   
     total_users = db.query(User).count()
     active_alarms = db.query(Alarm).filter(Alarm.alarm_status == True).count()
-    coaches_count = len(coaches)
+    total_challenges = db.query(ChallengePerformance).count()
+    
+    profiles = db.query(UserProfile).all()
+    avg_habit_score = round(sum(p.habit_score or 50 for p in profiles) / max(1, len(profiles)), 1) if profiles else 50.0
     
     stats = {
         "total_users": total_users,
         "active_alarms": active_alarms,
-        "coaches": coaches_count
+        "coaches": len(coaches),
+        "total_challenges": total_challenges,
+        "avg_habit_score": avg_habit_score
     }
     
     return templates.TemplateResponse("admin.html", {
@@ -206,6 +213,7 @@ def get_admin_dashboard(request: Request, db: Session = Depends(get_db), current
         "users": users,
         "coaches": coaches,
         "logs": logs,
+        "announcements": announcements,
         "stats": stats
     })
 
@@ -215,10 +223,22 @@ def get_coach_dashboard(request: Request, db: Session = Depends(get_db), current
         return RedirectResponse(url="/login")
         
     clients = db.query(User).filter(User.coach_id == current_user.id).all()
+    client_dossiers = []
+    for c in clients:
+        h_data = HabitScoringEngine.compute_and_persist_habit_score(c.id, db)
+        b_data = BehavioralAnalyticsEngine.get_full_behavioral_dossier(c.id, db)
+        client_dossiers.append({
+            "user": c,
+            "profile": c.profile,
+            "habit": h_data,
+            "behavior": b_data
+        })
+
     return templates.TemplateResponse("coach.html", {
         "request": request,
         "user": current_user,
-        "clients": clients
+        "clients": clients,
+        "client_dossiers": client_dossiers
     })
 
 @app.get("/dashboard/user", response_class=HTMLResponse)
@@ -231,6 +251,13 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
     performances = db.query(ChallengePerformance).filter(ChallengePerformance.user_id == current_user.id).order_by(ChallengePerformance.created_at.desc()).all()
     profile = current_user.profile
     
+    habit_data = HabitScoringEngine.compute_and_persist_habit_score(current_user.id, db)
+    behavioral_data = BehavioralAnalyticsEngine.get_full_behavioral_dossier(current_user.id, db)
+    recommendations = RecommendationEngine.get_unified_recommendation_dossier(current_user.id, db)
+    announcements = db.query(Announcement).filter((Announcement.target_role == "all") | (Announcement.target_role == "user")).order_by(Announcement.created_at.desc()).limit(5).all()
+    wake_logs = db.query(WakeLog).filter(WakeLog.user_id == current_user.id).order_by(WakeLog.created_at.desc()).limit(10).all()
+    confirmations = db.query(WakeUpConfirmation).filter(WakeUpConfirmation.user_id == current_user.id).order_by(WakeUpConfirmation.created_at.desc()).limit(5).all()
+    
     unread_count = sum(1 for n in notifications if not n.read_status)
     return templates.TemplateResponse("user.html", {
         "request": request,
@@ -239,6 +266,12 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
         "alarms": alarms,
         "notifications": notifications,
         "performances": performances,
+        "habit_data": habit_data,
+        "behavioral_data": behavioral_data,
+        "recommendations": recommendations,
+        "announcements": announcements,
+        "wake_logs": wake_logs,
+        "confirmations": confirmations,
         "unread_count": unread_count
     })
 

@@ -25,7 +25,7 @@ from notification_service import send_bedtime_reminder, send_habit_reminder, sen
 TEST_DATABASE_URL = "sqlite:///./test_module5.db"
 test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-
+client = TestClient(app)
 
 def override_get_db():
     db = TestingSessionLocal()
@@ -35,12 +35,9 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-
 @pytest.fixture(scope="module", autouse=True)
 def setup_module5_db():
+    app.dependency_overrides[get_db] = override_get_db
     Base.metadata.create_all(bind=test_engine)
     db = TestingSessionLocal()
 
@@ -115,6 +112,10 @@ def setup_module5_db():
     yield
 
     Base.metadata.drop_all(bind=test_engine)
+    if get_db in app.dependency_overrides:
+        del app.dependency_overrides[get_db]
+
+
 
 
 def get_token(email="m5user@cognitive.com", password="user123"):

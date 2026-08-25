@@ -85,27 +85,35 @@
                     <button onclick="openModal('broadcast-modal')" class="btn btn-primary">Broadcast Announcement</button>
                 </div>
 
-                <!-- KPI Cards -->
-                <div class="grid-kpi">
+                <!-- KPI Cards (Modules 7-12 Enriched) -->
+                <div class="grid-kpi" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Users</span>
-                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px;">{{ stats.total_users }}</h3>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px;">{{ stats.total_users }}</h3>
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Active Alarms</span>
-                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px;">{{ stats.active_alarms }}</h3>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px;">{{ stats.active_alarms }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Avg Habit Score</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #4ade80;">{{ avg_habit_score | round(1) }}/100</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Challenges</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #a78bfa;">{{ total_challenges }}</h3>
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Wellness Coaches</span>
-                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px;">{{ stats.coaches }}</h3>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px;">{{ stats.coaches }}</h3>
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">System Health</span>
-                        <h3 style="font-size: 28px; font-weight: bold; margin-top: 6px; color: var(--success);">99.9%</h3>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: var(--success);">99.9%</h3>
                     </div>
                 </div>
 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
                     <div class="glass-card">
                         <h3>Circadian Platform Growth</h3>
                         <div style="height: 200px; margin-top: 15px;"><canvas id="growthChart"></canvas></div>
@@ -113,6 +121,65 @@
                     <div class="glass-card">
                         <h3>Daily Active Engagements (DAU)</h3>
                         <div style="height: 200px; margin-top: 15px;"><canvas id="dauChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Platform Announcements & System Reports Hub -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-top: 24px;">
+                    <!-- Active Announcements -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <h3>📢 Platform Announcements</h3>
+                            <button onclick="openModal('broadcast-modal')" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">+ New Broadcast</button>
+                        </div>
+                        <div style="max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                            {% if announcements %}
+                                {% for a in announcements %}
+                                    <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                            <strong style="font-size: 14px;">{{ a.title }}</strong>
+                                            <div style="display: flex; gap: 6px;">
+                                                <span class="badge badge-info" style="font-size: 10px;">{{ a.target_role }}</span>
+                                                <span class="badge {{ 'badge-active' if a.priority == 'normal' else 'badge-suspended' }}" style="font-size: 10px;">{{ a.priority }}</span>
+                                            </div>
+                                        </div>
+                                        <p style="font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.4;">{{ a.content }}</p>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div style="text-align: center; color: var(--text-secondary); padding: 25px;">No active platform broadcasts yet.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Platform Reports & Export Hub -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 14px;">📑 Comprehensive System Reports</h3>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Download structured analytics and telemetry reports in PDF or multi-sheet Excel.</p>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-card);">
+                                <span style="font-size: 13px; font-weight: 500;">Complete Platform Dossier</span>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="/api/reports/export/pdf?report_type=all" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 PDF</a>
+                                    <a href="/api/reports/export/excel?report_type=all" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Excel</a>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-card);">
+                                <span style="font-size: 13px; font-weight: 500;">Habit & Wake Reports</span>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="/api/reports/export/pdf?report_type=habit" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 PDF</a>
+                                    <a href="/api/reports/export/excel?report_type=wake_up" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Excel</a>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-card);">
+                                <span style="font-size: 13px; font-weight: 500;">Cognitive & Sleep Analytics</span>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="/api/reports/export/pdf?report_type=challenge" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 PDF</a>
+                                    <a href="/api/reports/export/excel?report_type=sleep" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Excel</a>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -355,19 +422,37 @@
     <div id="broadcast-modal" class="modal-overlay">
         <div class="modal-content glass-panel">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3>Broadcast Announcement</h3>
+                <h3>📢 Broadcast Platform Announcement</h3>
                 <button onclick="closeModal('broadcast-modal')" class="modal-close">×</button>
             </div>
-            <form action="/api/admin/broadcast" method="POST">
+            <form action="/api/admin/announcements/broadcast" method="POST">
                 <div class="form-group">
-                    <label>Title</label>
-                    <input type="text" name="title" required class="form-input" value="Platform Backup Notice">
+                    <label>Announcement Title</label>
+                    <input type="text" name="title" required class="form-input" placeholder="e.g. New Cognitive Verification Challenges Live!">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group">
+                        <label>Target Audience</label>
+                        <select name="target_role" class="form-input">
+                            <option value="all">🌐 All Users & Coaches</option>
+                            <option value="user">👤 End Users Only</option>
+                            <option value="coach">🩺 Wellness Coaches Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select name="priority" class="form-input">
+                            <option value="normal">Normal</option>
+                            <option value="high">High Priority</option>
+                            <option value="urgent">🚨 Urgent System Alert</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Message Content</label>
-                    <textarea name="message" required class="form-input" rows="3" style="resize: none; background: var(--bg-primary);">The system will undergo standard backup maintenance tonight at 02:00 UTC.</textarea>
+                    <textarea name="content" required class="form-input" rows="4" style="resize: vertical; background: var(--bg-primary);" placeholder="Write the announcement message details..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">Pushed to all feeds</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">🚀 Broadcast to Feeds & Send Notifications</button>
             </form>
         </div>
     </div>

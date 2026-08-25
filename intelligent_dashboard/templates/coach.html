@@ -101,18 +101,25 @@
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Active Streak Status</span>
-                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px;">Stable</h3>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px; color: #4ade80;">Active & Monitored</h3>
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Average Habit Score</span>
-                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px;">78/100</h3>
+                        {% set total_score = namespace(val=0, count=0) %}
+                        {% for d in client_dossiers %}
+                            {% set total_score.val = total_score.val + d.habit.habit_score %}
+                            {% set total_score.count = total_score.count + 1 %}
+                        {% endfor %}
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px; color: #3b82f6;">
+                            {{ (total_score.val / total_score.count)|round(1) if total_score.count > 0 else 75.0 }}/100
+                        </h3>
                     </div>
                 </div>
 
                 <!-- Assigned list overview -->
                 <div class="glass-panel" style="padding: 24px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h3>Active Client Monitoring</h3>
+                        <h3>Active Client Monitoring & Habit Insights</h3>
                         <button onclick="setTab('clients-tab', null)" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">Detailed Directory →</button>
                     </div>
                     <div class="table-container">
@@ -122,18 +129,23 @@
                                     <th>Client name</th>
                                     <th>Email</th>
                                     <th>Streak</th>
-                                    <th>Habit score</th>
-                                    <th>Account Status</th>
+                                    <th>Habit Score (35/25/20/20)</th>
+                                    <th>Tier / Grade</th>
+                                    <th>Reports</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for c in clients %}
-                                    <tr onclick="selectClient('{{ c.id }}', '{{ c.full_name or c.username }}', '{{ c.profile.streak if c.profile else 0 }}', '{{ c.profile.habit_score if c.profile else 50 }}', '{{ c.profile.wake_up_time if (c.profile and c.profile.wake_up_time) else '07:00' }}')" style="cursor: pointer;">
-                                        <td><strong>{{ c.full_name or c.username }}</strong></td>
-                                        <td>{{ c.email }}</td>
-                                        <td>{{ c.profile.streak if c.profile else 0 }} days</td>
-                                        <td>{{ c.profile.habit_score if c.profile else 50 }}/100</td>
-                                        <td><span class="badge badge-active">Active</span></td>
+                                {% for d in client_dossiers %}
+                                    <tr onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')" style="cursor: pointer;">
+                                        <td><strong>{{ d.user.full_name or d.user.name or d.user.username }}</strong></td>
+                                        <td>{{ d.user.email }}</td>
+                                        <td>{{ d.profile.streak if d.profile else 0 }} days</td>
+                                        <td><span class="badge badge-active">{{ d.habit.habit_score }}/100</span></td>
+                                        <td><span class="badge badge-info">{{ d.habit.grade }}</span></td>
+                                        <td>
+                                            <a href="/api/reports/export/pdf?report_type=all&user_id={{ d.user.id }}" class="btn btn-secondary" style="font-size: 11px; padding: 3px 6px;">PDF</a>
+                                            <a href="/api/reports/export/excel?report_type=all&user_id={{ d.user.id }}" class="btn btn-primary" style="font-size: 11px; padding: 3px 6px;">Excel</a>
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -149,17 +161,17 @@
                     <div class="glass-panel" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
                         <h3>Wellness Users</h3>
                         <div style="display: flex; flex-direction: column; gap: 12px;">
-                            {% for c in clients %}
-                                <div class="client-item" id="client-card-{{ c.id }}" onclick="selectClient('{{ c.id }}', '{{ c.full_name or c.username }}', '{{ c.profile.streak if c.profile else 0 }}', '{{ c.profile.habit_score if c.profile else 50 }}', '{{ c.profile.wake_up_time if (c.profile and c.profile.wake_up_time) else '07:00' }}')">
+                            {% for d in client_dossiers %}
+                                <div class="client-item" id="client-card-{{ d.user.id }}" onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')">
                                     <div style="display: flex; align-items: center; gap: 12px;">
-                                        <img src="{{ c.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 36px; height: 36px; border-radius: 50%;">
+                                        <img src="{{ d.user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 36px; height: 36px; border-radius: 50%;">
                                         <div>
-                                            <span style="font-weight: bold; font-size: 14px;">{{ c.full_name or c.username }}</span>
-                                            <p style="font-size: 11px; color: var(--text-secondary);">{{ c.email }}</p>
+                                            <span style="font-weight: bold; font-size: 14px;">{{ d.user.full_name or d.user.name or d.user.username }}</span>
+                                            <p style="font-size: 11px; color: var(--text-secondary);">{{ d.user.email }}</p>
                                         </div>
                                     </div>
                                     <div style="text-align: right;">
-                                        <span class="badge badge-active">{{ c.profile.habit_score if c.profile else 50 }}/100</span>
+                                        <span class="badge badge-active">{{ d.habit.habit_score }}/100</span>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -167,17 +179,46 @@
                     </div>
 
                     <!-- Right detail controls -->
-                    <div id="client-detail-panel" style="display: none; flex-direction: column; gap: 30px;">
+                    <div id="client-detail-panel" style="display: none; flex-direction: column; gap: 20px;">
                         <div class="glass-card">
-                            <h3 id="client-name-title">Client Details</h3>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; margin-top: 15px;">
-                                <div style="padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
-                                    <span style="color: var(--text-secondary);">Target Wake</span>
-                                    <p id="client-wake-p" style="font-size: 18px; font-weight: bold; margin-top: 4px;">07:00</p>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 id="client-name-title">Client Details</h3>
+                                <div id="client-report-export-links" style="display: flex; gap: 6px;">
+                                    <a id="client-pdf-btn" href="#" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 Export PDF</a>
+                                    <a id="client-excel-btn" href="#" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Export Excel</a>
                                 </div>
-                                <div style="padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; margin-top: 14px;">
+                                <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Target Wake</span>
+                                    <p id="client-wake-p" style="font-size: 16px; font-weight: bold; margin-top: 4px;">07:00</p>
+                                </div>
+                                <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
                                     <span style="color: var(--text-secondary);">Streak</span>
-                                    <p id="client-streak-p" style="font-size: 18px; font-weight: bold; margin-top: 4px;">0 days</p>
+                                    <p id="client-streak-p" style="font-size: 16px; font-weight: bold; margin-top: 4px;">0 days</p>
+                                </div>
+                            </div>
+
+                            <!-- Weighted Habit Breakdown -->
+                            <div style="margin-top: 16px;">
+                                <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Weighted Habit Score Composition</div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">⏰ Wake Consistency (35%)</div>
+                                        <strong id="client-sub-wake" style="font-size: 14px; color: #4ade80;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">🧠 Challenge Success (25%)</div>
+                                        <strong id="client-sub-challenge" style="font-size: 14px; color: #a78bfa;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">💤 Snooze Reduction (20%)</div>
+                                        <strong id="client-sub-snooze" style="font-size: 14px; color: #f59e0b;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">🌙 Sleep Adherence (20%)</div>
+                                        <strong id="client-sub-sleep" style="font-size: 14px; color: #38bdf8;">--%</strong>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -224,7 +265,7 @@
             }
         }
 
-        function selectClient(id, name, streak, score, wake) {
+        function selectClient(id, name, streak, score, wake, subWake, subChallenge, subSnooze, subSleep) {
             setTab('clients-tab', null);
             document.querySelectorAll('.client-item').forEach(c => c.classList.remove('active'));
             const card = document.getElementById(`client-card-${id}`);
@@ -237,6 +278,14 @@
             document.getElementById('client-name-title').innerText = `Client: ${name}`;
             document.getElementById('client-wake-p').innerText = wake;
             document.getElementById('client-streak-p').innerText = `${streak} days`;
+
+            document.getElementById('client-sub-wake').innerText = `${Math.round(subWake || 75)}%`;
+            document.getElementById('client-sub-challenge').innerText = `${Math.round(subChallenge || 75)}%`;
+            document.getElementById('client-sub-snooze').innerText = `${Math.round(subSnooze || 80)}%`;
+            document.getElementById('client-sub-sleep').innerText = `${Math.round(subSleep || 70)}%`;
+
+            document.getElementById('client-pdf-btn').href = `/api/reports/export/pdf?report_type=all&user_id=${id}`;
+            document.getElementById('client-excel-btn').href = `/api/reports/export/excel?report_type=all&user_id=${id}`;
 
             document.getElementById('coach-notes-form').action = `/api/coach/notes/${id}`;
             document.getElementById('coach-msg-form').action = `/api/coach/message/${id}`;

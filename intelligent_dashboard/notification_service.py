@@ -256,3 +256,121 @@ def send_progress_notification(user_id: int, total_score: float, avg_accuracy: f
     finally:
         db.close()
 
+
+def send_challenge_reminder(user_id: int, challenge_type: str, fcm_token: str = None):
+    """Send a cognitive puzzle practice reminder."""
+    title = f"🧩 Morning Challenge Ready: {challenge_type}"
+    body = f"Your daily {challenge_type} is configured. Practice your cognitive speed to clear morning inertia!"
+
+    if fcm_token:
+        send_fcm_push(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data={"type": "challenge_reminder", "challenge_type": challenge_type}
+        )
+
+    db = SessionLocal()
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=body,
+            type="challenge",
+            read_status=False
+        )
+        db.add(notif)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save challenge reminder: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def send_habit_alert(user_id: int, alert_type: str, message: str, fcm_token: str = None):
+    """Send habit warnings (e.g. broken streak risk, snooze penalty)."""
+    title = f"⚡ Habit Alert: {alert_type}"
+    body = message
+
+    if fcm_token:
+        send_fcm_push(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data={"type": "habit_alert", "alert_type": alert_type}
+        )
+
+    db = SessionLocal()
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=body,
+            type="habit",
+            read_status=False
+        )
+        db.add(notif)
+        db.commit()
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save habit alert: {e}")
+        return False
+    finally:
+        db.close()
+
+
+def broadcast_platform_announcement(title: str, content: str, target_role: str = "all", priority: str = "normal", admin_id: int = None):
+    """
+    Broadcasts a platform announcement to users/coaches and saves Announcement + in-app Notifications.
+    """
+    from database import User, Announcement
+    db = SessionLocal()
+    try:
+        # Create Announcement record
+        ann = Announcement(
+            admin_id=admin_id,
+            title=title,
+            content=content,
+            target_role=target_role,
+            priority=priority
+        )
+        db.add(ann)
+        db.commit()
+
+        # Query recipients
+        query = db.query(User)
+        if target_role != "all":
+            query = query.filter(User.role == target_role)
+        recipients = query.all()
+
+        for u in recipients:
+            notif = Notification(
+                user_id=u.id,
+                title=f"📢 Announcement: {title}",
+                message=content,
+                type="announcement",
+                read_status=False
+            )
+            db.add(notif)
+            if u.fcm_token:
+                send_fcm_push(
+                    fcm_token=u.fcm_token,
+                    title=f"📢 {title}",
+                    body=content,
+                    data={"type": "announcement", "priority": priority}
+                )
+        db.commit()
+        logger.info(f"Broadcasted announcement '{title}' to {len(recipients)} recipients.")
+        return {"success": True, "recipients_count": len(recipients)}
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Broadcast failed: {e}")
+        return {"success": False, "error": str(e)}
+    finally:
+        db.close()
+
+

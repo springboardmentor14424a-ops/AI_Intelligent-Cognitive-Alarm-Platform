@@ -55,7 +55,8 @@
                     <button onclick="setTab('alarms-tab', this)" class="nav-btn">⏰ Alarm Centre</button>
                     <button onclick="setTab('challenges-tab', this)" class="nav-btn">🧠 Challenges</button>
                     <button onclick="setTab('analytics-tab', this)" class="nav-btn">📈 Analytics</button>
-                    <button onclick="setTab('personalization-tab', this); loadPersonalizationTab();" class="nav-btn" style="background: linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(168,85,247,0.1) 100%); border: 1px solid rgba(139,92,246,0.25); color: #a78bfa; font-weight: 600;">🎯 AI Personalization</button>
+                    <button onclick="setTab('habit-wake-tab', this)" class="nav-btn">🏆 Habit & Verification</button>
+                    <button onclick="setTab('personalization-tab', this); loadPersonalizationTab();" class="nav-btn">🎯 AI Personalization</button>
                     <button onclick="setTab('profile-tab', this)" class="nav-btn">⚙ Profile Settings</button>
                 </nav>
             </div>
@@ -811,6 +812,381 @@
                     </div>
                 </div>
             </div>
+
+            <!-- TAB 7: HABIT SCORE & WAKE-UP VERIFICATION (Modules 7-12) -->
+            <div id="habit-wake-tab" class="switch-tab">
+                <!-- Hero Panel -->
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(74, 222, 128, 0.12) 0%, rgba(59, 130, 246, 0.12) 100%); border: 1px solid rgba(74, 222, 128, 0.3); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 22px;">🏆</span>
+                            <h2 style="font-size: 22px; font-weight: 800; margin: 0;">Habit Scoring & Wake-Up Verification Hub</h2>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 6px;">
+                            Multi-dimensional cognitive habit score powered by the 35/25/20/20 weighted neuro-behavioral model.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="recalculateHabitScore()" class="btn btn-primary" style="font-size: 12px; padding: 8px 14px;">🔄 Recalculate Score</button>
+                        <button onclick="openVerificationModal()" class="btn btn-success" style="font-size: 12px; padding: 8px 14px;">🧠 Test Verification Challenge</button>
+                        <a href="/api/reports/export/pdf?report_type=all" class="btn btn-secondary" style="font-size: 12px; padding: 8px 14px;">📄 PDF Report</a>
+                        <a href="/api/reports/export/excel?report_type=all" class="btn btn-secondary" style="font-size: 12px; padding: 8px 14px;">📊 Excel Report</a>
+                    </div>
+                </div>
+
+                <!-- Weighted Habit Score Breakdown (35% / 25% / 20% / 20%) -->
+                <div style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3 style="font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span>📊</span> Weighted Habit Score Engine
+                        </h3>
+                        <span class="badge badge-active" style="font-size: 12px; padding: 4px 10px;">{{ habit_data.grade }}</span>
+                    </div>
+
+                    <!-- 5 Column KPI Grid -->
+                    <div class="grid-kpi" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <!-- Main Overall Score Card -->
+                        <div class="glass-card" style="border: 2px solid rgba(74, 222, 128, 0.4); background: rgba(74, 222, 128, 0.04); text-align: center;">
+                            <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Overall Habit Score</span>
+                            <div style="font-size: 38px; font-weight: 900; color: #4ade80; margin: 8px 0;" id="hero-habit-score">{{ habit_data.habit_score }}<span style="font-size: 18px; color: var(--text-secondary);">/100</span></div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">{{ habit_data.status_description }}</div>
+                        </div>
+
+                        <!-- 1. Wake-Up Consistency (35%) -->
+                        <div class="glass-card" style="border-left: 4px solid #38bdf8;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Wake Consistency</span>
+                                <span class="badge badge-info" style="font-size: 10px;">Weight: 35%</span>
+                            </div>
+                            <div style="font-size: 26px; font-weight: 800; color: #38bdf8; margin: 8px 0;">{{ habit_data.subscores.wake_up_consistency }}%</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Streak stability & time drift index</div>
+                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                                <div style="width: {{ habit_data.subscores.wake_up_consistency }}%; height: 100%; background: #38bdf8; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Challenge Completion Success (25%) -->
+                        <div class="glass-card" style="border-left: 4px solid #a78bfa;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Challenge Success</span>
+                                <span class="badge badge-info" style="font-size: 10px;">Weight: 25%</span>
+                            </div>
+                            <div style="font-size: 26px; font-weight: 800; color: #a78bfa; margin: 8px 0;">{{ habit_data.subscores.challenge_completion }}%</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Accuracy, latency & solve rates</div>
+                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                                <div style="width: {{ habit_data.subscores.challenge_completion }}%; height: 100%; background: #a78bfa; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Snooze Reduction (20%) -->
+                        <div class="glass-card" style="border-left: 4px solid #f59e0b;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Snooze Reduction</span>
+                                <span class="badge badge-info" style="font-size: 10px;">Weight: 20%</span>
+                            </div>
+                            <div style="font-size: 26px; font-weight: 800; color: #f59e0b; margin: 8px 0;">{{ habit_data.subscores.snooze_reduction }}%</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">First-attempt alarm dismissals</div>
+                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                                <div style="width: {{ habit_data.subscores.snooze_reduction }}%; height: 100%; background: #f59e0b; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 4. Sleep Schedule Adherence (20%) -->
+                        <div class="glass-card" style="border-left: 4px solid #ec4899;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Sleep Adherence</span>
+                                <span class="badge badge-info" style="font-size: 10px;">Weight: 20%</span>
+                            </div>
+                            <div style="font-size: 26px; font-weight: 800; color: #ec4899; margin: 8px 0;">{{ habit_data.subscores.sleep_schedule_adherence }}%</div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">Bedtime consistency & circadian rhythm</div>
+                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
+                                <div style="width: {{ habit_data.subscores.sleep_schedule_adherence }}%; height: 100%; background: #ec4899; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Verification Methods & Anti-Snooze Control Grid -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-top: 24px;">
+                    <!-- Verification Methods Interactive Center -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                            <span>🧠</span> Wake-Up Verification Engine
+                        </h3>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                            Configure or launch custom verification protocols to stimulate prefrontal cortex neural activation upon waking:
+                        </p>
+
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                            <div onclick="testSpecificMethod('Puzzle Completion')" class="glass-card" style="padding: 10px; text-align: center; cursor: pointer; border: 1px solid var(--border-card); transition: all 0.2s;">
+                                <div style="font-size: 20px;">🧩</div>
+                                <strong style="font-size: 12px; display: block; margin-top: 4px;">Puzzle Completion</strong>
+                            </div>
+                            <div onclick="testSpecificMethod('Multi-Step Challenges')" class="glass-card" style="padding: 10px; text-align: center; cursor: pointer; border: 1px solid var(--border-card); transition: all 0.2s;">
+                                <div style="font-size: 20px;">🔢</div>
+                                <strong style="font-size: 12px; display: block; margin-top: 4px;">Multi-Step</strong>
+                            </div>
+                            <div onclick="testSpecificMethod('Consecutive Correct Answers')" class="glass-card" style="padding: 10px; text-align: center; cursor: pointer; border: 1px solid var(--border-card); transition: all 0.2s;">
+                                <div style="font-size: 20px;">🎯</div>
+                                <strong style="font-size: 12px; display: block; margin-top: 4px;">Consecutive Streak</strong>
+                            </div>
+                            <div onclick="testSpecificMethod('Time-Based Challenges')" class="glass-card" style="padding: 10px; text-align: center; cursor: pointer; border: 1px solid var(--border-card); transition: all 0.2s;">
+                                <div style="font-size: 20px;">⏱️</div>
+                                <strong style="font-size: 12px; display: block; margin-top: 4px;">Timed Blitz</strong>
+                            </div>
+                            <div onclick="testSpecificMethod('Cognitive Accuracy Checks')" class="glass-card" style="padding: 10px; text-align: center; cursor: pointer; border: 1px solid var(--border-card); transition: all 0.2s;">
+                                <div style="font-size: 20px;">🔍</div>
+                                <strong style="font-size: 12px; display: block; margin-top: 4px;">Accuracy Check</strong>
+                            </div>
+                        </div>
+
+                        <!-- Anti-Snooze Status -->
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 10px; padding: 14px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong style="font-size: 13px; color: var(--text-primary);">🛡️ Anti-Snooze Enforcement</strong>
+                                <span class="badge badge-active" style="font-size: 11px;">Active</span>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.4;">
+                                Max 3 snoozes allowed. Each consecutive snooze increases cognitive challenge difficulty by +1 tier and shortens snooze duration to eliminate sleep inertia relapse.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Post-Wake Confirmation Check-in -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <span>☀️</span> Post-Wake Confirmation Check-In
+                        </h3>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                            Log your alertness rating 10 minutes post-wake to confirm wakefulness and earn streak points.
+                        </p>
+
+                        <form id="wake-confirm-form" onsubmit="submitWakeConfirmation(event)">
+                            <div class="form-group" style="margin-bottom: 12px;">
+                                <label style="font-size: 12px;">Alertness Rating (1 - 10)</label>
+                                <div style="display: flex; gap: 6px; margin-top: 4px;">
+                                    <input type="range" id="confirm-rating-range" min="1" max="10" value="8" style="flex: 1;" oninput="document.getElementById('confirm-rating-val').innerText = this.value + '/10'">
+                                    <span id="confirm-rating-val" style="font-size: 14px; font-weight: 700; color: var(--primary); min-width: 45px;">8/10</span>
+                                </div>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 14px;">
+                                <label style="font-size: 12px;">Morning State Notes</label>
+                                <input type="text" id="confirm-notes" class="form-input" placeholder="e.g. Feeling alert, had morning water" style="font-size: 13px;">
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width: 100%; font-size: 13px; padding: 10px; margin-bottom: 8px;">✅ Confirm Morning Wakefulness</button>
+                            <button type="button" onclick="triggerWakeConfirmPopup()" class="btn btn-secondary" style="width: 100%; font-size: 12px; padding: 8px;">☀️ Launch "Are You Awake?" Pop-Up</button>
+                        </form>
+
+                        <!-- Recent Confirmations -->
+                        {% if confirmations %}
+                            <div style="margin-top: 14px; font-size: 11px; color: var(--text-secondary);">
+                                <strong>Recent Confirmation:</strong> {{ confirmations[0].created_at.strftime('%b %d, %H:%M') if confirmations[0].created_at else 'Today' }} — Alertness: <span style="color:#4ade80;">{{ confirmations[0].wakefulness_rating }}/10</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 5-Pillar Recommendation Engine Showcase -->
+                <div style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3 style="font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <span>💡</span> AI Multi-Pillar Recommendation Engine
+                        </h3>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                        <!-- 1. Sleep Improvement -->
+                        <div class="glass-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-size: 18px;">🌙</span>
+                                <h4 style="font-size: 14px; margin: 0;">Sleep Improvement</h4>
+                            </div>
+                            <div style="font-size: 12px; color: #38bdf8; font-weight: 600; margin-bottom: 8px;">Optimal Bedtime: {{ recommendations.sleep_improvement.optimal_bedtime }} (Target: {{ recommendations.sleep_improvement.target_sleep_duration_hours }}h)</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+                                {% for r in recommendations.sleep_improvement.recommendations %}
+                                    <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- 2. Wake-Up Optimization -->
+                        <div class="glass-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-size: 18px;">⏰</span>
+                                <h4 style="font-size: 14px; margin: 0;">Wake-Up Optimization</h4>
+                            </div>
+                            <div style="font-size: 12px; color: #4ade80; font-weight: 600; margin-bottom: 8px;">Target Wake: {{ recommendations.wake_up_optimization.target_wake_time }}</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+                                {% for r in recommendations.wake_up_optimization.optimization_steps %}
+                                    <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- 3. Habit Guidance -->
+                        <div class="glass-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-size: 18px;">🏆</span>
+                                <h4 style="font-size: 14px; margin: 0;">Habit Guidance & Streaks</h4>
+                            </div>
+                            <div style="font-size: 12px; color: #f59e0b; font-weight: 600; margin-bottom: 8px;">Current Streak: {{ recommendations.habit_improvement.current_streak }} Days ({{ recommendations.habit_improvement.days_away }} days to 7-Day Trophy)</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+                                {% for r in recommendations.habit_improvement.guidance %}
+                                    <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- 4. Productivity Windows -->
+                        <div class="glass-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-size: 18px;">⚡</span>
+                                <h4 style="font-size: 14px; margin: 0;">Peak Productivity & Alertness</h4>
+                            </div>
+                            <div style="font-size: 12px; color: #a78bfa; font-weight: 600; margin-bottom: 8px;">Prime Focus: {{ recommendations.productivity.peak_cognitive_window }} ({{ recommendations.productivity.alertness_level }})</div>
+                            <ul style="margin: 0; padding-left: 18px; font-size: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+                                {% for r in recommendations.productivity.recommendations %}
+                                    <li>{{ r }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- 5. Personalized Challenges -->
+                        <div class="glass-card">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <span style="font-size: 18px;">🎯</span>
+                                <h4 style="font-size: 14px; margin: 0;">Personalized Challenge Type</h4>
+                            </div>
+                            <div style="font-size: 12px; color: #34d399; font-weight: 600; margin-bottom: 8px;">Recommended: {{ recommendations.personalized_challenges.recommended_challenge_type }}</div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.4;">
+                                {{ recommendations.personalized_challenges.personalization_reason }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Behavioral Analytics & Wake Logs Tables -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <!-- Wake Logs Table -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="margin: 0; font-size: 15px;">⏰ Recent Morning Wake Logs</h4>
+                            <span style="font-size: 11px; color: var(--text-secondary);">Last 10 Days</span>
+                        </div>
+                        <div class="table-container" style="max-height: 240px; overflow-y: auto;">
+                            <table class="custom-table" style="font-size: 12px;">
+                                <thead>
+                                    <tr>
+                                        <th>Date/Time</th>
+                                        <th>Target</th>
+                                        <th>Actual</th>
+                                        <th>Drift</th>
+                                        <th>Snoozes</th>
+                                        <th>Wakefulness</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if wake_logs %}
+                                        {% for w in wake_logs %}
+                                            <tr>
+                                                <td>{{ w.created_at.strftime('%b %d') if w.created_at else 'Today' }}</td>
+                                                <td>{{ w.scheduled_time }}</td>
+                                                <td><strong>{{ w.actual_wake_time }}</strong></td>
+                                                <td><span style="color: {{ '#4ade80' if w.drift_minutes <= 5 else '#f59e0b' }};">+{{ w.drift_minutes }}m</span></td>
+                                                <td>{{ w.snooze_count }}</td>
+                                                <td><span class="badge badge-active">{{ w.wakefulness_rating }}/10</span></td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr><td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 15px;">No morning logs recorded yet.</td></tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Platform Announcements & Notifications Feed -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h4 style="margin: 0; font-size: 15px;">📢 Platform Announcements & Alerts</h4>
+                            <span class="badge badge-info" style="font-size: 11px;">Live Broadcast</span>
+                        </div>
+                        <div style="display: flex; flex-direction: column; gap: 10px; max-height: 240px; overflow-y: auto;">
+                            {% if announcements %}
+                                {% for a in announcements %}
+                                    <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 10px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                            <strong style="font-size: 13px;">{{ a.title }}</strong>
+                                            <span style="font-size: 10px; color: var(--text-secondary);">{{ a.created_at.strftime('%b %d') if a.created_at else '' }}</span>
+                                        </div>
+                                        <p style="font-size: 12px; color: var(--text-secondary); margin: 0; line-height: 1.4;">{{ a.content }}</p>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div style="text-align: center; color: var(--text-secondary); padding: 25px;">No new platform announcements.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export & Reports Center -->
+                <div class="glass-card" style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h3 style="font-size: 16px; margin: 0;">📑 Multi-Module Reports & Data Export Center</h3>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                                Export formatted PDF dossiers or multi-sheet Microsoft Excel spreadsheets with complete habit histories, wake patterns, and cognitive challenge telemetry.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <strong style="font-size: 13px;">Complete Platform Dossier</strong>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">All 5 modules combined</p>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/api/reports/export/pdf?report_type=all" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📄 PDF</a>
+                                <a href="/api/reports/export/excel?report_type=all" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <strong style="font-size: 13px;">Habit Score Report</strong>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">35/25/20/20 breakdown history</p>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/api/reports/export/pdf?report_type=habit" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📄 PDF</a>
+                                <a href="/api/reports/export/excel?report_type=habit" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <strong style="font-size: 13px;">Wake-Up Statistics</strong>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">Time drift & snooze records</p>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/api/reports/export/pdf?report_type=wake_up" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📄 PDF</a>
+                                <a href="/api/reports/export/excel?report_type=wake_up" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <strong style="font-size: 13px;">Cognitive Challenges</strong>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">Accuracy, speeds & solve rates</p>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/api/reports/export/pdf?report_type=challenge" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📄 PDF</a>
+                                <a href="/api/reports/export/excel?report_type=challenge" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -965,10 +1341,82 @@
                 </div>
             </div>
             
-            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px;">
+            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button type="button" onclick="stopAlarmSound(); showToast('Audio Muted', 'warning');" class="btn btn-secondary" style="font-size: 11px; padding: 6px 12px;">🔇 Mute Audio</button>
-                <button type="button" onclick="snoozeFromModal()" class="btn btn-warning" style="font-size: 11px; padding: 6px 12px;">💤 Snooze (5m)</button>
+                <button type="button" id="modal-snooze-btn" onclick="handleRestrictedSnooze()" class="btn btn-warning" style="font-size: 11px; padding: 6px 12px; opacity: 0.6; cursor: not-allowed;" title="Snooze is restricted until required questions are solved" disabled>🔒 Snooze Locked</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Unified 'Are You Awake?' Wake-Up Confirmation Pop-Up Modal -->
+    <div id="wake-confirm-modal" class="modal-overlay">
+        <div class="modal-content glass-panel" style="max-width: 460px; text-align: center; border: 1px solid rgba(74, 222, 128, 0.4);">
+            <div style="font-size: 40px; margin-bottom: 8px;">☀️</div>
+            <h2 style="font-size: 22px; font-weight: 800; margin-bottom: 6px;">Are you awake?</h2>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 18px;">
+                Please confirm your wakefulness state to verify alert status and maintain your streak.
+            </p>
+
+            <form id="popup-wake-confirm-form" onsubmit="submitPopupWakeConfirmation(event)">
+                <!-- Step 1: Yes / No Confirmation Prompt -->
+                <div style="display: flex; gap: 12px; margin-bottom: 18px;">
+                    <button type="button" id="awake-yes-btn" onclick="selectAwakeChoice(true)" class="btn btn-success" style="flex: 1; padding: 12px; font-weight: 700; font-size: 14px; border: 2px solid #4ade80;">
+                        ✅ Yes, I am awake!
+                    </button>
+                    <button type="button" id="awake-no-btn" onclick="selectAwakeChoice(false)" class="btn btn-secondary" style="flex: 1; padding: 12px; font-size: 13px; opacity: 0.8;">
+                        💤 No, still drowsy
+                    </button>
+                </div>
+                <input type="hidden" id="popup-confirmed-choice" value="true">
+
+                <!-- Step 2: Unified 3-Level Wakefulness Prompt -->
+                <div id="wakefulness-levels-container" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 12px; padding: 14px; margin-bottom: 16px; text-align: left;">
+                    <label style="font-size: 12px; font-weight: 700; color: var(--text-primary); display: block; margin-bottom: 10px;">
+                        Select your wakefulness level:
+                    </label>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label onclick="selectWakeLevel('Slightly awake', 2)" class="glass-card wake-level-option" style="padding: 10px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin: 0; border: 1px solid var(--border-card);">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="radio" name="wake_level_choice" value="Slightly awake">
+                                <div>
+                                    <strong style="font-size: 13px; color: #38bdf8;">😴 Slightly awake</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary); display: block;">Mild grogginess, getting moving</span>
+                                </div>
+                            </div>
+                            <span class="badge" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; font-size: 10px;">1–2 / 5</span>
+                        </label>
+
+                        <label onclick="selectWakeLevel('Half awake', 3)" class="glass-card wake-level-option" style="padding: 10px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin: 0; border: 1px solid var(--border-card);">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="radio" name="wake_level_choice" value="Half awake">
+                                <div>
+                                    <strong style="font-size: 13px; color: #f59e0b;">🥱 Half awake</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary); display: block;">Alertness clearing, conscious</span>
+                                </div>
+                            </div>
+                            <span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; font-size: 10px;">3 / 5</span>
+                        </label>
+
+                        <label onclick="selectWakeLevel('Fully awake', 5)" class="glass-card wake-level-option" style="padding: 10px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; margin: 0; border: 1px solid rgba(74, 222, 128, 0.4); background: rgba(74, 222, 128, 0.08);">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <input type="radio" name="wake_level_choice" value="Fully awake" checked>
+                                <div>
+                                    <strong style="font-size: 13px; color: #4ade80;">⚡ Fully awake</strong>
+                                    <span style="font-size: 11px; color: var(--text-secondary); display: block;">Sharp focus, full cognitive energy</span>
+                                </div>
+                            </div>
+                            <span class="badge" style="background: rgba(74, 222, 128, 0.2); color: #4ade80; font-size: 10px;">5 / 5</span>
+                        </label>
+                    </div>
+                </div>
+                <input type="hidden" id="popup-wakefulness-level" value="Fully awake">
+                <input type="hidden" id="popup-wakefulness-rating" value="5">
+
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 14px; font-weight: 700;">
+                    ✅ Confirm & Log Wakefulness State
+                </button>
+            </form>
         </div>
     </div>
 
@@ -1321,11 +1769,39 @@
             });
         }
 
+        let totalRequiredSteps = 1;
+        let currentStepIndex = 1;
+
         function handleSubmitResult(res) {
+            const snoozeBtn = document.getElementById('modal-snooze-btn');
+
             if (res.success) {
-                // CORRECT — show score, update next difficulty badge, stop alarm
+                // CORRECT — check if multi-step or complete
+                if (res.next_step_required && res.next_step) {
+                    currentStepIndex++;
+                    showToast(`✅ Correct! Loading Step ${currentStepIndex} of ${res.total_steps || totalRequiredSteps}...`, 'success');
+                    
+                    const ch = res.next_step;
+                    document.getElementById('challenge-expected').value = ch.expected_answer;
+                    document.getElementById('challenge-label').innerText = ch.question || ch.label || 'Solve next challenge:';
+                    document.getElementById('challenge-desc').innerText = ch.instructions || `Step ${currentStepIndex} of ${res.total_steps || totalRequiredSteps}`;
+                    document.getElementById('challenge-input').value = '';
+                    document.getElementById('challenge-input').focus();
+                    return;
+                }
+
+                // Disarm and unlock snooze
                 stopAlarmSound();
                 alarmDisarmed = true;
+                if (snoozeBtn) {
+                    snoozeBtn.disabled = false;
+                    snoozeBtn.style.opacity = '1';
+                    snoozeBtn.style.cursor = 'pointer';
+                    snoozeBtn.innerText = '💤 Snooze Available';
+                    snoozeBtn.classList.remove('btn-warning');
+                    snoozeBtn.classList.add('btn-success');
+                }
+
                 if (challengeTimerInterval) {
                     clearInterval(challengeTimerInterval);
                     challengeTimerInterval = null;
@@ -1347,18 +1823,29 @@
                     diffBadge.innerText = res.next_adapted_difficulty + ' (next)';
                 }
 
-                // Allow user to see result, then show weekly pref modal
+                // Allow user to see result, then offer wake confirmation pop-up
                 setTimeout(() => {
                     closeModal('challenge-modal');
-                    document.getElementById('weekly-pref-text').innerText = `🎉 Score: ${res.score}! Would you like to play similar '${currentSolvedChallengeType}' puzzles this week?`;
-                    openModal('weekly-pref-modal');
-                }, 2200);
+                    triggerWakeConfirmPopup();
+                }, 2000);
 
             } else {
-                // WRONG — keep alarm ringing, shake input, clear field, increment attempts
+                // WRONG — ADAPTIVE RATING SCALE: Add +1 compensation question
                 challengeFailedAttempts++;
+                totalRequiredSteps++;
                 document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
-                showToast(`❌ Wrong answer! ${challengeFailedAttempts} failed attempt(s). Try again!`, 'danger');
+                
+                showToast(`❌ Incorrect! +1 Compensation Question added (${totalRequiredSteps} questions required).`, 'danger');
+                
+                if (res.next_step) {
+                    const ch = res.next_step;
+                    document.getElementById('challenge-expected').value = ch.expected_answer;
+                    document.getElementById('challenge-label').innerText = ch.question || ch.label || 'Solve compensation question:';
+                    document.getElementById('challenge-desc').innerText = `⚠️ Adaptive Calibration: +1 Compensation Question (${currentStepIndex} of ${totalRequiredSteps})`;
+                } else {
+                    document.getElementById('challenge-desc').innerText = `⚠️ Adaptive Calibration: +1 Compensation Question added (${currentStepIndex} of ${totalRequiredSteps})`;
+                }
+
                 if (!alarmAudioInterval) startAlarmSound();
                 document.getElementById('challenge-input').value = '';
                 document.querySelectorAll('.opt-btn').forEach(b => b.style.borderColor = 'var(--border-card)');
@@ -2121,6 +2608,186 @@
             } catch (err) {
                 console.error('Failed to load personalization tab:', err);
                 showToast('Error loading AI Personalization data', 'error');
+            }
+        }
+
+        // =====================================================================
+        // MODULES 7-12: HABIT SCORING & WAKE-UP VERIFICATION JS HANDLERS
+        // =====================================================================
+
+        async function recalculateHabitScore() {
+            try {
+                showToast('Recalculating 35/25/20/20 weighted habit score...', 'info');
+                const res = await fetch('/api/habit/recalculate', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.habit_score !== undefined) {
+                    const heroScore = document.getElementById('hero-habit-score');
+                    if (heroScore) heroScore.innerHTML = `${data.habit_score}<span style="font-size: 18px; color: var(--text-secondary);">/100</span>`;
+                    showToast(`✅ Habit Score recalculated: ${data.habit_score}/100 (${data.grade})`, 'success');
+                } else {
+                    showToast('Failed to recalculate habit score', 'error');
+                }
+            } catch (err) {
+                showToast('Network error during habit score recalculation', 'error');
+            }
+        }
+
+        async function testSpecificMethod(methodName) {
+            try {
+                showToast(`Generating ${methodName} challenge...`, 'info');
+                const res = await fetch('/api/verification/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        verification_method: methodName,
+                        difficulty: 'Medium',
+                        step_index: 1,
+                        total_steps: 2,
+                        time_limit_sec: 30
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.challenge) {
+                    const ch = data.challenge;
+                    document.getElementById('challenge-alarm-id').value = '';
+                    document.getElementById('challenge-expected').value = ch.expected_answer;
+                    document.getElementById('current-challenge-type').value = ch.challenge_type;
+                    document.getElementById('challenge-type-badge').innerText = `${methodName}: ${ch.challenge_type}`;
+                    document.getElementById('challenge-diff-badge').innerText = ch.difficulty || 'Medium';
+                    document.getElementById('challenge-source-badge').innerText = 'Verification Engine';
+                    document.getElementById('challenge-label').innerText = ch.question || ch.label || 'Solve to confirm alertness:';
+                    document.getElementById('challenge-desc').innerText = `Verification Method: ${methodName} — Step ${ch.step_index || 1}/${ch.total_steps || 1}`;
+                    
+                    const optCont = document.getElementById('challenge-options-container');
+                    if (optCont) optCont.innerHTML = '';
+                    
+                    const inp = document.getElementById('challenge-input');
+                    if (inp) {
+                        inp.value = '';
+                        inp.style.display = 'block';
+                    }
+
+                    openModal('challenge-modal');
+                } else {
+                    showToast('Failed to generate verification challenge', 'error');
+                }
+            } catch (err) {
+                showToast('Error launching verification test', 'error');
+            }
+        }
+
+        function openVerificationModal() {
+            testSpecificMethod('Puzzle Completion');
+        }
+
+        async function submitWakeConfirmation(e) {
+            e.preventDefault();
+            const rating = parseFloat(document.getElementById('confirm-rating-range').value);
+            const notes = document.getElementById('confirm-notes').value;
+
+            try {
+                const res = await fetch('/api/verification/wake-confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        wakefulness_rating: rating,
+                        notes: notes,
+                        confirmed: true,
+                        wakefulness_level: rating >= 4.0 ? 'Fully awake' : (rating >= 3.0 ? 'Half awake' : 'Slightly awake')
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(`✅ ${data.message} (+${data.streak_bonus_points} streak bonus points!)`, 'success');
+                    document.getElementById('confirm-notes').value = '';
+                } else {
+                    showToast(data.detail || 'Could not submit confirmation', 'error');
+                }
+            } catch (err) {
+                showToast('Network error submitting wake confirmation', 'error');
+            }
+        }
+
+        // =====================================================================
+        // RESTRICTED SNOOZE & POP-UP WAKE CONFIRMATION JS LOGIC
+        // =====================================================================
+
+        function handleRestrictedSnooze() {
+            if (!alarmDisarmed && totalRequiredSteps > 0) {
+                showToast('🔒 Snooze is restricted! You must solve all required cognitive questions first.', 'warning');
+                return;
+            }
+            snoozeFromModal();
+        }
+
+        function triggerWakeConfirmPopup() {
+            openModal('wake-confirm-modal');
+        }
+
+        function selectAwakeChoice(isAwake) {
+            document.getElementById('popup-confirmed-choice').value = isAwake ? 'true' : 'false';
+            const yesBtn = document.getElementById('awake-yes-btn');
+            const noBtn = document.getElementById('awake-no-btn');
+            const levelsCont = document.getElementById('wakefulness-levels-container');
+
+            if (isAwake) {
+                yesBtn.style.border = '2px solid #4ade80';
+                yesBtn.style.opacity = '1';
+                noBtn.style.border = 'none';
+                noBtn.style.opacity = '0.6';
+                if (levelsCont) levelsCont.style.display = 'block';
+            } else {
+                noBtn.style.border = '2px solid #f59e0b';
+                noBtn.style.opacity = '1';
+                yesBtn.style.border = 'none';
+                yesBtn.style.opacity = '0.6';
+                if (levelsCont) levelsCont.style.display = 'none';
+            }
+        }
+
+        function selectWakeLevel(levelName, ratingVal) {
+            document.getElementById('popup-wakefulness-level').value = levelName;
+            document.getElementById('popup-wakefulness-rating').value = ratingVal;
+
+            document.querySelectorAll('.wake-level-option').forEach(el => {
+                el.style.border = '1px solid var(--border-card)';
+                el.style.background = 'none';
+            });
+
+            const current = event.currentTarget;
+            if (current) {
+                current.style.border = '1px solid rgba(74, 222, 128, 0.4)';
+                current.style.background = 'rgba(74, 222, 128, 0.08)';
+            }
+        }
+
+        async function submitPopupWakeConfirmation(e) {
+            e.preventDefault();
+            const isConfirmed = document.getElementById('popup-confirmed-choice').value === 'true';
+            const level = isConfirmed ? document.getElementById('popup-wakefulness-level').value : 'Not awake / Drowsy';
+            const rating = isConfirmed ? parseFloat(document.getElementById('popup-wakefulness-rating').value) : 1.0;
+
+            try {
+                const res = await fetch('/api/verification/wake-confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        confirmed: isConfirmed,
+                        wakefulness_level: level,
+                        wakefulness_rating: rating,
+                        notes: `Pop-up Response: ${isConfirmed ? 'Awake' : 'Drowsy'} (${level})`
+                    })
+                });
+                const data = await res.json();
+                closeModal('wake-confirm-modal');
+                if (res.ok && data.success) {
+                    showToast(`✅ ${data.message} Recorded in progress reports!`, 'success');
+                } else {
+                    showToast(data.detail || 'Could not record confirmation', 'error');
+                }
+            } catch (err) {
+                closeModal('wake-confirm-modal');
+                showToast('Network error recording confirmation', 'error');
             }
         }
     </script>

@@ -1,9 +1,8 @@
 
 
 import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Float, Text
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from config import Config
 
 connect_args = {}
@@ -76,6 +75,9 @@ class User(Base):
     profile = relationship("UserProfile", back_populates="user", uselist=False, cascade="all, delete-orphan")
     alarms = relationship("Alarm", back_populates="user", cascade="all, delete-orphan")
     logs = relationship("ActivityLog", back_populates="user", cascade="all, delete-orphan")
+    confirmations = relationship("WakeUpConfirmation", back_populates="user", cascade="all, delete-orphan")
+    habit_score_logs = relationship("HabitScoreLog", back_populates="user", cascade="all, delete-orphan")
+    wake_logs = relationship("WakeLog", back_populates="user", cascade="all, delete-orphan")
     
     # Coach assignment
     coach_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -92,6 +94,19 @@ class UserProfile(Base):
     streak = Column(Integer, default=0)
     habit_score = Column(Integer, default=50)
     challenge_preference = Column(String(50), default="Math Puzzle")
+    difficulty_level = Column(String(20), default="medium")
+    preferred_alarm_sound = Column(String(50), default="Chimes")
+
+    # Weighted Habit Subscores (35% WakeUp, 25% Challenge, 20% Snooze, 20% Sleep)
+    wake_up_consistency_score = Column(Float, default=70.0)
+    challenge_completion_score = Column(Float, default=75.0)
+    snooze_reduction_score = Column(Float, default=80.0)
+    sleep_schedule_adherence_score = Column(Float, default=70.0)
+    productivity_score = Column(Float, default=75.0)
+    
+    # Workflows
+    anti_snooze_enabled = Column(Boolean, default=True)
+    wake_confirmation_enabled = Column(Boolean, default=True)
 
     user = relationship("User", back_populates="profile")
 
@@ -108,10 +123,18 @@ class Alarm(Base):
     alarm_status = Column(Boolean, default=True)
     smart_alarm = Column(Boolean, default=False)
     challenge_required = Column(String(50), default="Math Puzzle")
-    difficulty_level = Column(String(20), default="Medium") # Easy, Medium, Hard
+    difficulty_level = Column(String(20), default="Medium") # Beginner, Easy, Medium, Hard, Expert
     sound = Column(String(50), default="Chimes")
     vibration = Column(Boolean, default=True)
     snooze_count = Column(Integer, default=0)
+    snooze_limit = Column(Integer, default=3)
+    
+    # Verification Method & Multi-Step Options
+    verification_method = Column(String(50), default="Puzzle Completion") # Puzzle Completion, Multi-Step Challenges, Consecutive Correct Answers, Time-Based Challenges, Cognitive Accuracy Checks
+    multi_step_count = Column(Integer, default=2)
+    consecutive_target = Column(Integer, default=3)
+    time_limit_sec = Column(Integer, default=30)
+    
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
@@ -134,6 +157,71 @@ class Alarm(Base):
 
     user = relationship("User", back_populates="alarms")
 
+class WakeUpConfirmation(Base):
+    __tablename__ = "wake_up_confirmations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    alarm_id = Column(Integer, ForeignKey("alarms.id", ondelete="SET NULL"), nullable=True)
+    confirmed = Column(Boolean, default=True) # Yes / No response
+    confirmed_at = Column(DateTime, default=datetime.datetime.utcnow)
+    wakefulness_level = Column(String(50), default="Fully awake") # Slightly awake, Half awake, Fully awake
+    wakefulness_rating = Column(Float, default=5.0) # 1 - 5 scale
+    wakefulness_score = Column(Float, default=8.0) # 1.0 - 10.0 assessment
+    assessment_status = Column(String(30), default="confirmed") # fully_awake, mild_inertia, groggy, confirmed
+    verification_method = Column(String(50), default="Puzzle Completion")
+    response_time_sec = Column(Float, default=0.0)
+    notes = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="confirmations")
+    alarm = relationship("Alarm", backref="confirmations")
+
+class HabitScoreLog(Base):
+    __tablename__ = "habit_score_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    habit_score = Column(Float, nullable=False, default=50.0)
+    wake_up_consistency = Column(Float, default=70.0)   # 35% weight
+    challenge_completion = Column(Float, default=75.0)  # 25% weight
+    snooze_reduction = Column(Float, default=80.0)      # 20% weight
+    sleep_schedule_adherence = Column(Float, default=70.0) # 20% weight
+    productivity_score = Column(Float, default=75.0)
+    calculated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="habit_score_logs")
+
+class WakeLog(Base):
+    __tablename__ = "wake_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    alarm_id = Column(Integer, ForeignKey("alarms.id", ondelete="SET NULL"), nullable=True)
+    scheduled_time = Column(String(5), nullable=False)
+    actual_wake_time = Column(String(5), nullable=False)
+    drift_minutes = Column(Float, default=0.0)
+    snooze_count = Column(Integer, default=0)
+    dismissal_status = Column(String(30), default="verified_dismissal") # verified_dismissal, snoozed, missed
+    wakefulness_rating = Column(Float, default=8.0)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="wake_logs")
+    alarm = relationship("Alarm", backref="wake_logs")
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    admin_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    title = Column(String(150), nullable=False)
+    content = Column(Text, nullable=False)
+    target_role = Column(String(30), default="all") # all, user, coach
+    priority = Column(String(20), default="normal") # normal, high, urgent
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    admin = relationship("User", backref="announcements")
+
 class Notification(Base):
     __tablename__ = "notifications"
 
@@ -141,7 +229,7 @@ class Notification(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     title = Column(String(100), nullable=False)
     message = Column(String, nullable=False)
-    type = Column(String(30), default="info")
+    type = Column(String(30), default="info") # alarm, reminder, bedtime, habit, progress, coach, announcement, verification
     read_status = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -179,6 +267,14 @@ class ChallengePerformance(Base):
     status = Column(String(20), nullable=False)
     score = Column(Float, default=0.0)
     is_correct = Column(Boolean, default=True)
+    
+    # Verification & Behavioral Extensions
+    verification_method = Column(String(50), default="Puzzle Completion")
+    step_index = Column(Integer, default=1)
+    total_steps = Column(Integer, default=1)
+    consecutive_count = Column(Integer, default=1)
+    wakefulness_score = Column(Float, default=8.0)
+    
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", backref="performances")
@@ -204,6 +300,7 @@ def ensure_db_schema():
         inspector = inspect(engine)
         tables = inspector.get_table_names()
 
+        # Migrate challenge_performances
         if "challenge_performances" in tables:
             columns = [c["name"] for c in inspector.get_columns("challenge_performances")]
             with engine.connect() as conn:
@@ -211,26 +308,78 @@ def ensure_db_schema():
                     conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN score FLOAT DEFAULT 0.0"))
                 if "is_correct" not in columns:
                     conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN is_correct BOOLEAN DEFAULT 1"))
+                if "verification_method" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN verification_method VARCHAR(50) DEFAULT 'Puzzle Completion'"))
+                if "step_index" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN step_index INTEGER DEFAULT 1"))
+                if "total_steps" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN total_steps INTEGER DEFAULT 1"))
+                if "consecutive_count" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN consecutive_count INTEGER DEFAULT 1"))
+                if "wakefulness_score" not in columns:
+                    conn.execute(text("ALTER TABLE challenge_performances ADD COLUMN wakefulness_score FLOAT DEFAULT 8.0"))
                 
                 # Backfill is_correct flag
                 conn.execute(text("UPDATE challenge_performances SET is_correct = 1 WHERE status = 'success'"))
                 conn.execute(text("UPDATE challenge_performances SET is_correct = 0 WHERE status != 'success'"))
-
-                # Backfill score for all solved challenges with 0 score
-                conn.execute(text("""
-                    UPDATE challenge_performances 
-                    SET score = ROUND(
-                        CASE 
-                            WHEN LOWER(difficulty) = 'easy' THEN 50.0
-                            WHEN LOWER(difficulty) = 'hard' THEN 150.0
-                            WHEN LOWER(difficulty) = 'beginner' THEN 30.0
-                            WHEN LOWER(difficulty) = 'expert' THEN 200.0
-                            ELSE 100.0
-                        END * CASE WHEN accuracy > 0 THEN (accuracy / 100.0) ELSE 1.0 END, 1
-                    )
-                    WHERE (score IS NULL OR score = 0.0) AND (is_correct = 1 OR status = 'success')
-                """))
                 conn.commit()
+
+        # Migrate alarms
+        if "alarms" in tables:
+            columns = [c["name"] for c in inspector.get_columns("alarms")]
+            with engine.connect() as conn:
+                if "snooze_limit" not in columns:
+                    conn.execute(text("ALTER TABLE alarms ADD COLUMN snooze_limit INTEGER DEFAULT 3"))
+                if "verification_method" not in columns:
+                    conn.execute(text("ALTER TABLE alarms ADD COLUMN verification_method VARCHAR(50) DEFAULT 'Puzzle Completion'"))
+                if "multi_step_count" not in columns:
+                    conn.execute(text("ALTER TABLE alarms ADD COLUMN multi_step_count INTEGER DEFAULT 2"))
+                if "consecutive_target" not in columns:
+                    conn.execute(text("ALTER TABLE alarms ADD COLUMN consecutive_target INTEGER DEFAULT 3"))
+                if "time_limit_sec" not in columns:
+                    conn.execute(text("ALTER TABLE alarms ADD COLUMN time_limit_sec INTEGER DEFAULT 30"))
+                conn.commit()
+
+        # Migrate user_profiles
+        if "user_profiles" in tables:
+            columns = [c["name"] for c in inspector.get_columns("user_profiles")]
+            with engine.connect() as conn:
+                if "difficulty_level" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN difficulty_level VARCHAR(20) DEFAULT 'medium'"))
+                if "challenge_preference" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN challenge_preference VARCHAR(50) DEFAULT 'Math Puzzle'"))
+                if "wake_up_consistency_score" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN wake_up_consistency_score FLOAT DEFAULT 70.0"))
+                if "challenge_completion_score" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN challenge_completion_score FLOAT DEFAULT 75.0"))
+                if "snooze_reduction_score" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN snooze_reduction_score FLOAT DEFAULT 80.0"))
+                if "sleep_schedule_adherence_score" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN sleep_schedule_adherence_score FLOAT DEFAULT 70.0"))
+                if "productivity_score" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN productivity_score FLOAT DEFAULT 75.0"))
+                if "anti_snooze_enabled" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN anti_snooze_enabled BOOLEAN DEFAULT 1"))
+                if "wake_confirmation_enabled" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN wake_confirmation_enabled BOOLEAN DEFAULT 1"))
+                if "preferred_alarm_sound" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN preferred_alarm_sound VARCHAR(50) DEFAULT 'Chimes'"))
+                conn.commit()
+
+        # Migrate wake_up_confirmations
+        if "wake_up_confirmations" in tables:
+            columns = [c["name"] for c in inspector.get_columns("wake_up_confirmations")]
+            with engine.connect() as conn:
+                if "confirmed" not in columns:
+                    conn.execute(text("ALTER TABLE wake_up_confirmations ADD COLUMN confirmed BOOLEAN DEFAULT 1"))
+                if "wakefulness_level" not in columns:
+                    conn.execute(text("ALTER TABLE wake_up_confirmations ADD COLUMN wakefulness_level VARCHAR(50) DEFAULT 'Fully awake'"))
+                if "wakefulness_rating" not in columns:
+                    conn.execute(text("ALTER TABLE wake_up_confirmations ADD COLUMN wakefulness_rating FLOAT DEFAULT 5.0"))
+                if "response_time_sec" not in columns:
+                    conn.execute(text("ALTER TABLE wake_up_confirmations ADD COLUMN response_time_sec FLOAT DEFAULT 0.0"))
+                conn.commit()
+
     except Exception as e:
         print(f"Schema migration notice: {e}")
 
