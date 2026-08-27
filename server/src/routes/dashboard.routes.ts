@@ -5,6 +5,7 @@ import {
   getUserDashboard,
   getCoachDashboard,
   getAdminDashboard,
+  getCoachUserDetail,
 } from '../controllers/dashboard.controller.js';
 
 const router = Router();
@@ -14,6 +15,7 @@ router.get('/user', authenticateToken, authorizeRoles('user', 'coach', 'admin'),
 
 // Route accessible by coach or admin
 router.get('/coach', authenticateToken, authorizeRoles('coach', 'admin'), getCoachDashboard);
+router.get('/coach/users/:targetUserId', authenticateToken, authorizeRoles('coach', 'admin'), getCoachUserDetail);
 
 // Route accessible strictly by admin
 router.get('/admin', authenticateToken, authorizeRoles('admin'), getAdminDashboard);

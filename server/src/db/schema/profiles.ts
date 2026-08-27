@@ -14,6 +14,8 @@ export const profiles = pgTable('profiles', {
   timezone: varchar('timezone', { length: 50 }).default('UTC').notNull(),
   productivityGoal: text('productivity_goal').default('Maintain peak morning focus').notNull(),
   difficultyPreference: varchar('difficulty_preference', { length: 20 }).default('Moderate').notNull(),
+  sleepDuration: varchar('sleep_duration', { length: 50 }).default('8 Hours').notNull(),
+  habitPreferences: text('habit_preferences').default('Morning Hydration, Digital Sunset').notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 

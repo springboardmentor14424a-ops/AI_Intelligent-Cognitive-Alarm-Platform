@@ -12,6 +12,7 @@ import {
   FiCheckSquare,
   FiChevronLeft,
   FiChevronRight,
+  FiCpu,
 } from 'react-icons/fi';
 
 interface SidebarProps {
@@ -121,6 +122,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggleCollapse 
                 Core Modules
               </p>
             )}
+
+            <Link
+              to="/alarms"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                isActive('/alarms')
+                  ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 shadow-md shadow-blue-500/10'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+              title="Alarms Manager"
+            >
+              <FiClock className="w-4 h-4 flex-shrink-0 text-blue-400" />
+              {!isCollapsed && <span className="truncate">Alarms System</span>}
+            </Link>
+
+            <Link
+              to="/challenges"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                isActive('/challenges')
+                  ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30 shadow-md shadow-purple-500/10'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+              title="Cognitive Challenges Engine"
+            >
+              <FiCpu className="w-4 h-4 flex-shrink-0 text-purple-400" />
+              {!isCollapsed && <span className="truncate">Cognitive Puzzles</span>}
+            </Link>
+
+            <Link
+              to="/habits"
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                isActive('/habits')
+                  ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 shadow-md shadow-emerald-500/10'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+              }`}
+              title="Habit Tracker"
+            >
+              <FiCheckSquare className="w-4 h-4 flex-shrink-0 text-emerald-400" />
+              {!isCollapsed && <span className="truncate">Habits Tracker</span>}
+            </Link>
 
             <Link
               to="/profile"

@@ -1,8 +1,9 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { FiLogOut, FiActivity, FiUserCheck, FiShield, FiUser } from 'react-icons/fi';
+import { FiLogOut, FiActivity, FiUserCheck, FiShield, FiUser, FiTrendingUp } from 'react-icons/fi';
 import { UserRole } from '../types';
+import { NotificationCenter } from './NotificationCenter';
 
 export const Navbar: React.FC = () => {
   const { user, logout } = useAuth();
@@ -49,25 +50,34 @@ export const Navbar: React.FC = () => {
             <h1 className="text-base font-bold bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
               Cognitive Alarm Platform
             </h1>
-            <p className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Foundation Phase</p>
+            <p className="text-[10px] text-cyan-400 uppercase tracking-widest font-semibold">Adaptive Intelligence Phase</p>
           </div>
         </div>
 
         {user && (
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <nav className="hidden md:flex items-center gap-2">
-              {user.role === 'user' && (
-                <Link
-                  to="/user"
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    location.pathname === '/user'
-                      ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                  }`}
-                >
-                  User Dashboard
-                </Link>
-              )}
+              <Link
+                to="/user"
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  location.pathname === '/user' || location.pathname === '/user/dashboard'
+                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                Dashboard
+              </Link>
+
+              <Link
+                to="/analytics"
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 ${
+                  location.pathname === '/analytics'
+                    ? 'bg-cyan-600/20 text-cyan-400 border border-cyan-500/30'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                }`}
+              >
+                <FiTrendingUp className="w-3 h-3 text-cyan-400" /> Analytics
+              </Link>
 
               {(user.role === 'coach' || user.role === 'admin') && (
                 <Link
@@ -96,7 +106,9 @@ export const Navbar: React.FC = () => {
               )}
             </nav>
 
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-800">
+            <NotificationCenter />
+
+            <div className="flex items-center gap-3 pl-3 border-l border-slate-800">
               <div className="hidden sm:flex flex-col text-right">
                 <span className="text-xs font-semibold text-slate-200">{user.name}</span>
                 <div className="mt-0.5">{getRoleBadge(user.role)}</div>

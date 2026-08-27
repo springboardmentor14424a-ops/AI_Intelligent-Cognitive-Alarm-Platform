@@ -8,6 +8,8 @@ export const updateProfileSchema = z.object({
   timezone: z.string().min(1, 'Timezone is required').optional(),
   productivityGoal: z.string().min(1, 'Productivity goal is required').optional(),
   difficultyPreference: z.string().min(1, 'Difficulty preference is required').optional(),
+  sleepDuration: z.string().min(1, 'Sleep duration is required').optional(),
+  habitPreferences: z.string().optional(),
 });
 
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

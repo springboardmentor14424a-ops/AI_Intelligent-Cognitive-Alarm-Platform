@@ -10,10 +10,15 @@ import { UserDashboard } from './pages/UserDashboard';
 import { CoachDashboard } from './pages/CoachDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ProfilePage } from './pages/Profile';
+import { HabitsPage } from './pages/Habits';
+import { AlarmsPage } from './pages/Alarms';
+import { ChallengesPage } from './pages/Challenges';
 import { SettingsPage } from './pages/Settings';
 import { AuthCallback } from './pages/AuthCallback';
 import { AccessDenied } from './pages/AccessDenied';
 import { NotFound } from './pages/NotFound';
+
+import { UserAnalytics } from './pages/UserAnalytics';
 
 export const App: React.FC = () => {
   return (
@@ -32,6 +37,10 @@ export const App: React.FC = () => {
             <Route element={<ProtectedRoute allowedRoles={['user', 'coach', 'admin']} />}>
               <Route path="/user/dashboard" element={<UserDashboard />} />
               <Route path="/user" element={<Navigate to="/user/dashboard" replace />} />
+              <Route path="/analytics" element={<UserAnalytics />} />
+              <Route path="/alarms" element={<AlarmsPage />} />
+              <Route path="/challenges" element={<ChallengesPage />} />
+              <Route path="/habits" element={<HabitsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Route>

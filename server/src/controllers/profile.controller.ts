@@ -15,9 +15,11 @@ const mockProfilesStore: Record<string, any> = {
     email: 'user@cognitivealarm.com',
     wakeUpTime: '07:00 AM',
     sleepTime: '11:00 PM',
+    sleepDuration: '8 Hours',
     timezone: 'UTC-5 (EST)',
     productivityGoal: 'Consistent morning focus and early alarms',
     difficultyPreference: 'Moderate',
+    habitPreferences: 'Morning Hydration, Digital Sunset, Daily Meditation',
     updatedAt: new Date().toISOString(),
   },
   'demo-coach-id': {
@@ -27,9 +29,11 @@ const mockProfilesStore: Record<string, any> = {
     email: 'coach@cognitivealarm.com',
     wakeUpTime: '06:00 AM',
     sleepTime: '10:00 PM',
+    sleepDuration: '8 Hours',
     timezone: 'UTC-5 (EST)',
     productivityGoal: 'Optimize trainee sleep and waking routines',
     difficultyPreference: 'High',
+    habitPreferences: 'Sleep Optimization, Early Walk',
     updatedAt: new Date().toISOString(),
   },
   'demo-admin-id': {
@@ -39,9 +43,11 @@ const mockProfilesStore: Record<string, any> = {
     email: 'admin@cognitivealarm.com',
     wakeUpTime: '05:30 AM',
     sleepTime: '09:30 PM',
+    sleepDuration: '8 Hours',
     timezone: 'UTC',
     productivityGoal: 'Platform stability and user monitoring',
     difficultyPreference: 'Expert',
+    habitPreferences: 'System Audit Routine, Deep Work',
     updatedAt: new Date().toISOString(),
   },
 };
@@ -92,9 +98,11 @@ export const getProfile = async (
       email: req.user?.email || 'user@example.com',
       wakeUpTime: '07:00 AM',
       sleepTime: '11:00 PM',
+      sleepDuration: '8 Hours',
       timezone: 'UTC',
       productivityGoal: 'Improve daily focus and waking habits',
       difficultyPreference: 'Moderate',
+      habitPreferences: 'Morning Hydration, Digital Sunset',
       updatedAt: new Date().toISOString(),
     };
 
@@ -129,9 +137,11 @@ export const updateProfile = async (
         email: req.user?.email || 'user@example.com',
         wakeUpTime: '07:00 AM',
         sleepTime: '11:00 PM',
+        sleepDuration: '8 Hours',
         timezone: 'UTC',
         productivityGoal: 'Improve daily focus and waking habits',
         difficultyPreference: 'Moderate',
+        habitPreferences: 'Morning Hydration, Digital Sunset',
       };
     }
 
@@ -151,9 +161,11 @@ export const updateProfile = async (
           email: updates.email || mockProfilesStore[userId].email,
           wakeUpTime: updates.wakeUpTime || mockProfilesStore[userId].wakeUpTime,
           sleepTime: updates.sleepTime || mockProfilesStore[userId].sleepTime,
+          sleepDuration: updates.sleepDuration || mockProfilesStore[userId].sleepDuration,
           timezone: updates.timezone || mockProfilesStore[userId].timezone,
           productivityGoal: updates.productivityGoal || mockProfilesStore[userId].productivityGoal,
           difficultyPreference: updates.difficultyPreference || mockProfilesStore[userId].difficultyPreference,
+          habitPreferences: updates.habitPreferences || mockProfilesStore[userId].habitPreferences,
         })
         .onConflictDoUpdate({
           target: profiles.userId,

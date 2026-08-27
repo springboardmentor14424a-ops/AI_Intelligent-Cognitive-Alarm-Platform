@@ -4,6 +4,7 @@ import { env } from './config/env.js';
 import routes from './routes/index.js';
 import { errorHandler } from './middleware/error.middleware.js';
 import { initializeDatabase } from './db/init.js';
+import { startBackgroundScheduler } from './services/scheduler.service.js';
 
 const app: Express = express();
 
@@ -42,6 +43,9 @@ app.listen(PORT, async () => {
 
   // Initialize PostgreSQL database tables & seed data
   await initializeDatabase();
+
+  // Start background alarm scheduler service
+  startBackgroundScheduler();
 });
 
 export default app;

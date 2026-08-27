@@ -5,8 +5,16 @@ import * as usersSchema from './schema/users.js';
 import * as profilesSchema from './schema/profiles.js';
 import * as habitsSchema from './schema/habits.js';
 import * as alarmsSchema from './schema/alarms.js';
+import * as challengesSchema from './schema/challenges.js';
+import * as challengeAttemptsSchema from './schema/challengeAttempts.js';
+import * as wakeUpVerificationsSchema from './schema/wakeUpVerifications.js';
 
-// Safe helper to handle database URLs containing unencoded special characters (e.g. '@' in password)
+import * as snoozeLogsSchema from './schema/snoozeLogs.js';
+import * as sleepLogsSchema from './schema/sleepLogs.js';
+import * as notificationsSchema from './schema/notifications.js';
+import * as recommendationsSchema from './schema/recommendations.js';
+import * as habitScoresSchema from './schema/habitScores.js';
+
 const createPoolConfig = (connectionString: string): pg.PoolConfig => {
   try {
     const matches = connectionString.match(/^(postgresql:\/\/|postgres:\/\/)([^:]+):(.*)@([^@:]+):(\d+)\/(.+)$/);
@@ -18,7 +26,7 @@ const createPoolConfig = (connectionString: string): pg.PoolConfig => {
         host,
         port: parseInt(port, 10),
         database,
-        connectionTimeoutMillis: 3000, // 3s connection timeout
+        connectionTimeoutMillis: 3000,
       };
     }
   } catch (_e) {}
@@ -28,7 +36,6 @@ const createPoolConfig = (connectionString: string): pg.PoolConfig => {
 const poolConfig = createPoolConfig(env.DATABASE_URL);
 export const pool = new pg.Pool(poolConfig);
 
-// Global pool error handler to prevent unhandled process crashes
 pool.on('error', (err) => {
   console.warn('⚠️ PostgreSQL Pool Warning/Error:', err.message);
 });
@@ -39,12 +46,17 @@ export const db = drizzle(pool, {
     ...profilesSchema,
     ...habitsSchema,
     ...alarmsSchema,
+    ...challengesSchema,
+    ...challengeAttemptsSchema,
+    ...wakeUpVerificationsSchema,
+    ...snoozeLogsSchema,
+    ...sleepLogsSchema,
+    ...notificationsSchema,
+    ...recommendationsSchema,
+    ...habitScoresSchema,
   },
 });
 
-/**
- * Check if PostgreSQL database is reachable
- */
 export const checkDatabaseConnection = async (): Promise<boolean> => {
   try {
     const client = await pool.connect();
@@ -52,7 +64,9 @@ export const checkDatabaseConnection = async (): Promise<boolean> => {
     client.release();
     return true;
   } catch (err: any) {
-    console.warn('⚠️ PostgreSQL Connection Check Failed:', err.message);
     return false;
   }
 };
+
+// Alias export for helper functions
+export const isDbConnected = checkDatabaseConnection;

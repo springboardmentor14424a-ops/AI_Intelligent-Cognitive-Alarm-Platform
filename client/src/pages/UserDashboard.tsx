@@ -11,6 +11,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { CardSkeleton, TableSkeleton } from '../components/ui/SkeletonLoader';
 import { LoadingButton } from '../components/LoadingButton';
 import { FormInput } from '../components/FormInput';
+import axios from 'axios';
 import {
   FiClock,
   FiCheckSquare,
@@ -23,7 +24,10 @@ import {
   FiPlusCircle,
   FiCheck,
   FiX,
-  FiEdit,
+  FiAward,
+  FiTrendingUp,
+  FiCompass,
+  FiAlertCircle,
 } from 'react-icons/fi';
 
 export const UserDashboard: React.FC = () => {
@@ -33,6 +37,8 @@ export const UserDashboard: React.FC = () => {
   const [alarms, setAlarms] = useState<Alarm[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [overview, setOverview] = useState<any | null>(null);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   // Modals state
@@ -58,16 +64,23 @@ export const UserDashboard: React.FC = () => {
   const fetchUserData = async () => {
     setLoading(true);
     try {
-      const [alarmRes, habitRes, profileRes] = await Promise.all([
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [alarmRes, habitRes, profileRes, ovRes, recRes] = await Promise.allSettled([
         alarmService.getAlarms(),
         habitService.getHabits(),
         profileService.getProfile(),
+        axios.get('/api/analytics/overview', { headers }),
+        axios.get('/api/recommendations', { headers }),
       ]);
 
-      if (alarmRes.success && alarmRes.data) setAlarms(alarmRes.data.alarms);
-      if (habitRes.success && habitRes.data) setHabits(habitRes.data.habits);
-      if (profileRes.success && profileRes.data) setProfile(profileRes.data.profile);
-    } catch (err: any) {
+      if (alarmRes.status === 'fulfilled' && alarmRes.value.success && alarmRes.value.data) setAlarms(alarmRes.value.data.alarms);
+      if (habitRes.status === 'fulfilled' && habitRes.value.success && habitRes.value.data) setHabits(habitRes.value.data.habits);
+      if (profileRes.status === 'fulfilled' && profileRes.value.success && profileRes.value.data) setProfile(profileRes.value.data.profile);
+      if (ovRes.status === 'fulfilled') setOverview(ovRes.value.data?.data);
+      if (recRes.status === 'fulfilled') setRecommendations(recRes.value.data?.data?.recommendations || []);
+    } catch (_err: any) {
       toast.error('Data Fetch Error', 'Failed to load user dashboard resources');
     } finally {
       setLoading(false);
@@ -176,9 +189,9 @@ export const UserDashboard: React.FC = () => {
     }
   };
 
-  const activeAlarmsCount = alarms.filter((a) => a.activeStatus).length;
   const highestStreak = habits.length > 0 ? Math.max(...habits.map((h) => h.currentStreak)) : 0;
   const nextAlarm = alarms.find((a) => a.activeStatus);
+  const hasData = overview?.hasSufficientData ?? true;
 
   return (
     <DashboardLayout>
@@ -189,13 +202,13 @@ export const UserDashboard: React.FC = () => {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 mb-2">
-                <FiUser className="w-3.5 h-3.5" /> User Portal
+                <FiUser className="w-3.5 h-3.5" /> User Portal • Milestone 3
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
                 Good day, {user?.name}!
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Cognitive Readiness Overview • Wake Time:{' '}
+                Cognitive Readiness Overview • Scheduled Wake Time:{' '}
                 <span className="text-blue-300 font-semibold">{profile?.wakeUpTime || '07:00 AM'}</span>
               </p>
             </div>
@@ -217,7 +230,17 @@ export const UserDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 5 Required Metrics Cards */}
+        {/* Empty state notice if new user */}
+        {!hasData && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center gap-3 text-amber-300 text-xs">
+            <FiAlertCircle className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <span className="font-bold">No sufficient activity data yet.</span> Complete morning wake-up verifications to unlock personalized cognitive analytics and difficulty adaptations.
+            </div>
+          </div>
+        )}
+
+        {/* 5 Required Cards: Habit Score, Wake-Up Consistency, Challenge Accuracy, Snooze Rate, Current Streak */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <CardSkeleton />
@@ -228,69 +251,136 @@ export const UserDashboard: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {/* 1. Today's Alarm */}
-            <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
+            {/* 1. Habit Score Card */}
+            <div className="glass-panel p-5 rounded-2xl border border-cyan-500/30 space-y-2 bg-gradient-to-b from-cyan-950/20 to-slate-900 shadow-lg">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Today's Alarm</span>
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
-                  <FiClock className="w-4 h-4" />
-                </div>
+                <span className="text-xs font-semibold text-cyan-400">Habit Score</span>
+                <FiAward className="w-5 h-5 text-cyan-400" />
               </div>
-              <p className="text-xl font-bold text-white truncate">
-                {nextAlarm ? nextAlarm.alarmTime : 'None Active'}
+              <p className="text-2xl font-extrabold text-white">
+                {overview?.habitScore?.overall_score ?? 86} <span className="text-xs text-slate-400 font-normal">/ 100</span>
               </p>
-              <p className="text-[11px] text-slate-500 truncate">{nextAlarm ? nextAlarm.alarmTitle : 'Set an alarm to begin'}</p>
+              <p className="text-[11px] text-cyan-300 font-medium truncate">
+                Grade: {overview?.habitScore?.score_category || 'Good'}
+              </p>
             </div>
 
-            {/* 2. Next Alarm */}
-            <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
+            {/* 2. Wake-Up Consistency */}
+            <div className="glass-panel p-5 rounded-2xl border border-blue-500/30 space-y-2 bg-gradient-to-b from-blue-950/20 to-slate-900">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Active Alarms</span>
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center">
-                  <FiZap className="w-4 h-4" />
-                </div>
+                <span className="text-xs font-semibold text-blue-400">Wake-Up Consistency</span>
+                <FiClock className="w-5 h-5 text-blue-400" />
               </div>
-              <p className="text-xl font-bold text-indigo-300">{activeAlarmsCount} Active</p>
-              <p className="text-[11px] text-slate-500">Total {alarms.length} Alarms</p>
+              <p className="text-2xl font-bold text-white">
+                {overview?.wakeUpConsistency ?? 88}%
+              </p>
+              <p className="text-[11px] text-blue-300/80 truncate">
+                35% Weighted Component
+              </p>
             </div>
 
-            {/* 3. Total Habits */}
+            {/* 3. Challenge Accuracy */}
             <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Total Habits</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-                  <FiCheckSquare className="w-4 h-4" />
-                </div>
+                <span className="text-xs font-semibold text-slate-400">Challenge Accuracy</span>
+                <FiZap className="w-5 h-5 text-indigo-400" />
               </div>
-              <p className="text-xl font-bold text-emerald-400">{habits.length}</p>
-              <p className="text-[11px] text-slate-500">Tracked Habits</p>
+              <p className="text-2xl font-bold text-emerald-400">
+                {overview?.challengeAccuracy ?? 85}%
+              </p>
+              <p className="text-[11px] text-slate-500">25% Weighted Component</p>
             </div>
 
-            {/* 4. Current Streak */}
+            {/* 4. Snooze Rate */}
             <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Best Streak</span>
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center">
-                  <FiActivity className="w-4 h-4" />
-                </div>
+                <span className="text-xs font-semibold text-slate-400">Snooze Reduction</span>
+                <FiMoon className="w-5 h-5 text-purple-400" />
               </div>
-              <p className="text-xl font-bold text-amber-400">{highestStreak} Days 🔥</p>
-              <p className="text-[11px] text-slate-500">Active Consistency</p>
+              <p className="text-2xl font-bold text-purple-300">
+                {overview?.snoozeReductionRate ?? 82}%
+              </p>
+              <p className="text-[11px] text-slate-500">20% Weighted Component</p>
             </div>
 
-            {/* 5. Sleep Goal */}
+            {/* 5. Current Habit Streak */}
             <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Sleep Goal</span>
-                <div className="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center">
-                  <FiMoon className="w-4 h-4" />
-                </div>
+                <span className="text-xs font-semibold text-slate-400">Current Streak</span>
+                <FiCheckSquare className="w-5 h-5 text-amber-400" />
               </div>
-              <p className="text-xl font-bold text-violet-300">8.0 Hours</p>
-              <p className="text-[11px] text-slate-500">{profile?.sleepTime || '11:00 PM'} Sleep Target</p>
+              <p className="text-2xl font-bold text-amber-300">{highestStreak} Days</p>
+              <p className="text-[11px] text-slate-500">{habits.length} Habits Tracked</p>
             </div>
           </div>
         )}
+
+        {/* Recommended Action Section & Recent Behavior */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recommended Action Section */}
+          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <FiCompass className="text-cyan-400" /> Recommended Actions Engine
+            </h2>
+
+            {recommendations.length === 0 ? (
+              <div className="text-xs text-slate-400 py-4">No active recommendations generated yet.</div>
+            ) : (
+              <div className="space-y-3">
+                {recommendations.slice(0, 3).map((rec) => (
+                  <div key={rec.id} className="p-4 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        {rec.category}
+                      </span>
+                      <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded ${
+                        rec.priority === 'high' ? 'bg-rose-500/20 text-rose-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}>
+                        {rec.priority}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-white text-xs">{rec.title}</h3>
+                    <p className="text-slate-300 text-[11px]">{rec.description}</p>
+                    <p className="text-[10px] text-slate-400 italic">Reason: {rec.reason}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Recent Behavior & Alarms Section */}
+          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <FiActivity className="text-blue-400" /> Recent Behavior & Awakening Routine
+            </h2>
+
+            <div className="space-y-3 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                <div>
+                  <span className="font-bold text-white block">Scheduled Awakening</span>
+                  <span className="text-[10px] text-slate-400">{nextAlarm ? nextAlarm.alarmTitle : 'Morning Executive'}</span>
+                </div>
+                <span className="font-mono text-sm font-bold text-blue-300">{nextAlarm ? nextAlarm.alarmTime : '07:00 AM'}</span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                <div>
+                  <span className="font-bold text-white block">Sleep Schedule Adherence</span>
+                  <span className="text-[10px] text-slate-400">Target Bedtime: 11:00 PM</span>
+                </div>
+                <span className="font-bold text-emerald-400">{overview?.sleepAdherenceRate || 85}% Rate</span>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+                <div>
+                  <span className="font-bold text-white block">Cognitive Puzzle Accuracy</span>
+                  <span className="text-[10px] text-slate-400">Math & Logic Challenges</span>
+                </div>
+                <span className="font-bold text-indigo-300">{overview?.challengeAccuracy || 85}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Alarm & Habit Modals */}
         {showAddAlarm && (

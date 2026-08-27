@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { users } from './users';
 
 export const habits = pgTable('habits', {
@@ -9,6 +9,7 @@ export const habits = pgTable('habits', {
   habitName: varchar('habit_name', { length: 150 }).notNull(),
   targetDays: integer('target_days').default(7).notNull(),
   currentStreak: integer('current_streak').default(0).notNull(),
+  isEnabled: boolean('is_enabled').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
