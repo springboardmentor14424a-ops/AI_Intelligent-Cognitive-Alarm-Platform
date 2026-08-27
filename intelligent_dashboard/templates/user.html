@@ -1601,6 +1601,11 @@
         let currentChallengeDifficulty = 'Medium';
         let challengeExpectedAnswer = '';
 
+        // ── Multi-Question State (min 5 questions per alarm session) ──────────
+        let totalRequiredSteps = 5;   // minimum 5, +1 on each wrong answer
+        let currentStepIndex   = 1;   // which question we are on right now
+        // ─────────────────────────────────────────────────────────────────────
+
         function toggleHint() {
             const el = document.getElementById('challenge-hint-text');
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
@@ -1618,58 +1623,70 @@
             currentSolvedChallengeType = challengeType || "Math Problems";
             document.getElementById('challenge-alarm-id').value = alarmId;
             document.getElementById('current-challenge-type').value = currentSolvedChallengeType;
-            
-            const labelEl = document.getElementById('challenge-label');
-            const inputEl = document.getElementById('challenge-input');
-            const optsContainer = document.getElementById('challenge-options-container');
-            const hintEl = document.getElementById('challenge-hint-text');
-            const typeBadge = document.getElementById('challenge-type-badge');
-            const diffBadge = document.getElementById('challenge-diff-badge');
-            const sourceBadge = document.getElementById('challenge-source-badge');
 
-            // Reset client-side challenge state only on fresh trigger
+            const labelEl      = document.getElementById('challenge-label');
+            const inputEl      = document.getElementById('challenge-input');
+            const optsContainer= document.getElementById('challenge-options-container');
+            const hintEl       = document.getElementById('challenge-hint-text');
+            const typeBadge    = document.getElementById('challenge-type-badge');
+            const diffBadge    = document.getElementById('challenge-diff-badge');
+            const sourceBadge  = document.getElementById('challenge-source-badge');
+            const descEl       = document.getElementById('challenge-desc');
+            const snoozeBtn    = document.getElementById('modal-snooze-btn');
+
+            // On FRESH alarm trigger: reset all multi-question state
             if (!isRetry) {
                 challengeFailedAttempts = 0;
-                challengeStartTime = new Date();
+                challengeStartTime      = new Date();
+                totalRequiredSteps      = 5;   // ← minimum 5 questions enforced
+                currentStepIndex        = 1;
+                alarmDisarmed           = false;
             }
+
+            // 🔒 Lock snooze until ALL questions are completed
+            if (snoozeBtn) {
+                snoozeBtn.disabled      = true;
+                snoozeBtn.style.opacity = '0.4';
+                snoozeBtn.style.cursor  = 'not-allowed';
+                snoozeBtn.innerText     = `🔒 Snooze Locked (${totalRequiredSteps - currentStepIndex + 1} questions left)`;
+                snoozeBtn.className     = 'btn btn-warning';
+            }
+
             challengeCurrentSeconds = 60;
-            
             document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
-            document.getElementById('challenge-timer-sec').innerText = challengeCurrentSeconds;
+            document.getElementById('challenge-timer-sec').innerText       = challengeCurrentSeconds;
 
-            if (challengeTimerInterval) {
-                clearInterval(challengeTimerInterval);
-            }
+            if (challengeTimerInterval) { clearInterval(challengeTimerInterval); }
 
-            inputEl.value = '';
-            optsContainer.innerHTML = '';
-            hintEl.style.display = 'none';
-            hintEl.innerText = '';
-            labelEl.innerText = '🧠 Fetching challenge...';
+            inputEl.value          = '';
+            optsContainer.innerHTML= '';
+            hintEl.style.display   = 'none';
+            hintEl.innerText       = '';
+            labelEl.innerText      = '🧠 Fetching challenge...';
+
+            // Show question progress
+            if (descEl) descEl.innerText = `📋 Question ${currentStepIndex} of ${totalRequiredSteps} — Solve all to disarm alarm`;
 
             typeBadge.innerText = currentSolvedChallengeType;
             diffBadge.innerText = difficulty;
 
-            // Hide any previous result box
             const resultBox = document.getElementById('challenge-result-box');
             if (resultBox) resultBox.style.display = 'none';
             document.getElementById('challenge-live-score').innerText = '--';
 
-            // Fetch dynamically generated challenge — backend applies personalized adaptive difficulty
+            // Fetch next question from backend
             fetch(`/api/challenges/generate?type=${encodeURIComponent(currentSolvedChallengeType)}&difficulty=${encodeURIComponent(difficulty)}&alarm_id=${alarmId}`)
                 .then(r => r.json())
                 .then(data => {
-                    labelEl.innerText = data.question || 'Solve to disarm alarm:';
-                    challengeExpectedAnswer = data.expected_answer || '';
+                    labelEl.innerText         = data.question || 'Solve to disarm alarm:';
+                    challengeExpectedAnswer   = data.expected_answer || '';
                     document.getElementById('challenge-expected').value = challengeExpectedAnswer;
-                    hintEl.innerText = `💡 Hint: ${data.hint || 'Read carefully!'}`;
-                    sourceBadge.innerText = data.source === 'gemini' ? 'Gemini AI' : 'Cognitive Engine';
+                    hintEl.innerText          = `💡 Hint: ${data.hint || 'Read carefully!'}`;
+                    sourceBadge.innerText     = data.source === 'gemini' ? 'Gemini AI' : 'Cognitive Engine';
+                    currentChallengeDifficulty= data.difficulty || difficulty;
+                    diffBadge.innerText       = currentChallengeDifficulty;
 
-                    // Update badges with adapted difficulty from backend
-                    currentChallengeDifficulty = data.difficulty || difficulty;
-                    diffBadge.innerText = currentChallengeDifficulty;
-
-                    // Start visual countdown timer
+                    // Start countdown timer
                     challengeTimerInterval = setInterval(() => {
                         challengeCurrentSeconds--;
                         document.getElementById('challenge-timer-sec').innerText = challengeCurrentSeconds;
@@ -1677,7 +1694,6 @@
                             clearInterval(challengeTimerInterval);
                             challengeTimerInterval = null;
                             const timeTaken = challengeStartTime ? Math.round((new Date() - challengeStartTime) / 1000) : 60;
-                            // Submit timeout performance to backend
                             fetch('/api/challenges/submit', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -1692,9 +1708,11 @@
                                     time_limit_exceeded: true
                                 })
                             }).catch(() => {});
+                            // Timeout counts as wrong → add penalty question
+                            totalRequiredSteps++;
                             challengeFailedAttempts++;
                             document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
-                            showToast('⏳ Time is up! Fetching a new challenge...', 'warning');
+                            showToast(`⏳ Time up! +1 Penalty Question. Now ${totalRequiredSteps} questions required.`, 'warning');
                             openChallengeModal(alarmId, challengeType, difficulty, true);
                         }
                     }, 1000);
@@ -1702,11 +1720,11 @@
                     if (data.options && data.options.length > 0) {
                         data.options.forEach(opt => {
                             const btn = document.createElement('button');
-                            btn.type = 'button';
+                            btn.type      = 'button';
                             btn.className = 'btn btn-secondary opt-btn';
-                            btn.style.width = '100%';
+                            btn.style.width   = '100%';
                             btn.style.padding = '8px';
-                            btn.style.fontSize = '14px';
+                            btn.style.fontSize= '14px';
                             btn.innerText = opt;
                             btn.onclick = () => selectOptionAnswer(opt);
                             optsContainer.appendChild(btn);
@@ -1714,6 +1732,7 @@
                     }
                 })
                 .catch(() => {
+                    // Fallback question
                     labelEl.innerText = 'What is 15 + 27?';
                     challengeExpectedAnswer = '42';
                     document.getElementById('challenge-expected').value = '42';
@@ -1722,6 +1741,7 @@
 
             openModal('challenge-modal');
         }
+
 
         function solveChallengeSubmit(e) {
             e.preventDefault();
@@ -1735,8 +1755,9 @@
             }
 
             const timeTaken = challengeStartTime ? Math.round((new Date() - challengeStartTime) / 1000) : 0;
+            const isAnswerCorrect = inputVal.trim().toLowerCase() === expectedVal.trim().toLowerCase();
 
-            // Submit to /api/challenges/submit — validation + tracking + completion analysis
+            // Submit to /api/challenges/submit for logging and metrics
             fetch('/api/challenges/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1752,15 +1773,17 @@
                 })
             })
             .then(r => r.json())
-            .then(res => handleSubmitResult(res))
+            .then(res => {
+                res.is_answer_correct = (res.success !== undefined) ? res.success : isAnswerCorrect;
+                handleSubmitResult(res);
+            })
             .catch(() => {
-                // Offline fallback: local compare
-                const ok = inputVal.trim().toLowerCase() === expectedVal.trim().toLowerCase();
                 handleSubmitResult({
-                    success: ok,
-                    completion_status: ok ? 'success' : 'failed',
-                    score: 0,
-                    accuracy: ok ? 100 : 0,
+                    is_answer_correct: isAnswerCorrect,
+                    success: isAnswerCorrect,
+                    completion_status: isAnswerCorrect ? 'success' : 'failed',
+                    score: isAnswerCorrect ? 50 : 0,
+                    accuracy: isAnswerCorrect ? 100 : 0,
                     time_taken: timeTaken,
                     failed_attempts: challengeFailedAttempts,
                     current_difficulty: currentChallengeDifficulty,
@@ -1769,30 +1792,87 @@
             });
         }
 
-        let totalRequiredSteps = 1;
-        let currentStepIndex = 1;
+        function loadNextQuestionStep(alarmId) {
+            const labelEl = document.getElementById('challenge-label');
+            const inputEl = document.getElementById('challenge-input');
+            const optsContainer = document.getElementById('challenge-options-container');
+            const hintEl = document.getElementById('challenge-hint-text');
+            const descEl = document.getElementById('challenge-desc');
+            const snoozeBtn = document.getElementById('modal-snooze-btn');
+
+            inputEl.value = '';
+            optsContainer.innerHTML = '';
+            hintEl.style.display = 'none';
+            hintEl.innerText = '';
+            labelEl.innerText = '🧠 Fetching next question...';
+
+            if (descEl) {
+                descEl.innerText = `📋 Question ${currentStepIndex} of ${totalRequiredSteps} (Remaining: ${totalRequiredSteps - currentStepIndex + 1})`;
+            }
+
+            if (snoozeBtn) {
+                snoozeBtn.disabled = true;
+                snoozeBtn.style.opacity = '0.4';
+                snoozeBtn.style.cursor = 'not-allowed';
+                snoozeBtn.innerText = `🔒 Snooze Locked (${totalRequiredSteps - currentStepIndex + 1} questions left)`;
+                snoozeBtn.className = 'btn btn-warning';
+            }
+
+            challengeCurrentSeconds = 60;
+            document.getElementById('challenge-timer-sec').innerText = challengeCurrentSeconds;
+
+            fetch(`/api/challenges/generate?type=${encodeURIComponent(currentSolvedChallengeType)}&difficulty=${encodeURIComponent(currentChallengeDifficulty)}&alarm_id=${alarmId || ''}`)
+                .then(r => r.json())
+                .then(data => {
+                    labelEl.innerText = data.question || 'Solve to continue disarming alarm:';
+                    challengeExpectedAnswer = data.expected_answer || '';
+                    document.getElementById('challenge-expected').value = challengeExpectedAnswer;
+                    hintEl.innerText = `💡 Hint: ${data.hint || 'Read carefully!'}`;
+
+                    if (data.options && data.options.length > 0) {
+                        data.options.forEach(opt => {
+                            const btn = document.createElement('button');
+                            btn.type = 'button';
+                            btn.className = 'btn btn-secondary opt-btn';
+                            btn.style.width = '100%';
+                            btn.style.padding = '8px';
+                            btn.style.fontSize = '14px';
+                            btn.innerText = opt;
+                            btn.onclick = () => selectOptionAnswer(opt);
+                            optsContainer.appendChild(btn);
+                        });
+                    }
+                    inputEl.focus();
+                })
+                .catch(() => {
+                    labelEl.innerText = 'What is 18 + 24?';
+                    challengeExpectedAnswer = '42';
+                    document.getElementById('challenge-expected').value = '42';
+                });
+        }
 
         function handleSubmitResult(res) {
             const snoozeBtn = document.getElementById('modal-snooze-btn');
+            const alarmId = document.getElementById('challenge-alarm-id').value;
+            const isCorrect = res.is_answer_correct || (res.success && res.completion_status !== 'failed');
 
-            if (res.success) {
-                // CORRECT — check if multi-step or complete
-                if (res.next_step_required && res.next_step) {
+            if (isCorrect) {
+                // Correct answer!
+                if (currentStepIndex < totalRequiredSteps) {
+                    // More questions remaining (must complete at least 5)
+                    const completedQ = currentStepIndex;
                     currentStepIndex++;
-                    showToast(`✅ Correct! Loading Step ${currentStepIndex} of ${res.total_steps || totalRequiredSteps}...`, 'success');
-                    
-                    const ch = res.next_step;
-                    document.getElementById('challenge-expected').value = ch.expected_answer;
-                    document.getElementById('challenge-label').innerText = ch.question || ch.label || 'Solve next challenge:';
-                    document.getElementById('challenge-desc').innerText = ch.instructions || `Step ${currentStepIndex} of ${res.total_steps || totalRequiredSteps}`;
-                    document.getElementById('challenge-input').value = '';
-                    document.getElementById('challenge-input').focus();
+                    const remainingQ = totalRequiredSteps - currentStepIndex + 1;
+                    showToast(`✅ Correct! Question ${completedQ} of ${totalRequiredSteps} cleared. Loading next question (${remainingQ} remaining)...`, 'success');
+                    loadNextQuestionStep(alarmId);
                     return;
                 }
 
-                // Disarm and unlock snooze
+                // All 5 (or 5+) required questions solved! Now disarm alarm
+                showToast(`🎉 All ${totalRequiredSteps} questions solved correctly! Alarm disarmed!`, 'success');
                 stopAlarmSound();
                 alarmDisarmed = true;
+
                 if (snoozeBtn) {
                     snoozeBtn.disabled = false;
                     snoozeBtn.style.opacity = '1';
@@ -1806,50 +1886,43 @@
                     clearInterval(challengeTimerInterval);
                     challengeTimerInterval = null;
                 }
-                // Show challenge-result-box with completion analysis
+
                 const resultBox = document.getElementById('challenge-result-box');
-                document.getElementById('result-score').innerText = res.score || 0;
-                document.getElementById('result-accuracy').innerText = (res.accuracy || 0) + '%';
+                document.getElementById('result-score').innerText = res.score || (totalRequiredSteps * 20);
+                document.getElementById('result-accuracy').innerText = (res.accuracy || 100) + '%';
                 document.getElementById('result-time').innerText = (res.time_taken || 0) + 's';
-                document.getElementById('result-failed').innerText = res.failed_attempts || 0;
+                document.getElementById('result-failed').innerText = challengeFailedAttempts;
                 document.getElementById('result-difficulty').innerText = res.current_difficulty || currentChallengeDifficulty;
                 document.getElementById('result-next-diff').innerText = res.next_adapted_difficulty || currentChallengeDifficulty;
-                document.getElementById('challenge-live-score').innerText = res.score || 0;
+                document.getElementById('challenge-live-score').innerText = res.score || (totalRequiredSteps * 20);
                 if (resultBox) resultBox.style.display = 'block';
 
-                // Update diff badge to show next adapted difficulty
-                const diffBadge = document.getElementById('challenge-diff-badge');
-                if (diffBadge && res.next_adapted_difficulty) {
-                    diffBadge.innerText = res.next_adapted_difficulty + ' (next)';
-                }
-
-                // Allow user to see result, then offer wake confirmation pop-up
                 setTimeout(() => {
                     closeModal('challenge-modal');
                     triggerWakeConfirmPopup();
                 }, 2000);
 
             } else {
-                // WRONG — ADAPTIVE RATING SCALE: Add +1 compensation question
+                // WRONG ANSWER — Add +1 compensation penalty question
                 challengeFailedAttempts++;
                 totalRequiredSteps++;
                 document.getElementById('challenge-attempts-count').innerText = challengeFailedAttempts;
-                
-                showToast(`❌ Incorrect! +1 Compensation Question added (${totalRequiredSteps} questions required).`, 'danger');
-                
-                if (res.next_step) {
-                    const ch = res.next_step;
-                    document.getElementById('challenge-expected').value = ch.expected_answer;
-                    document.getElementById('challenge-label').innerText = ch.question || ch.label || 'Solve compensation question:';
-                    document.getElementById('challenge-desc').innerText = `⚠️ Adaptive Calibration: +1 Compensation Question (${currentStepIndex} of ${totalRequiredSteps})`;
-                } else {
-                    document.getElementById('challenge-desc').innerText = `⚠️ Adaptive Calibration: +1 Compensation Question added (${currentStepIndex} of ${totalRequiredSteps})`;
+
+                showToast(`❌ Incorrect! +1 penalty question added. Now ${totalRequiredSteps} total questions required!`, 'danger');
+
+                const descEl = document.getElementById('challenge-desc');
+                if (descEl) {
+                    descEl.innerText = `⚠️ Question ${currentStepIndex} of ${totalRequiredSteps} (+1 Penalty Added — ${totalRequiredSteps - currentStepIndex + 1} remaining)`;
+                }
+
+                if (snoozeBtn) {
+                    snoozeBtn.innerText = `🔒 Snooze Locked (${totalRequiredSteps - currentStepIndex + 1} questions left)`;
                 }
 
                 if (!alarmAudioInterval) startAlarmSound();
-                document.getElementById('challenge-input').value = '';
-                document.querySelectorAll('.opt-btn').forEach(b => b.style.borderColor = 'var(--border-card)');
-                document.getElementById('challenge-input').focus();
+
+                // Reload question for current step
+                loadNextQuestionStep(alarmId);
             }
         }
 
@@ -2642,7 +2715,7 @@
                         verification_method: methodName,
                         difficulty: 'Medium',
                         step_index: 1,
-                        total_steps: 2,
+                        total_steps: 5,
                         time_limit_sec: 30
                     })
                 });
@@ -2677,7 +2750,8 @@
         }
 
         function openVerificationModal() {
-            testSpecificMethod('Puzzle Completion');
+            // Updated to demonstrate Multi-Step (min 5 questions) for the presentation
+            testSpecificMethod('Multi-Step Challenges');
         }
 
         async function submitWakeConfirmation(e) {
