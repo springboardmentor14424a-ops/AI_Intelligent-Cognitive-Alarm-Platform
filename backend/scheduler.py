@@ -18,6 +18,56 @@ from services.personalization_service import (
 logger = logging.getLogger("alarm_scheduler")
 
 triggered_alarms = []
+scheduled_snoozes = []
+
+
+def schedule_snooze(alarm: Alarm, due_at: datetime.datetime, snooze_count: int) -> None:
+    scheduled_snoozes.append({"alarm": alarm, "due_at": due_at, "snooze_count": snooze_count})
+    logger.info("Alarm snoozed: alarm_id=%s due_at=%s snooze_count=%s", alarm.id, due_at, snooze_count)
+
+
+def _trigger_snoozed_alarm(db: Session, item: dict) -> None:
+    alarm = item["alarm"]
+    rec = get_adaptive_recommendation(
+        db=db,
+        user_id=alarm.user_id,
+        base_difficulty=alarm.difficulty_level or "Medium",
+        preferred_type=alarm.challenge
+    )
+    diff_level = rec["recommended_difficulty"]
+    challenge_payload = generate_cognitive_challenge(map_challenge_type(rec["recommended_challenge_type"]), diff_level)
+    challenge_payload["id"] = f"chal_{uuid.uuid4().hex[:12]}"
+    challenge_payload["user_id"] = alarm.user_id
+    challenge_payload["alarm_id"] = alarm.id
+    challenge_payload["recommended_difficulty"] = diff_level
+    challenge_payload["recommended_challenge_type"] = rec["recommended_challenge_type"]
+    challenge_payload["time_limit"] = alarm.time_limit or 20
+    challenge_payload["source"] = "scheduler"
+    challenge_payload["scheduler_generated"] = True
+    challenge_payload["occurrence_id"] = f"snooze_{uuid.uuid4().hex[:12]}"
+    add_session(challenge_payload["id"], challenge_payload)
+    triggered_alarms.append({
+        "id": alarm.id,
+        "user_id": alarm.user_id,
+        "title": alarm.title,
+        "sound": alarm.sound,
+        "difficulty": diff_level,
+        "time": item["due_at"].strftime("%H:%M"),
+        "alarm_type": alarm.alarm_type,
+        "challenge_type": rec["recommended_challenge_type"],
+        "adaptive_reason": rec["reason"],
+        "verification_method": alarm.verification_method or "puzzle_completion",
+        "verification_steps": alarm.verification_steps or 1,
+        "required_accuracy": alarm.required_accuracy or 100,
+        "consecutive_required": alarm.consecutive_required or 1,
+        "time_limit": alarm.time_limit or 20,
+        "snooze_duration": alarm.snooze_duration or 5,
+        "max_snoozes": alarm.max_snoozes if alarm.max_snoozes is not None else 3,
+        "snooze_count": item["snooze_count"],
+        "occurrence_id": challenge_payload["occurrence_id"],
+        "challenge": challenge_payload
+    })
+    logger.info("Snoozed alarm triggered: alarm_id=%s occurrence_id=%s challenge_id=%s", alarm.id, challenge_payload["occurrence_id"], challenge_payload["id"])
 
 
 def deactivate_one_time_alarm_if_needed(db_session: Session, alarm: Alarm) -> bool:
@@ -97,6 +147,10 @@ async def alarm_scheduler_loop():
         try:
             db = SessionLocal()
             now = datetime.datetime.now()
+            due_snoozes = [item for item in scheduled_snoozes if item["due_at"] <= now]
+            for item in due_snoozes:
+                _trigger_snoozed_alarm(db, item)
+                scheduled_snoozes.remove(item)
             today_name = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][now.weekday()]
             today_is_weekend = now.weekday() in (5, 6)
             current_time_str = now.strftime("%H:%M")
@@ -171,6 +225,8 @@ async def alarm_scheduler_loop():
                         challenge_payload["adaptive_reason"] = rec["reason"]
                         challenge_payload["alarm_id"] = alarm.id
                         challenge_payload["time_limit"] = get_time_limit_for_difficulty(diff_level)
+                        challenge_payload["source"] = "scheduler"
+                        challenge_payload["scheduler_generated"] = True
                         add_session(session_id, challenge_payload)
 
                     triggered_alarms.append({
@@ -183,6 +239,15 @@ async def alarm_scheduler_loop():
                         "alarm_type": alarm.alarm_type,
                         "challenge_type": ch_type,
                         "adaptive_reason": rec["reason"],
+                        "verification_method": getattr(alarm, "verification_method", "puzzle_completion") or "puzzle_completion",
+                        "verification_steps": getattr(alarm, "verification_steps", 1) or 1,
+                        "required_accuracy": getattr(alarm, "required_accuracy", 100) or 100,
+                        "consecutive_required": getattr(alarm, "consecutive_required", 1) or 1,
+                        "time_limit": getattr(alarm, "time_limit", 20) or 20,
+                        "snooze_duration": getattr(alarm, "snooze_duration", 5) or 5,
+                        "max_snoozes": getattr(alarm, "max_snoozes", 3) if getattr(alarm, "max_snoozes", None) is not None else 3,
+                        "snooze_count": 0,
+                        "occurrence_id": f"alarm_{alarm.id}_{today_str}_{target_time}",
                         "challenge": challenge_payload
                     })
 

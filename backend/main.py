@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from config import settings
-from database import engine, Base
+from database import engine, Base, run_db_migrations
 from routes import auth, alarms, challenges, analytics
 from scheduler import alarm_scheduler_loop
 
@@ -44,12 +44,13 @@ app.include_router(analytics.router)
 @app.on_event("startup")
 async def startup_event():
     """
-    Creates tables in Database and starts background scheduler service on application startup.
+    Creates tables in Database, runs column migrations, and starts background scheduler service.
     """
     try:
-        logger.info("Initializing Database tables...")
+        logger.info("Initializing Database tables and running migrations...")
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables initialized successfully.")
+        run_db_migrations()
+        logger.info("Database tables and migrations initialized successfully.")
     except Exception as e:
         logger.error(f"Warning during DB table initialization: {e}")
 

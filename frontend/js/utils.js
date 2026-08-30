@@ -406,13 +406,19 @@ const Modal = {
         }
     },
     close(modalId) {
+        // Prevent bypassing challenge modal while alarm is actively ringing
+        if (modalId === 'challenge-modal' && window.currentRingingAlarm && window.isWakeUpVerified !== true) {
+            console.warn("🔒 Wake-Up Verification in progress. Modal dismissal blocked.");
+            return;
+        }
+
         const modal = document.getElementById(modalId);
         if (modal) {
             modal.classList.remove('show');
             document.body.style.overflow = '';
         }
 
-        if (modalId === 'challenge-modal' && typeof window.stopAlarmSound === 'function') {
+        if (modalId === 'challenge-modal' && window.isWakeUpVerified === true && typeof window.stopAlarmSound === 'function') {
             window.stopAlarmSound();
         }
     }
@@ -425,6 +431,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.addEventListener('click', (e) => {
             const modal = e.target.closest('.modal-overlay');
             if (modal) {
+                if (modal.id === 'challenge-modal' && window.currentRingingAlarm && window.isWakeUpVerified !== true) {
+                    return;
+                }
                 Modal.close(modal.id);
             }
         });
@@ -441,6 +450,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 Modal.close(overlay.id);
             }
         });
+    });
+
+    // Prevent ESC key from bypassing active wake-up verification
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && window.currentRingingAlarm && window.isWakeUpVerified !== true) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
     });
 });
 

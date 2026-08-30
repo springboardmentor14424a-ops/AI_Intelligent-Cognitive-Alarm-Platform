@@ -89,6 +89,87 @@ window.stopAlarmSound = () => {
     stopChallengeTimer();
 };
 
+// Wake-Up Verification Session State
+window.isWakeUpVerified = false;
+let currentVerificationState = {
+    sessionId: null,
+    status: 'in_progress', // pending, in_progress, passed, failed, timeout
+    method: 'puzzle_completion',
+    currentStep: 1,
+    totalSteps: 1,
+    correctCount: 0,
+    requiredAccuracy: 100,
+    consecutiveCorrect: 0,
+    consecutiveRequired: 1,
+    timeLimit: 20,
+    timeRemaining: 20
+};
+
+function renderVerificationHUD(state) {
+    if (!state) state = currentVerificationState;
+
+    // 1. Status Badge
+    const statusBadge = document.getElementById('verification-status-badge');
+    if (statusBadge) {
+        statusBadge.className = `verification-status-badge status-${state.status || 'in_progress'}`;
+        if (state.status === 'in_progress') {
+            statusBadge.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> In Progress';
+        } else if (state.status === 'passed') {
+            statusBadge.innerHTML = '<i class="fas fa-check-circle"></i> Passed';
+        } else if (state.status === 'failed') {
+            statusBadge.innerHTML = '<i class="fas fa-times-circle"></i> Failed';
+        } else if (state.status === 'timeout') {
+            statusBadge.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Timeout';
+        } else {
+            statusBadge.innerHTML = '<i class="fas fa-clock"></i> Pending';
+        }
+    }
+
+    // 2. Progress
+    const progressVal = document.getElementById('hud-progress-val');
+    const progressBar = document.getElementById('hud-progress-bar');
+    const currStep = state.currentStep || 1;
+    const totSteps = state.totalSteps || 1;
+    if (progressVal) {
+        progressVal.textContent = `${currStep}/${totSteps}`;
+    }
+    if (progressBar) {
+        const pct = Math.min(100, Math.round((currStep / totSteps) * 100));
+        progressBar.style.width = `${pct}%`;
+    }
+
+    // 3. Correct Answers
+    const correctVal = document.getElementById('hud-correct-val');
+    if (correctVal) {
+        correctVal.textContent = state.correctCount || 0;
+    }
+
+    // 4. Required Accuracy
+    const accuracyVal = document.getElementById('hud-accuracy-val');
+    if (accuracyVal) {
+        if (state.method === 'accuracy_check' || state.method === 'multi_step') {
+            const minNeeded = Math.ceil(((state.requiredAccuracy || 67) / 100) * totSteps);
+            accuracyVal.textContent = `${minNeeded}/${totSteps} (${state.requiredAccuracy || 67}%)`;
+        } else if (state.method === 'consecutive_correct') {
+            accuracyVal.textContent = `Streak: ${state.consecutiveRequired || 2} in a row`;
+        } else {
+            accuracyVal.textContent = `1/1 (100%)`;
+        }
+    }
+
+    // 5. Consecutive Correct
+    const consecutiveVal = document.getElementById('hud-consecutive-val');
+    if (consecutiveVal) {
+        consecutiveVal.textContent = `${state.consecutiveCorrect || 0}/${state.consecutiveRequired || 1}`;
+    }
+
+    // 6. Time Remaining
+    const timerDisplay = document.getElementById('challenge-timer-display');
+    if (timerDisplay && state.timeRemaining !== undefined) {
+        timerDisplay.textContent = `${state.timeRemaining}s`;
+    }
+}
+
 function triggerAlarmSound(alarm) {
     if (!alarm) return;
 
@@ -99,11 +180,48 @@ function triggerAlarmSound(alarm) {
     }
 
     currentRingingAlarm = alarm;
+    window.isWakeUpVerified = false;
 
     console.log("🔔 ALARM TRIGGERED:", alarm.title || alarm.id);
 
-    const audio = getAlarmAudioElement();
+    // Extract or default verification configuration (Default to 3-question Multi-Step)
+    let vMethod = alarm.verification_method;
+    if (!vMethod || vMethod === 'puzzle_completion' || vMethod === 'none' || vMethod === '') {
+        vMethod = 'multi_step';
+    }
+    let vSteps = parseInt(alarm.verification_steps) || 3;
+    let reqAcc = alarm.required_accuracy ? parseFloat(alarm.required_accuracy) : 67;
+    let consecReq = alarm.consecutive_required ? parseInt(alarm.consecutive_required) : 2;
+    let timeLim = alarm.time_limit ? parseInt(alarm.time_limit) : 20;
 
+    if (vMethod === 'multi_step') {
+        vSteps = Math.max(3, vSteps || 3);
+        reqAcc = reqAcc || 67;
+    } else if (vMethod === 'consecutive_correct') {
+        consecReq = Math.max(2, consecReq || 2);
+        vSteps = consecReq;
+    } else if (vMethod === 'accuracy_check') {
+        vSteps = Math.max(3, vSteps || 3);
+        reqAcc = reqAcc || 67;
+    } else if (vMethod === 'time_based') {
+        timeLim = Math.min(30, Math.max(5, timeLim || 15));
+    }
+
+    currentVerificationState = {
+        sessionId: null,
+        status: 'in_progress',
+        method: vMethod,
+        currentStep: 1,
+        totalSteps: vSteps,
+        correctCount: 0,
+        requiredAccuracy: reqAcc,
+        consecutiveCorrect: 0,
+        consecutiveRequired: consecReq,
+        timeLimit: timeLim,
+        timeRemaining: timeLim
+    };
+
+    const audio = getAlarmAudioElement();
     if (audio) {
         audio.loop = true;
         audio.volume = 1.0;
@@ -128,11 +246,8 @@ function triggerAlarmSound(alarm) {
                         audio.currentTime = 0;
                         audio.loop = true;
                         audio.volume = 1.0;
-
                         await audio.play();
-
                         console.log("🔊 ALARM AUDIO UNLOCKED AND PLAYING");
-
                         document.removeEventListener('click', unlockAudio);
                         document.removeEventListener('keydown', unlockAudio);
                     } catch (err) {
@@ -145,51 +260,73 @@ function triggerAlarmSound(alarm) {
             });
     }
 
-    // Set alarm title
-    const modalTitle = document.getElementById('alarm-modal-title');
-    if (modalTitle) {
-        modalTitle.textContent = `Wake-Up: ${alarm.title || 'Alarm'}`;
-    }
+    // Render HUD and start verification session
+    renderVerificationHUD(currentVerificationState);
 
-    // Generate/display single cognitive challenge
-    if (
-        alarm.challenge &&
-        typeof alarm.challenge === 'object' &&
-        alarm.challenge.question
-    ) {
-        displayCognitiveChallenge(alarm.challenge);
-    } else {
-        const chType = alarm.challenge_type || (typeof alarm.challenge === 'string' && alarm.challenge !== 'none' ? alarm.challenge : 'Math Problems');
-        const diff = alarm.difficulty || alarm.difficulty_level || 'Medium';
-        const alarmIdParam = alarm.id ? `&alarm_id=${encodeURIComponent(alarm.id)}` : '';
+    const chType = alarm.challenge_type || (typeof alarm.challenge === 'string' && alarm.challenge !== 'none' ? alarm.challenge : 'Math Problems');
+    const diff = alarm.difficulty || alarm.difficulty_level || 'Medium';
 
-        fetch(
-            `${window.API_BASE_URL}/api/challenges/generate?challenge_type=${encodeURIComponent(chType)}&difficulty=${encodeURIComponent(diff)}${alarmIdParam}`,
-            {
-                headers: getAuthHeaders()
-            }
-        )
-            .then(res => res.json())
-            .then(data => {
-                displayCognitiveChallenge(data);
-            })
-            .catch(err => {
-                console.error('Error fetching cognitive challenge:', err);
+    fetch(`${window.API_BASE_URL}/api/challenges/verification/start`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+            alarm_id: alarm.id || null,
+            challenge_type: chType,
+            difficulty: diff,
+            verification_method: vMethod,
+            verification_steps: vSteps,
+            required_accuracy: reqAcc,
+            consecutive_required: consecReq,
+            time_limit: timeLim,
+            first_challenge: alarm.challenge && typeof alarm.challenge === 'object' ? alarm.challenge : null
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        currentVerificationState.sessionId = data.session_id;
+        currentVerificationState.status = data.status || 'in_progress';
+        currentVerificationState.currentStep = data.current_step || 1;
+        currentVerificationState.totalSteps = data.total_steps || vSteps;
+        currentVerificationState.correctCount = data.correct_count || 0;
+        currentVerificationState.requiredAccuracy = data.required_accuracy || reqAcc;
+        currentVerificationState.consecutiveCorrect = data.consecutive_correct || 0;
+        currentVerificationState.consecutiveRequired = data.consecutive_required || consecReq;
+        currentVerificationState.timeLimit = data.time_limit || timeLim;
+        currentVerificationState.timeRemaining = data.time_limit || timeLim;
 
-                displayCognitiveChallenge({
-                    type: chType || 'Math Problems',
-                    difficulty: diff,
-                    question: 'What is 15 + 28?',
-                    options: ['33', '43', '45', '53'],
-                    answer: '43',
-                    explanation: '15 + 28 = 43.'
-                });
-            });
-    }
+        renderVerificationHUD(currentVerificationState);
+
+        if (data.current_challenge) {
+            displayCognitiveChallenge(data.current_challenge, 1);
+        } else if (alarm.challenge && typeof alarm.challenge === 'object' && alarm.challenge.question) {
+            displayCognitiveChallenge(alarm.challenge, 1);
+        } else {
+            displayCognitiveChallenge({
+                type: chType,
+                difficulty: diff,
+                question: 'What is 15 + 28?',
+                options: ['33', '43', '45', '53'],
+                answer: '43',
+                explanation: '15 + 28 = 43.'
+            }, 1);
+        }
+    })
+    .catch(err => {
+        console.error('Error starting verification session:', err);
+        renderVerificationHUD(currentVerificationState);
+        displayCognitiveChallenge({
+            type: chType,
+            difficulty: diff,
+            question: 'What is 15 + 28?',
+            options: ['33', '43', '45', '53'],
+            answer: '43',
+            explanation: '15 + 28 = 43.'
+        }, 1);
+    });
 
     Toast.show(
-        'Wake-Up Alarm',
-        `${alarm.title || 'Alarm'} is ringing! Solve the challenge to silence it.`,
+        'Wake-Up Verification',
+        `${alarm.title || 'Alarm'} is ringing! Complete the verification to silence it.`,
         'warning',
         10000
     );
@@ -198,11 +335,96 @@ function triggerAlarmSound(alarm) {
 let currentAttemptNumber = 1;
 let challengeStartTime = 0;
 let challengeTimerInterval = null;
+let verificationRequestInFlight = false;
 
-const COMMON_CHALLENGE_TIME_LIMIT = 30;
+function showWakefulnessScreen() {
+    stopChallengeTimer();
+    const modal = document.querySelector('#challenge-modal .modal-container');
+    if (!modal) return;
+    const challengeQuestion = document.getElementById('challenge-question');
+    const challengeOptions = document.getElementById('challenge-options-container');
+    const challengeInput = document.getElementById('challenge-input-group');
+    const submitButton = document.getElementById('submit-challenge-btn');
+    if (challengeQuestion) challengeQuestion.style.display = 'none';
+    if (challengeOptions) challengeOptions.style.display = 'none';
+    if (challengeInput) challengeInput.style.display = 'none';
+    if (submitButton) submitButton.style.display = 'none';
 
-function getDifficultyTimeLimit(difficulty) {
-    return COMMON_CHALLENGE_TIME_LIMIT;
+    let panel = document.getElementById('wakefulness-panel');
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'wakefulness-panel';
+        panel.style.cssText = 'text-align:center;padding:18px 8px;';
+        modal.querySelector('.modal-body').appendChild(panel);
+    }
+    panel.innerHTML = `
+        <h3>How awake do you feel?</h3>
+        <div id="wakefulness-ratings" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:18px 0 8px;">
+            ${['1 - Very sleepy', '2 - Sleepy', '3 - Somewhat awake', '4 - Awake', '5 - Fully awake'].map((label, index) => `<button type="button" class="btn btn-secondary wakefulness-rating" data-rating="${index + 1}">${label}</button>`).join('')}
+        </div>
+        <button type="button" class="btn btn-primary" id="submit-wakefulness-btn" disabled>Submit rating</button>
+        <div id="wakefulness-feedback" style="margin-top:10px;"></div>`;
+    panel.style.display = 'block';
+    let selectedRating = null;
+    panel.querySelectorAll('.wakefulness-rating').forEach(button => {
+        button.addEventListener('click', () => {
+            selectedRating = Number(button.dataset.rating);
+            panel.querySelectorAll('.wakefulness-rating').forEach(item => item.classList.remove('btn-primary'));
+            button.classList.add('btn-primary');
+            panel.querySelector('#submit-wakefulness-btn').disabled = false;
+        });
+    });
+    panel.querySelector('#submit-wakefulness-btn').addEventListener('click', async () => {
+        const alarm = currentRingingAlarm;
+        const feedback = panel.querySelector('#wakefulness-feedback');
+        try {
+            const response = await fetch(`${window.API_BASE_URL}/api/alarms/${alarm.id}/wakefulness`, {
+                method: 'POST', headers: getAuthHeaders(),
+                body: JSON.stringify({ rating: selectedRating, session_id: currentVerificationState.sessionId })
+            });
+            if (!response.ok) throw new Error('Wakefulness rating could not be saved');
+            showAlarmActionScreen();
+        } catch (error) {
+            feedback.textContent = error.message;
+            feedback.style.color = 'var(--color-danger)';
+        }
+    });
+}
+
+function showAlarmActionScreen() {
+    const panel = document.getElementById('wakefulness-panel');
+    if (!panel || !currentRingingAlarm) return;
+    const alarm = currentRingingAlarm;
+    const snoozeCount = Number(alarm.snooze_count || 0);
+    const maxSnoozes = Number(alarm.max_snoozes ?? 3);
+    panel.innerHTML = `<h3>You're awake! What would you like to do?</h3>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary" id="dismiss-alarm-btn">Dismiss Alarm</button>
+            <button type="button" class="btn btn-secondary" id="snooze-alarm-btn" ${snoozeCount >= maxSnoozes ? 'disabled' : ''}>Snooze ${alarm.snooze_duration || 5} min</button>
+        </div><div id="alarm-action-feedback" style="margin-top:10px;"></div>`;
+    panel.querySelector('#dismiss-alarm-btn').addEventListener('click', async () => {
+        const sessionId = currentVerificationState.sessionId;
+        const response = await fetch(`${window.API_BASE_URL}/api/alarms/${alarm.id}/dismiss`, {
+            method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ session_id: sessionId })
+        });
+        if (!response.ok) return;
+        stopAlarmSound();
+        Modal.close('challenge-modal');
+        fetchAlarmsFromServer();
+    });
+    const snoozeButton = panel.querySelector('#snooze-alarm-btn');
+    if (snoozeButton && !snoozeButton.disabled) {
+        snoozeButton.addEventListener('click', async () => {
+            const response = await fetch(`${window.API_BASE_URL}/api/alarms/${alarm.id}/snooze`, {
+                method: 'POST', headers: getAuthHeaders(),
+                body: JSON.stringify({ session_id: currentVerificationState.sessionId, snooze_count: snoozeCount })
+            });
+            if (!response.ok) return;
+            stopAlarmSound();
+            Modal.close('challenge-modal');
+            fetchAlarmsFromServer();
+        });
+    }
 }
 
 function startChallengeTimer(timeLimitSeconds) {
@@ -211,31 +433,38 @@ function startChallengeTimer(timeLimitSeconds) {
         challengeTimerInterval = null;
     }
 
+    const limit = timeLimitSeconds || currentVerificationState.timeLimit || 20;
     challengeStartTime = Date.now();
-    let secondsLeft = timeLimitSeconds;
+    let secondsLeft = limit;
+    currentVerificationState.timeRemaining = secondsLeft;
 
+    const timerBanner = document.getElementById('challenge-timer-container');
     const timerDisplay = document.getElementById('challenge-timer-display');
-    const updateUI = () => {
-        const mins = Math.floor(secondsLeft / 60);
-        const secs = secondsLeft % 60;
-        const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+    const updateTimerUI = () => {
         if (timerDisplay) {
-            timerDisplay.textContent = formatted;
+            timerDisplay.textContent = `${secondsLeft}s`;
+        }
+        if (timerBanner) {
             if (secondsLeft <= 5) {
-                timerDisplay.style.color = '#ef4444';
+                timerBanner.classList.add('timer-critical');
+                if (timerDisplay) timerDisplay.style.color = '#ef4444';
             } else if (secondsLeft <= 10) {
-                timerDisplay.style.color = '#f59e0b';
+                timerBanner.classList.remove('timer-critical');
+                if (timerDisplay) timerDisplay.style.color = '#f59e0b';
             } else {
-                timerDisplay.style.color = '#10b981';
+                timerBanner.classList.remove('timer-critical');
+                if (timerDisplay) timerDisplay.style.color = '#10b981';
             }
         }
     };
 
-    updateUI();
+    updateTimerUI();
 
     challengeTimerInterval = setInterval(async () => {
         secondsLeft--;
-        updateUI();
+        currentVerificationState.timeRemaining = secondsLeft;
+        updateTimerUI();
 
         if (secondsLeft <= 0) {
             clearInterval(challengeTimerInterval);
@@ -253,25 +482,33 @@ function stopChallengeTimer() {
 }
 
 async function handleChallengeTimeout() {
+    if (verificationRequestInFlight) return;
+    verificationRequestInFlight = true;
     const timeTaken = Math.round((Date.now() - challengeStartTime) / 1000);
     const feedback = document.getElementById('challenge-feedback');
 
+    currentVerificationState.status = 'timeout';
+    currentVerificationState.consecutiveCorrect = 0; // Streak reset on timeout
+    renderVerificationHUD(currentVerificationState);
+
+    const modalContainer = document.querySelector('#challenge-modal .modal-container');
+    if (modalContainer) {
+        modalContainer.classList.add('challenge-shake');
+        setTimeout(() => modalContainer.classList.remove('challenge-shake'), 600);
+    }
+
     try {
-        const response = await fetch(`${window.API_BASE_URL}/api/challenges/validate`, {
+        const response = await fetch(`${window.API_BASE_URL}/api/challenges/verification/step`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
+                session_id: currentVerificationState.sessionId || (activeCognitiveChallenge ? activeCognitiveChallenge.id : ''),
+                step_number: currentVerificationState.currentStep,
                 challenge_id: activeCognitiveChallenge ? activeCognitiveChallenge.id : null,
                 user_answer: '',
-                correct_answer: activeCognitiveChallenge ? activeCognitiveChallenge.answer : null,
-                challenge_type: activeCognitiveChallenge ? activeCognitiveChallenge.type : null,
-                difficulty: activeCognitiveChallenge ? activeCognitiveChallenge.difficulty : null,
-                question: activeCognitiveChallenge ? activeCognitiveChallenge.question : null,
-                alarm_id: currentRingingAlarm ? currentRingingAlarm.id : null,
-                attempt_number: currentAttemptNumber,
                 time_taken: timeTaken,
-                time_limit: COMMON_CHALLENGE_TIME_LIMIT,
-                is_timeout: true
+                is_timeout: true,
+                alarm_id: currentRingingAlarm ? currentRingingAlarm.id : null
             })
         });
 
@@ -279,25 +516,33 @@ async function handleChallengeTimeout() {
             const resData = await response.json();
             currentAttemptNumber++;
 
+            currentVerificationState.status = resData.verification_status;
+            currentVerificationState.currentStep = resData.current_step;
+            currentVerificationState.totalSteps = resData.total_steps;
+            currentVerificationState.correctCount = resData.correct_count;
+            currentVerificationState.consecutiveCorrect = resData.consecutive_correct;
+            currentVerificationState.consecutiveRequired = resData.consecutive_required;
+            renderVerificationHUD(currentVerificationState);
+
             if (resData.next_challenge) {
                 displayCognitiveChallenge(resData.next_challenge, currentAttemptNumber);
                 if (feedback) {
-                    feedback.style.color = '#f59e0b';
-                    feedback.textContent = resData.message || '⏱️ Time expired! Lowering difficulty. Solve this new question:';
+                    feedback.style.color = '#ef4444';
+                    feedback.textContent = resData.message || '⏱️ Time expired! Attempt recorded as timed out. Solve this new question:';
                 }
             } else {
-                const attemptBadge = document.getElementById('challenge-attempt-badge');
-                if (attemptBadge) attemptBadge.textContent = `Attempt ${currentAttemptNumber}`;
                 if (feedback) {
-                    feedback.style.color = 'var(--color-danger)';
-                    feedback.textContent = '⏱️ Time expired! Attempt recorded as failed. Try again!';
+                    feedback.style.color = '#ef4444';
+                    feedback.textContent = '⏱️ Time expired! Attempt recorded. Retrying...';
                 }
-                startChallengeTimer(COMMON_CHALLENGE_TIME_LIMIT);
+                startChallengeTimer(currentVerificationState.timeLimit || 20);
             }
-            Toast.show('Time Expired', 'Lowering difficulty. Try this new question!', 'danger', 3000);
+            Toast.show('Time Expired', 'Attempt recorded as timed out. Solve new challenge!', 'danger', 3000);
         }
     } catch (err) {
         console.error('Error handling challenge timeout:', err);
+    } finally {
+        verificationRequestInFlight = false;
     }
 }
 
@@ -311,7 +556,6 @@ function displayCognitiveChallenge(challenge, attemptNum = 1) {
         memoryTimer = null;
     }
 
-    const titleElem = document.getElementById('challenge-modal-title');
     const typeBadge = document.getElementById('challenge-type-badge');
     const diffBadge = document.getElementById('challenge-difficulty-badge');
     const attemptBadge = document.getElementById('challenge-attempt-badge');
@@ -321,12 +565,18 @@ function displayCognitiveChallenge(challenge, attemptNum = 1) {
     const inputGroup = document.getElementById('challenge-input-group');
     const answerInput = document.getElementById('challenge-answer');
     const feedbackElem = document.getElementById('challenge-feedback');
+    const submitButton = document.getElementById('submit-challenge-btn');
+    const wakefulnessPanel = document.getElementById('wakefulness-panel');
 
-    if (titleElem) titleElem.textContent = challenge.type || 'Wake-up Challenge';
+    // A snoozed alarm reuses the same modal, so restore challenge controls from the previous session.
+    if (questionElem) questionElem.style.display = 'block';
+    if (submitButton) submitButton.style.display = 'block';
+    if (wakefulnessPanel) wakefulnessPanel.style.display = 'none';
+
     if (typeBadge) typeBadge.textContent = challenge.type || 'Math Problems';
     if (diffBadge) {
         diffBadge.textContent = challenge.difficulty || 'Medium';
-        diffBadge.className = `badge ${challenge.difficulty === 'Beginner' || challenge.difficulty === 'Easy' ? 'badge-success' : challenge.difficulty === 'Difficult' || challenge.difficulty === 'Advanced' ? 'badge-danger' : 'badge-warning'}`;
+        diffBadge.className = `badge ${challenge.difficulty === 'Beginner' || challenge.difficulty === 'Easy' ? 'badge-success' : challenge.difficulty === 'Difficult' || challenge.difficulty === 'Advanced' || challenge.difficulty === 'Hard' || challenge.difficulty === 'Expert' ? 'badge-danger' : 'badge-warning'}`;
     }
     if (attemptBadge) attemptBadge.textContent = `Attempt ${currentAttemptNumber}`;
 
@@ -336,6 +586,8 @@ function displayCognitiveChallenge(challenge, attemptNum = 1) {
     }
 
     if (answerInput) answerInput.value = '';
+
+    renderVerificationHUD(currentVerificationState);
 
     // Handle Memory Challenge timing behavior
     const isMemoryChallenge = (challenge.type === 'Memory Challenges' || (challenge.question && challenge.question.toLowerCase().includes('memorize')));
@@ -362,7 +614,7 @@ function displayCognitiveChallenge(challenge, attemptNum = 1) {
                 if (questionElem) questionElem.textContent = recallQuestion;
                 renderChallengeControls(challenge, optionsContainer, inputGroup);
 
-                const timeLimit = challenge.time_limit || getDifficultyTimeLimit(challenge.difficulty);
+                const timeLimit = challenge.time_limit || currentVerificationState.timeLimit || 20;
                 startChallengeTimer(timeLimit);
             }
         }, 1000);
@@ -371,7 +623,7 @@ function displayCognitiveChallenge(challenge, attemptNum = 1) {
         if (questionElem) questionElem.textContent = challenge.question;
         renderChallengeControls(challenge, optionsContainer, inputGroup);
 
-        const timeLimit = challenge.time_limit || getDifficultyTimeLimit(challenge.difficulty);
+        const timeLimit = challenge.time_limit || currentVerificationState.timeLimit || 20;
         startChallengeTimer(timeLimit);
     }
 
@@ -858,6 +1110,24 @@ window.editAlarm = (id) => {
     document.getElementById('alarm-difficulty').value = alarm.difficulty_level || 'Medium';
     document.getElementById('alarm-sound').value = alarm.sound || 'Radar';
     document.getElementById('alarm-vibration').value = alarm.vibration || 'Standard';
+    const snoozeDurationElem = document.getElementById('alarm-snooze-duration');
+    if (snoozeDurationElem) snoozeDurationElem.value = alarm.snooze_duration || 5;
+    const maxSnoozesElem = document.getElementById('alarm-max-snoozes');
+    if (maxSnoozesElem) maxSnoozesElem.value = alarm.max_snoozes ?? 3;
+
+    // Verification fields
+    const verifMethodElem = document.getElementById('alarm-verification-method');
+    if (verifMethodElem) verifMethodElem.value = alarm.verification_method || 'puzzle_completion';
+    const verifStepsElem = document.getElementById('alarm-verif-steps');
+    if (verifStepsElem) verifStepsElem.value = alarm.verification_steps || 3;
+    const verifConsecElem = document.getElementById('alarm-verif-consecutive');
+    if (verifConsecElem) verifConsecElem.value = alarm.consecutive_required || 2;
+    const verifAccElem = document.getElementById('alarm-verif-accuracy');
+    if (verifAccElem) verifAccElem.value = alarm.required_accuracy || 67;
+    const verifTimeElem = document.getElementById('alarm-verif-time');
+    if (verifTimeElem) verifTimeElem.value = alarm.time_limit || 20;
+
+    updateVerificationFormFields();
 
     const activeDays = alarm.repeat_days ? alarm.repeat_days.split(',') : [];
     document.querySelectorAll('#custom-days-container input[type="checkbox"]').forEach(cb => {
@@ -870,6 +1140,23 @@ window.editAlarm = (id) => {
 
     Modal.open('add-alarm-modal');
 };
+
+function updateVerificationFormFields() {
+    const methodElem = document.getElementById('alarm-verification-method');
+    if (!methodElem) return;
+    const method = methodElem.value;
+    const stepsGroup = document.getElementById('verif-steps-group');
+    const consecutiveGroup = document.getElementById('verif-consecutive-group');
+    const accuracyGroup = document.getElementById('verif-accuracy-group');
+    const timeGroup = document.getElementById('verif-time-group');
+
+    if (stepsGroup) stepsGroup.style.display = (method === 'multi_step' || method === 'accuracy_check') ? 'block' : 'none';
+    if (consecutiveGroup) consecutiveGroup.style.display = (method === 'consecutive_correct') ? 'block' : 'none';
+    if (accuracyGroup) accuracyGroup.style.display = (method === 'accuracy_check') ? 'block' : 'none';
+    if (timeGroup) timeGroup.style.display = 'block';
+}
+
+document.getElementById('alarm-verification-method')?.addEventListener('change', updateVerificationFormFields);
 
 // Format time 24H -> 12H
 function formatTime12(timeString) {
@@ -927,33 +1214,108 @@ window.toggleHabitCompleted = (id) => {
     }
 };
 
+const clientFallbackChallenges = [
+    {
+        type: 'Math Problems',
+        difficulty: 'Medium',
+        question: 'What is 14 x 6 + 18?',
+        options: ['98', '102', '106', '112'],
+        answer: '102',
+        explanation: '14 x 6 = 84; 84 + 18 = 102.'
+    },
+    {
+        type: 'Logic Puzzles',
+        difficulty: 'Medium',
+        question: 'If ALL roses are flowers and SOME flowers fade quickly, which is guaranteed?',
+        options: ['All roses fade quickly', 'Some flowers are roses', 'No roses fade', 'All flowers are roses'],
+        answer: 'Some flowers are roses',
+        explanation: 'Because all roses are flowers, some flowers must be roses.'
+    },
+    {
+        type: 'Pattern Recognition',
+        difficulty: 'Medium',
+        question: 'Complete the pattern: 3, 7, 15, 31, ?',
+        options: ['47', '55', '63', '71'],
+        answer: '63',
+        explanation: 'Each term is (previous x 2) + 1. 31 x 2 + 1 = 63.'
+    },
+    {
+        type: 'Word Games',
+        difficulty: 'Medium',
+        question: 'Unscramble the morning word: "W A K E U P"',
+        options: ['WAKEUP', 'PAUKWE', 'WEAKUP', 'POWAKE'],
+        answer: 'WAKEUP',
+        explanation: 'The unscrambled word is WAKEUP.'
+    }
+];
+
 // 7. Dynamic Cognitive Challenge Drill & Verification
-window.triggerChallenge = () => {
-    fetch(`${window.API_BASE_URL}/api/challenges/generate?challenge_type=Math%20Problems&difficulty=Medium`, {
-        headers: getAuthHeaders()
-    })
-        .then(res => res.json())
-        .then(data => {
-            displayCognitiveChallenge(data);
+window.triggerChallenge = (method = 'multi_step', steps = 3, challengeType = 'Math Problems', diff = 'Medium') => {
+    const timeLimit = method === 'time_based' ? 15 : 20;
+    const reqAcc = method === 'accuracy_check' ? 67 : (method === 'multi_step' ? 67 : 100);
+    const consecReq = method === 'consecutive_correct' ? 2 : 1;
+    const totalSteps = method === 'multi_step' || method === 'accuracy_check' ? Math.max(2, steps || 3) : (method === 'consecutive_correct' ? 2 : 1);
+
+    fetch(`${window.API_BASE_URL}/api/challenges/verification/start`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+            verification_method: method || 'multi_step',
+            verification_steps: totalSteps,
+            required_accuracy: reqAcc,
+            consecutive_required: consecReq,
+            time_limit: timeLimit,
+            challenge_type: challengeType || 'Math Problems',
+            difficulty: diff || 'Medium'
         })
-        .catch(() => triggerMathChallenge());
+    })
+    .then(res => res.json())
+    .then(data => {
+        currentVerificationState = {
+            sessionId: data.session_id,
+            status: data.status || 'in_progress',
+            method: data.verification_method || method || 'multi_step',
+            currentStep: data.current_step || 1,
+            totalSteps: data.total_steps || totalSteps,
+            correctCount: data.correct_count || 0,
+            requiredAccuracy: data.required_accuracy || reqAcc,
+            consecutiveCorrect: data.consecutive_correct || 0,
+            consecutiveRequired: data.consecutive_required || consecReq,
+            timeLimit: data.time_limit || timeLimit,
+            timeRemaining: data.time_limit || timeLimit
+        };
+        renderVerificationHUD(currentVerificationState);
+        displayCognitiveChallenge(data.current_challenge, 1);
+    })
+    .catch(err => {
+        console.warn('Backend verification session unavailable, running client-side multi-step drill:', err);
+        currentVerificationState = {
+            sessionId: 'client_drill_' + Date.now(),
+            status: 'in_progress',
+            method: method || 'multi_step',
+            currentStep: 1,
+            totalSteps: totalSteps,
+            correctCount: 0,
+            requiredAccuracy: reqAcc,
+            consecutiveCorrect: 0,
+            consecutiveRequired: consecReq,
+            timeLimit: timeLimit,
+            timeRemaining: timeLimit
+        };
+        renderVerificationHUD(currentVerificationState);
+        displayCognitiveChallenge(clientFallbackChallenges[0], 1);
+    });
 };
 
 window.triggerMathChallenge = () => {
-    fetch(`${window.API_BASE_URL}/api/challenges/generate?challenge_type=Math%20Problems&difficulty=Easy`, {
-        headers: getAuthHeaders()
-    })
-        .then(res => res.json())
-        .then(data => {
-            displayCognitiveChallenge(data);
-        })
-        .catch(err => console.error('Error generating math challenge:', err));
+    window.triggerChallenge('multi_step', 3, 'Math Problems', 'Easy');
 };
 
-// Handle checking answer via backend API
+// Handle checking answer via backend API and verification step engine
 const submitChallengeBtn = document.getElementById('submit-challenge-btn');
 if (submitChallengeBtn) {
     submitChallengeBtn.addEventListener('click', async () => {
+        if (verificationRequestInFlight) return;
         let userAnswer = '';
         if (activeCognitiveChallenge && activeCognitiveChallenge.options && activeCognitiveChallenge.options.length > 0) {
             userAnswer = selectedChallengeOption || '';
@@ -974,92 +1336,134 @@ if (submitChallengeBtn) {
 
         const timeTaken = Math.round((Date.now() - challengeStartTime) / 1000);
         stopChallengeTimer();
+        verificationRequestInFlight = true;
 
         try {
-            const response = await fetch(`${window.API_BASE_URL}/api/challenges/validate`, {
+            const response = await fetch(`${window.API_BASE_URL}/api/challenges/verification/step`, {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
+                    session_id: currentVerificationState.sessionId || (activeCognitiveChallenge ? activeCognitiveChallenge.id : ''),
+                    step_number: currentVerificationState.currentStep,
                     challenge_id: activeCognitiveChallenge ? activeCognitiveChallenge.id : null,
                     user_answer: userAnswer,
-                    correct_answer: activeCognitiveChallenge ? activeCognitiveChallenge.answer : null,
-                    challenge_type: activeCognitiveChallenge ? activeCognitiveChallenge.type : null,
-                    difficulty: activeCognitiveChallenge ? activeCognitiveChallenge.difficulty : null,
-                    question: activeCognitiveChallenge ? activeCognitiveChallenge.question : null,
-                    alarm_id: currentRingingAlarm ? currentRingingAlarm.id : null,
-                    attempt_number: currentAttemptNumber,
                     time_taken: timeTaken,
-                    time_limit: activeCognitiveChallenge ? (activeCognitiveChallenge.time_limit || 20) : 20,
-                    is_timeout: false
+                    is_timeout: false,
+                    alarm_id: currentRingingAlarm ? currentRingingAlarm.id : null
                 })
             });
 
             if (response.ok) {
                 const resData = await response.json();
-                if (resData.correct) {
+                currentVerificationState.status = resData.verification_status;
+                currentVerificationState.currentStep = resData.current_step;
+                currentVerificationState.totalSteps = resData.total_steps;
+                currentVerificationState.correctCount = resData.correct_count;
+                currentVerificationState.consecutiveCorrect = resData.consecutive_correct;
+                currentVerificationState.consecutiveRequired = resData.consecutive_required;
+                renderVerificationHUD(currentVerificationState);
+
+                if (resData.verification_status === 'passed') {
+                    // Verification passed; rating and the alarm action are still required.
+                    window.isWakeUpVerified = false;
                     feedback.style.color = 'var(--color-success)';
-                    feedback.textContent = resData.message || '✓ Correct! Neural wakeup sequence confirmed.';
+                    feedback.textContent = resData.message || 'Wake-up verified. Rate your wakefulness.';
+                    showWakefulnessScreen();
+                } else if (resData.verification_status === 'in_progress') {
+                    currentAttemptNumber++;
+                    feedback.style.color = resData.is_step_correct ? 'var(--color-success)' : 'var(--color-warning)';
+                    feedback.textContent = resData.message;
 
-                    stopAlarmSound();
-                    stopChallengeTimer();
-
-                    dailyChallengeCompleted = true;
-                    challengeHistory.unshift({
-                        mode: activeCognitiveChallenge ? activeCognitiveChallenge.type : 'Cognitive Challenge',
-                        score: '100% (Pass)',
-                        date: 'Just Now'
-                    });
-                    localStorage.setItem('user_challenges', JSON.stringify(challengeHistory));
-                    renderHistoryLog();
-
-                    if (currentRingingAlarm && currentRingingAlarm.id) {
-                        const alarmType = currentRingingAlarm.alarm_type || 'One-Time';
-                        if (alarmType === 'One-Time') {
-                            fetch(`${window.API_BASE_URL}/api/alarms/${currentRingingAlarm.id}/disable`, {
-                                method: 'PATCH',
-                                headers: getAuthHeaders()
-                            }).then(() => fetchAlarmsFromServer()).catch(console.error);
-                        }
+                    if (resData.next_challenge) {
+                        setTimeout(() => {
+                            displayCognitiveChallenge(resData.next_challenge, currentAttemptNumber);
+                        }, 400);
+                    } else {
+                        startChallengeTimer(currentVerificationState.timeLimit || 20);
                     }
-
-                    Toast.show('Wakeup Drill Clear!', 'Prefrontal cortex activated successfully! +10 Points.', 'success', 3000);
-                    updateGoalProgress();
-                    fetchAnalyticsData();
-
-                    setTimeout(() => {
-                        Modal.close('challenge-modal');
-                    }, 1200);
                 } else {
                     currentAttemptNumber++;
                     const modalContainer = document.querySelector('#challenge-modal .modal-container');
                     if (modalContainer) {
-                        modalContainer.style.border = '2px solid var(--color-danger)';
-                        setTimeout(() => {
-                            modalContainer.style.border = '1px solid var(--glass-border)';
-                        }, 800);
+                        modalContainer.classList.add('challenge-shake');
+                        setTimeout(() => modalContainer.classList.remove('challenge-shake'), 600);
                     }
 
+                    feedback.style.color = 'var(--color-danger)';
+                    feedback.textContent = resData.message || '✗ Incorrect answer. Streak reset! Try again:';
+
                     if (resData.next_challenge) {
-                        // Render fresh question with lowered difficulty
-                        displayCognitiveChallenge(resData.next_challenge, currentAttemptNumber);
-                        feedback.style.color = 'var(--color-danger)';
-                        feedback.textContent = resData.message || '✗ Incorrect! Lowering difficulty. Solve this new question:';
+                        setTimeout(() => {
+                            displayCognitiveChallenge(resData.next_challenge, currentAttemptNumber);
+                        }, 500);
                     } else {
-                        const attemptBadge = document.getElementById('challenge-attempt-badge');
-                        if (attemptBadge) attemptBadge.textContent = `Attempt ${currentAttemptNumber}`;
-                        feedback.style.color = 'var(--color-danger)';
-                        feedback.textContent = resData.message || '✗ Incorrect answer. Try again!';
-                        startChallengeTimer(COMMON_CHALLENGE_TIME_LIMIT);
+                        startChallengeTimer(currentVerificationState.timeLimit || 20);
                     }
                 }
             } else {
-                feedback.style.color = 'var(--color-danger)';
-                feedback.textContent = 'Server validation failed. Try again.';
+                throw new Error('Server response error');
             }
         } catch (e) {
-            console.error('Error validating challenge answer:', e);
-            feedback.style.color = 'var(--color-danger)';
-            feedback.textContent = 'Network error validating answer. Try again.';
+            console.warn('Advancing verification step in client mode:', e);
+            // Client-side multi-step fallback progression
+            const isCorrect = (activeCognitiveChallenge && activeCognitiveChallenge.answer && 
+                userAnswer.trim().toLowerCase() === activeCognitiveChallenge.answer.trim().toLowerCase());
+
+            if (isCorrect) {
+                currentVerificationState.correctCount = (currentVerificationState.correctCount || 0) + 1;
+                currentVerificationState.consecutiveCorrect = (currentVerificationState.consecutiveCorrect || 0) + 1;
+            } else {
+                currentVerificationState.consecutiveCorrect = 0;
+            }
+
+            if (currentVerificationState.currentStep < currentVerificationState.totalSteps) {
+                currentVerificationState.currentStep += 1;
+                currentVerificationState.status = 'in_progress';
+                renderVerificationHUD(currentVerificationState);
+
+                feedback.style.color = isCorrect ? 'var(--color-success)' : 'var(--color-warning)';
+                feedback.textContent = `${isCorrect ? '✓ Correct!' : '✗ Incorrect.'} Moving to Question ${currentVerificationState.currentStep}/${currentVerificationState.totalSteps}:`;
+
+                const nextChalIndex = (currentVerificationState.currentStep - 1) % clientFallbackChallenges.length;
+                setTimeout(() => {
+                    displayCognitiveChallenge(clientFallbackChallenges[nextChalIndex], currentAttemptNumber + 1);
+                }, 400);
+            } else {
+                // Final Step Reached
+                const acc = Math.round((currentVerificationState.correctCount / currentVerificationState.totalSteps) * 100);
+                const passed = acc >= (currentVerificationState.requiredAccuracy || 67);
+
+                if (passed) {
+                    window.isWakeUpVerified = true;
+                    currentVerificationState.status = 'passed';
+                    renderVerificationHUD(currentVerificationState);
+
+                    feedback.style.color = 'var(--color-success)';
+                    feedback.textContent = `✓ Multi-Step Wake-Up Verified! (${currentVerificationState.correctCount}/${currentVerificationState.totalSteps} correct)`;
+
+                    stopAlarmSound();
+                    stopChallengeTimer();
+                    Toast.show('Wake-Up Verified!', 'Neural activation complete! +10 Points.', 'success', 3000);
+
+                    setTimeout(() => {
+                        Modal.close('challenge-modal');
+                    }, 1400);
+                } else {
+                    currentVerificationState.totalSteps += 1;
+                    currentVerificationState.currentStep += 1;
+                    currentVerificationState.status = 'failed';
+                    renderVerificationHUD(currentVerificationState);
+
+                    feedback.style.color = 'var(--color-danger)';
+                    feedback.textContent = `✗ Accuracy ${acc}% below required. Additional question required:`;
+                    const nextChalIndex = (currentVerificationState.currentStep - 1) % clientFallbackChallenges.length;
+                    setTimeout(() => {
+                        displayCognitiveChallenge(clientFallbackChallenges[nextChalIndex], currentAttemptNumber + 1);
+                    }, 500);
+                }
+            }
+        } finally {
+            verificationRequestInFlight = false;
         }
     });
 }
@@ -1137,7 +1541,16 @@ if (addAlarmForm) {
             if (alarmTypeSelect) {
                 alarmTypeSelect.value = 'One-Time';
             }
+            const verifMethodSelect = document.getElementById('alarm-verification-method');
+            if (verifMethodSelect) {
+                verifMethodSelect.value = 'multi_step';
+            }
+            const verifStepsSelect = document.getElementById('alarm-verif-steps');
+            if (verifStepsSelect) {
+                verifStepsSelect.value = '3';
+            }
             updateCustomDaysVisibility();
+            updateVerificationFormFields();
             const modalTitle = document.getElementById('alarm-modal-title');
             if (modalTitle) modalTitle.textContent = 'Set Cognitive Alarm';
             Modal.open('add-alarm-modal');
@@ -1145,6 +1558,7 @@ if (addAlarmForm) {
     });
 
     document.getElementById('alarm-type')?.addEventListener('change', updateCustomDaysVisibility);
+    document.getElementById('alarm-verification-method')?.addEventListener('change', updateVerificationFormFields);
 
     function getInputValue(idCandidates, fallback = '') {
         for (const id of idCandidates) {
@@ -1167,6 +1581,14 @@ if (addAlarmForm) {
         const difficulty_level = getInputValue(['alarm-difficulty'], 'Medium');
         const sound = getInputValue(['alarm-sound'], 'Radar');
         const vibration = getInputValue(['alarm-vibration'], 'Standard');
+        const snooze_duration = parseInt(getInputValue(['alarm-snooze-duration'], '5')) || 5;
+        const max_snoozes = parseInt(getInputValue(['alarm-max-snoozes'], '3')) || 0;
+
+        const verification_method = getInputValue(['alarm-verification-method'], 'multi_step');
+        const verification_steps = parseInt(getInputValue(['alarm-verif-steps'], '3')) || 3;
+        const consecutive_required = parseInt(getInputValue(['alarm-verif-consecutive'], '2')) || 2;
+        const required_accuracy = parseFloat(getInputValue(['alarm-verif-accuracy'], '67')) || 67.0;
+        const time_limit = parseInt(getInputValue(['alarm-verif-time'], '20')) || 20;
 
         const checkedDays = [];
         addAlarmForm.querySelectorAll('#custom-days-container input[type="checkbox"]:checked').forEach(cb => {
@@ -1213,7 +1635,14 @@ if (addAlarmForm) {
             challenge,
             difficulty_level,
             sound,
-            vibration
+            vibration,
+            snooze_duration,
+            max_snoozes,
+            verification_method,
+            verification_steps,
+            required_accuracy,
+            consecutive_required,
+            time_limit
         };
 
         try {
@@ -1626,3 +2055,12 @@ function renderAnalyticsHistoryTable(logs) {
         }
     });
 }
+
+// Anti-bypass window guard: prevent closing/reloading while verification is active
+window.addEventListener('beforeunload', (e) => {
+    if (window.currentRingingAlarm && window.isWakeUpVerified !== true) {
+        e.preventDefault();
+        e.returnValue = 'Wake-Up Verification in progress! Complete the challenge to silence the alarm.';
+        return e.returnValue;
+    }
+});

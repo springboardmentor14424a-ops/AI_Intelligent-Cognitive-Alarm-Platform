@@ -56,7 +56,14 @@ class AlarmBase(BaseModel):
     difficulty_level: str = Field(default="Medium")
     sound: str = Field(default="Radar")
     vibration: str = Field(default="Standard")
-    snooze_duration: int = Field(default=5, description="Snooze duration in minutes")
+    snooze_duration: int = Field(default=5, ge=1, le=120, description="Snooze duration in minutes")
+    max_snoozes: int = Field(default=3, ge=0, le=20, description="Maximum snoozes per alarm occurrence")
+    # Wake-Up Verification Settings
+    verification_method: str = Field(default="multi_step", description="Verification rule: multi_step, puzzle_completion, consecutive_correct, time_based, accuracy_check")
+    verification_steps: int = Field(default=3, ge=1, le=10, description="Total questions required in multi-step verification")
+    required_accuracy: int = Field(default=67, ge=1, le=100, description="Minimum percentage accuracy required to pass")
+    consecutive_required: int = Field(default=2, ge=1, le=10, description="Consecutive correct answers required")
+    time_limit: int = Field(default=20, ge=5, le=120, description="Time limit per challenge in seconds")
 
     @field_validator("alarm_time")
     @classmethod
@@ -92,6 +99,14 @@ class AlarmBase(BaseModel):
             raise ValueError(f"difficulty_level must be one of {list(alias_map.keys())}")
         return alias_map[normalized]
 
+    @field_validator("verification_method")
+    @classmethod
+    def validate_verification_method(cls, v):
+        valid_methods = {"puzzle_completion", "multi_step", "consecutive_correct", "time_based", "accuracy_check"}
+        if v and v.lower() not in valid_methods:
+            return "puzzle_completion"
+        return v.lower() if v else "puzzle_completion"
+
 class AlarmCreate(AlarmBase):
     pass
 
@@ -106,6 +121,12 @@ class AlarmUpdate(BaseModel):
     sound: Optional[str] = None
     vibration: Optional[str] = None
     snooze_duration: Optional[int] = None
+    max_snoozes: Optional[int] = None
+    verification_method: Optional[str] = None
+    verification_steps: Optional[int] = None
+    required_accuracy: Optional[int] = None
+    consecutive_required: Optional[int] = None
+    time_limit: Optional[int] = None
 
     @field_validator("alarm_time")
     @classmethod
@@ -142,6 +163,16 @@ class AlarmUpdate(BaseModel):
             return alias_map[normalized]
         return v
 
+    @field_validator("verification_method")
+    @classmethod
+    def validate_verification_method(cls, v):
+        if v is not None:
+            valid_methods = {"puzzle_completion", "multi_step", "consecutive_correct", "time_based", "accuracy_check"}
+            if v.lower() not in valid_methods:
+                return "puzzle_completion"
+            return v.lower()
+        return v
+
 class AlarmResponse(AlarmBase):
     id: int
     user_id: int
@@ -164,6 +195,7 @@ class CheckNextResponse(BaseModel):
 class ChallengeTypesResponse(BaseModel):
     challenge_types: List[str]
     difficulty_levels: List[str]
+    verification_methods: List[Dict[str, str]] = []
 
 class ChallengeResponse(BaseModel):
     id: Optional[str] = None
@@ -173,11 +205,14 @@ class ChallengeResponse(BaseModel):
     options: List[str] = []
     answer: Optional[str] = None
     explanation: str
-    time_limit: int = 30
+    time_limit: int = 20
     recommended_difficulty: Optional[str] = None
     recommended_challenge_type: Optional[str] = None
     adaptive_reason: Optional[str] = None
     alarm_id: Optional[int] = None
+    ai_provider: Optional[str] = None
+    source: Optional[str] = None
+    scheduler_generated: Optional[bool] = None
 
 class ChallengeValidateRequest(BaseModel):
     challenge_id: Optional[str] = None
@@ -189,14 +224,29 @@ class ChallengeValidateRequest(BaseModel):
     alarm_id: Optional[int] = None
     attempt_number: Optional[int] = 1
     time_taken: Optional[float] = 0.0
-    time_limit: Optional[int] = 30
+    time_limit: Optional[int] = 20
     is_timeout: Optional[bool] = False
+    verification_method: Optional[str] = "puzzle_completion"
+    current_step: Optional[int] = 1
+    total_steps: Optional[int] = 1
+    correct_count: Optional[int] = 0
+    required_accuracy: Optional[int] = 100
+    consecutive_correct: Optional[int] = 0
+    consecutive_required: Optional[int] = 1
 
 class ChallengeValidateResponse(BaseModel):
     correct: bool
     message: str
     explanation: str
     attempt_number: int = 1
+    verification_status: str = "passed" # pending, in_progress, passed, failed, timeout
+    current_step: int = 1
+    total_steps: int = 1
+    correct_count: int = 1
+    required_accuracy: int = 100
+    consecutive_correct: int = 1
+    consecutive_required: int = 1
+    time_remaining: Optional[int] = None
     next_recommended_difficulty: Optional[str] = None
     next_recommended_type: Optional[str] = None
     adaptive_reason: Optional[str] = None
@@ -215,10 +265,67 @@ class ChallengeAttemptResponse(BaseModel):
     attempt_number: int
     time_taken: float
     time_limit: int
+    verification_status: Optional[str] = "in_progress"
+    session_id: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
+# Verification Session Schemas
+class VerificationStartRequest(BaseModel):
+    alarm_id: Optional[int] = None
+    challenge_type: Optional[str] = "Math Problems"
+    difficulty: Optional[str] = "Medium"
+    verification_method: Optional[str] = "puzzle_completion"
+    verification_steps: Optional[int] = 1
+    required_accuracy: Optional[int] = 100
+    consecutive_required: Optional[int] = 1
+    time_limit: Optional[int] = 20
+    first_challenge: Optional[ChallengeResponse] = None
+
+class VerificationSessionState(BaseModel):
+    session_id: str
+    alarm_id: Optional[int] = None
+    verification_method: str = "puzzle_completion"
+    status: str = "in_progress" # pending, in_progress, passed, failed, timeout
+    current_step: int = 1
+    total_steps: int = 1
+    correct_count: int = 0
+    attempts: int = 0
+    accuracy: int = 0
+    required_accuracy: int = 100
+    consecutive_correct: int = 0
+    consecutive_required: int = 1
+    time_limit: int = 20
+    time_remaining: Optional[int] = None
+    current_challenge: Optional[ChallengeResponse] = None
+
+class VerificationStepRequest(BaseModel):
+    session_id: str
+    step_number: Optional[int] = None
+    challenge_id: Optional[str] = None
+    user_answer: str = ""
+    time_taken: float = 0.0
+    is_timeout: bool = False
+    alarm_id: Optional[int] = None
+
+class VerificationStepResponse(BaseModel):
+    session_id: str
+    verification_status: str # pending, in_progress, passed, failed, timeout
+    is_step_correct: bool
+    message: str
+    explanation: str
+    current_step: int
+    total_steps: int
+    correct_count: int
+    attempts: int = 0
+    accuracy: int = 0
+    required_accuracy: int
+    consecutive_correct: int
+    consecutive_required: int
+    time_limit: int
+    next_challenge: Optional[ChallengeResponse] = None
 
 class UserPerformanceResponse(BaseModel):
     user_id: int

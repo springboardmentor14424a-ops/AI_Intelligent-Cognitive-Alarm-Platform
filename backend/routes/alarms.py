@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi.security import OAuth2PasswordBearer
 
 from database import get_db
-from models import Alarm, User
+from models import Alarm, User, ChallengeAttempt
 from schemas import AlarmCreate, AlarmUpdate, AlarmResponse, CheckNextRequest, CheckNextResponse
 from routes.auth import get_current_user
 from scheduler import triggered_alarms
@@ -35,7 +35,14 @@ def create_alarm(payload: AlarmCreate, db: Session = Depends(get_db), current_us
         challenge=payload.challenge,
         difficulty_level=payload.difficulty_level,
         sound=payload.sound,
-        vibration=payload.vibration
+        vibration=payload.vibration,
+        snooze_duration=payload.snooze_duration,
+        max_snoozes=payload.max_snoozes,
+        verification_method=payload.verification_method or "multi_step",
+        verification_steps=payload.verification_steps or 3,
+        required_accuracy=payload.required_accuracy or 67,
+        consecutive_required=payload.consecutive_required or 2,
+        time_limit=payload.time_limit or 20
     )
     db.add(db_alarm)
     db.commit()
@@ -164,6 +171,86 @@ def get_alarm(id: int, db: Session = Depends(get_db), current_user: User = Depen
     if not alarm:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alarm not found")
     return alarm
+
+
+@router.post("/{id}/wakefulness")
+def record_wakefulness(
+    id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    alarm = db.query(Alarm).filter(Alarm.id == id, Alarm.user_id == current_user.id).first()
+    if not alarm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alarm not found")
+    rating = payload.get("rating")
+    session_id = payload.get("session_id")
+    if not isinstance(rating, int) or rating < 1 or rating > 5 or not session_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="rating (1-5) and session_id are required")
+    completed_at = datetime.datetime.now(datetime.timezone.utc)
+    attempt = db.query(ChallengeAttempt).filter(
+        ChallengeAttempt.session_id == session_id,
+        ChallengeAttempt.alarm_id == id,
+        ChallengeAttempt.user_id == current_user.id
+    ).order_by(ChallengeAttempt.created_at.desc()).first()
+    if not attempt:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Verification session not found")
+    attempt.wakefulness_rating = rating
+    attempt.completed_at = completed_at
+    db.commit()
+    return {"status": "completed", "alarm_id": id, "user_id": current_user.id, "session_id": session_id, "rating": rating, "completed_at": completed_at}
+
+
+@router.post("/{id}/snooze")
+def snooze_alarm(
+    id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    import scheduler
+    from services.verification_service import get_verification_session, remove_verification_session
+    from services.challenge_store import remove_session as remove_challenge_session
+    alarm = db.query(Alarm).filter(Alarm.id == id, Alarm.user_id == current_user.id).first()
+    if not alarm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alarm not found")
+    snooze_count = int(payload.get("snooze_count", 0))
+    if snooze_count >= (alarm.max_snoozes or 3):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Maximum snooze count reached")
+    session_id = payload.get("session_id")
+    verification_session = get_verification_session(session_id) if session_id else None
+    if not verification_session or verification_session.get("status") != "passed":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Wake-up verification is not complete")
+    if session_id:
+        if verification_session and verification_session.get("current_challenge", {}).get("id"):
+            remove_challenge_session(verification_session["current_challenge"]["id"])
+        remove_verification_session(session_id)
+    due_at = datetime.datetime.now() + datetime.timedelta(minutes=alarm.snooze_duration or 5)
+    scheduler.schedule_snooze(alarm, due_at, snooze_count + 1)
+    return {"status": "snoozed", "alarm_id": id, "snooze_count": snooze_count + 1, "snooze_duration": alarm.snooze_duration, "due_at": due_at}
+
+
+@router.post("/{id}/dismiss")
+def dismiss_alarm(
+    id: int,
+    payload: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from services.verification_service import get_verification_session, remove_verification_session
+    from services.challenge_store import remove_session as remove_challenge_session
+    alarm = db.query(Alarm).filter(Alarm.id == id, Alarm.user_id == current_user.id).first()
+    if not alarm:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alarm not found")
+    session_id = payload.get("session_id")
+    verification_session = get_verification_session(session_id) if session_id else None
+    if not verification_session or verification_session.get("status") != "passed":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Wake-up verification is not complete")
+    challenge_id = verification_session.get("current_challenge", {}).get("id")
+    if challenge_id:
+        remove_challenge_session(challenge_id)
+    remove_verification_session(session_id)
+    return {"status": "dismissed", "alarm_id": id, "user_id": current_user.id, "session_id": session_id, "completed_at": datetime.datetime.now(datetime.timezone.utc)}
 
 @router.put("/{id}", response_model=AlarmResponse)
 def update_alarm(id: int, payload: AlarmUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

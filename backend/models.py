@@ -62,6 +62,15 @@ class Alarm(Base):
     difficulty_level = Column(String(50), nullable=False, default="Medium")
     sound = Column(String(100), nullable=False, default="Radar")
     vibration = Column(String(50), nullable=False, default="Standard")
+    snooze_duration = Column(Integer, nullable=False, default=5)
+    max_snoozes = Column(Integer, nullable=False, default=3)
+    # Wake-Up Verification Settings
+    verification_method = Column(String(50), nullable=False, default="multi_step") # multi_step, puzzle_completion, consecutive_correct, time_based, accuracy_check
+    verification_steps = Column(Integer, nullable=False, default=3)
+    required_accuracy = Column(Integer, nullable=False, default=67) # Percentage (e.g. 67 for 2/3)
+    consecutive_required = Column(Integer, nullable=False, default=2)
+    time_limit = Column(Integer, nullable=False, default=20) # Seconds
+
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -70,7 +79,7 @@ class Alarm(Base):
     challenge_attempts = relationship("ChallengeAttempt", back_populates="alarm", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Alarm(id={self.id}, title='{self.title}', user_id={self.user_id}, time='{self.alarm_time}', type='{self.alarm_type}', active={self.is_active})>"
+        return f"<Alarm(id={self.id}, title='{self.title}', user_id={self.user_id}, time='{self.alarm_time}', method='{self.verification_method}', active={self.is_active})>"
 
 class ChallengeAttempt(Base):
     """
@@ -88,6 +97,8 @@ class ChallengeAttempt(Base):
     - attempt_number: 1, 2, 3...
     - time_taken: Seconds taken to respond
     - time_limit: Configured time limit (40s, 30s, 20s, 15s, 10s)
+    - verification_status: pending, in_progress, passed, failed, timeout
+    - session_id: Verification session tracking ID
     - created_at: Creation Timestamp
     """
     __tablename__ = "challenge_attempts"
@@ -104,6 +115,10 @@ class ChallengeAttempt(Base):
     attempt_number = Column(Integer, nullable=False, default=1)
     time_taken = Column(Integer, nullable=False, default=0) # Float/Integer seconds
     time_limit = Column(Integer, nullable=False, default=20)
+    verification_status = Column(String(50), nullable=False, default="in_progress") # pending, in_progress, passed, failed, timeout
+    session_id = Column(String(100), nullable=True)
+    wakefulness_rating = Column(Integer, nullable=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     # Relationships
@@ -111,7 +126,7 @@ class ChallengeAttempt(Base):
     alarm = relationship("Alarm", back_populates="challenge_attempts")
 
     def __repr__(self):
-        return f"<ChallengeAttempt(id={self.id}, user_id={self.user_id}, type='{self.challenge_type}', difficulty='{self.difficulty}', correct={self.is_correct})>"
+        return f"<ChallengeAttempt(id={self.id}, user_id={self.user_id}, type='{self.challenge_type}', difficulty='{self.difficulty}', status='{self.verification_status}', correct={self.is_correct})>"
 
 
 

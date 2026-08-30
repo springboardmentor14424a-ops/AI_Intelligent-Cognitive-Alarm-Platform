@@ -24,8 +24,11 @@ class Settings(BaseSettings):
     
     ALLOWED_ORIGINS: str = "*"
 
-    # Gemini API Key
+    # AI Provider API Keys
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GROQ_MODELS: str = os.getenv("GROQ_MODELS", "openai/gpt-oss-20b,qwen/qwen3-32b")
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "auto") # auto, groq, gemini, local
 
     class Config:
         env_file = ".env"

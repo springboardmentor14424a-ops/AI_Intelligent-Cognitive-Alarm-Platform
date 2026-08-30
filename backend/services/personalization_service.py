@@ -471,3 +471,18 @@ def calculate_personalized_difficulty(db: Session, user_id: int, base_difficulty
     """
     rec = get_adaptive_recommendation(db=db, user_id=user_id, base_difficulty=base_difficulty)
     return rec["recommended_difficulty"]
+
+
+def get_next_attempt_difficulty(current_difficulty: str, is_correct: bool) -> str:
+    """
+    Returns adjusted difficulty based on attempt success (+1 for correct, -1 for incorrect).
+    Clamps between Beginner and Expert.
+    """
+    return step_difficulty(current_difficulty, +1 if is_correct else -1)
+
+
+def calculate_user_cognitive_metrics(attempts: List[ChallengeAttempt]) -> Dict[str, Any]:
+    """
+    Analyzes list of user challenge attempts and returns calculated cognitive metrics.
+    """
+    return AdaptiveDifficultyEngine.analyze_user_performance(attempts)

@@ -160,6 +160,80 @@
                             <option value="None">None</option>
                         </select>
                     </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-snooze-duration">Snooze Duration</label>
+                        <select id="alarm-snooze-duration" class="form-control form-select">
+                            <option value="5" selected>5 minutes</option>
+                            <option value="10">10 minutes</option>
+                            <option value="15">15 minutes</option>
+                            <option value="30">30 minutes</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="alarm-max-snoozes">Maximum Snoozes per Occurrence</label>
+                        <select id="alarm-max-snoozes" class="form-control form-select">
+                            <option value="0">No snooze</option>
+                            <option value="1">1 snooze</option>
+                            <option value="2">2 snoozes</option>
+                            <option value="3" selected>3 snoozes</option>
+                            <option value="5">5 snoozes</option>
+                        </select>
+                    </div>
+
+                    <!-- Wake-Up Verification Method Section -->
+                    <div class="form-group" style="margin-bottom: 16px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 12px;">
+                        <label for="alarm-verification-method" style="color: #a5b4fc; font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-shield-alt"></i> Wake-Up Verification Method
+                        </label>
+                        <select id="alarm-verification-method" class="form-control form-select" style="margin-top: 6px;">
+                            <option value="multi_step" selected>2. Multi-Step Challenge (2-3 sequential questions)</option>
+                            <option value="puzzle_completion">1. Puzzle Completion (Solve 1 to dismiss)</option>
+                            <option value="consecutive_correct">3. Consecutive Correct Answers (Streak required)</option>
+                            <option value="time_based">4. Time-Based Verification (Strict countdown)</option>
+                            <option value="accuracy_check">5. Cognitive Accuracy Check (Min accuracy required)</option>
+                        </select>
+
+                        <!-- Dynamic Config Fields for Verification Methods -->
+                        <div id="verif-steps-group" style="margin-top: 10px; display: block;">
+                            <label for="alarm-verif-steps" style="font-size: 0.8rem; color: var(--text-secondary);">Total Questions / Steps</label>
+                            <select id="alarm-verif-steps" class="form-control form-select" style="font-size: 0.9rem; padding: 6px 10px;">
+                                <option value="2">2 Questions</option>
+                                <option value="3" selected>3 Questions</option>
+                                <option value="4">4 Questions</option>
+                                <option value="5">5 Questions</option>
+                            </select>
+                        </div>
+
+                        <div id="verif-consecutive-group" style="margin-top: 10px; display: none;">
+                            <label for="alarm-verif-consecutive" style="font-size: 0.8rem; color: var(--text-secondary);">Consecutive Correct Required</label>
+                            <select id="alarm-verif-consecutive" class="form-control form-select" style="font-size: 0.9rem; padding: 6px 10px;">
+                                <option value="2" selected>2 in a row (Streak of 2)</option>
+                                <option value="3">3 in a row (Streak of 3)</option>
+                                <option value="4">4 in a row (Streak of 4)</option>
+                            </select>
+                        </div>
+
+                        <div id="verif-accuracy-group" style="margin-top: 10px; display: none;">
+                            <label for="alarm-verif-accuracy" style="font-size: 0.8rem; color: var(--text-secondary);">Required Accuracy Ratio</label>
+                            <select id="alarm-verif-accuracy" class="form-control form-select" style="font-size: 0.9rem; padding: 6px 10px;">
+                                <option value="50">50% Minimum (1 of 2 or 2 of 4)</option>
+                                <option value="67" selected>67% Minimum (2 of 3 questions)</option>
+                                <option value="75">75% Minimum (3 of 4 questions)</option>
+                                <option value="100">100% Minimum (All questions correct)</option>
+                            </select>
+                        </div>
+
+                        <div id="verif-time-group" style="margin-top: 10px;">
+                            <label for="alarm-verif-time" style="font-size: 0.8rem; color: var(--text-secondary);">Time Limit per Question</label>
+                            <select id="alarm-verif-time" class="form-control form-select" style="font-size: 0.9rem; padding: 6px 10px;">
+                                <option value="10">10 Seconds (High Alertness)</option>
+                                <option value="15">15 Seconds (Rapid)</option>
+                                <option value="20" selected>20 Seconds (Standard)</option>
+                                <option value="30">30 Seconds (Relaxed)</option>
+                                <option value="45">45 Seconds (Extended)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary modal-cancel-btn">Cancel</button>
@@ -169,51 +243,73 @@
         </div>
     </div>
 
+    <!-- MODAL: ACTIVE COGNITIVE CHALLENGE WAKEUP DRILL -->
     <div id="challenge-modal" class="modal-overlay">
-        <div class="modal-container" style="max-width:480px;">
-            <div class="modal-header">
-                <h3><i class="fas fa-brain grad-text"></i> <span id="challenge-modal-title">Cognitive Awakening
-                        Drill</span></h3>
+        <div class="modal-container" style="max-width: 520px;">
+            <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 10px;">
+                <div class="verification-title">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>Wake-Up Verification</span>
+                </div>
+                <span id="verification-status-badge" class="verification-status-badge status-in_progress">
+                    <i class="fas fa-circle-notch fa-spin"></i> In Progress
+                </span>
             </div>
-            <div class="modal-body">
-                <div
-                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 6px;">
-                    <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
-                    <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
-                    <span class="badge badge-primary" id="challenge-attempt-badge"
-                        style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4);">Attempt
-                        1</span>
+            <div class="modal-body" style="padding-top: 12px;">
+                <!-- Wake-Up Verification HUD Card -->
+                <div class="verification-hud-box">
+                    <div class="verification-metrics-grid">
+                        <div class="verification-metric-card">
+                            <span class="verification-metric-label"><i class="fas fa-tasks" style="color:#818cf8;"></i> Progress:</span>
+                            <span class="verification-metric-value" id="hud-progress-val">1/3</span>
+                            <div class="verification-progress-track">
+                                <div id="hud-progress-bar" class="verification-progress-fill" style="width: 33%;"></div>
+                            </div>
+                        </div>
+                        <div class="verification-metric-card">
+                            <span class="verification-metric-label"><i class="fas fa-check-circle" style="color:#10b981;"></i> Correct Answers:</span>
+                            <span class="verification-metric-value" id="hud-correct-val">0</span>
+                        </div>
+                        <div class="verification-metric-card">
+                            <span class="verification-metric-label"><i class="fas fa-bullseye" style="color:#ec4899;"></i> Required Accuracy:</span>
+                            <span class="verification-metric-value" id="hud-accuracy-val">2/3</span>
+                        </div>
+                        <div class="verification-metric-card">
+                            <span class="verification-metric-label"><i class="fas fa-fire" style="color:#f59e0b;"></i> Consecutive Correct:</span>
+                            <span class="verification-metric-value" id="hud-consecutive-val">0/2</span>
+                        </div>
+                    </div>
+                    
+                    <div id="challenge-timer-container" class="verification-timer-banner" style="margin-bottom: 8px;">
+                        <span class="verification-timer-label"><i class="fas fa-clock" style="color: #f59e0b;"></i> Time Remaining:</span>
+                        <span id="challenge-timer-display" class="verification-timer-digits">18s</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 0.75rem;">
+                        <span class="badge badge-info" id="challenge-type-badge">Math Problems</span>
+                        <span class="badge badge-warning" id="challenge-difficulty-badge">Medium</span>
+                        <span class="badge badge-primary" id="challenge-attempt-badge" style="background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.4);">Attempt 1</span>
+                    </div>
                 </div>
-                <div id="challenge-timer-container"
-                    style="margin-bottom: 14px; background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between;">
-                    <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 500;"><i
-                            class="fas fa-clock" style="color: #f59e0b; margin-right: 6px;"></i>Time Remaining:</span>
-                    <span id="challenge-timer-display"
-                        style="font-size: 1.1rem; font-weight: 700; color: #f59e0b; font-family: monospace;">00:20</span>
-                </div>
-                <p id="challenge-subtitle"
-                    style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
+
+                <p id="challenge-subtitle" style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 12px;">
                     Solve the challenge to silence the wake-up alarm!
                 </p>
-                <div class="challenge-math-question" id="challenge-question"
-                    style="font-size: 1.1rem; padding: 14px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight:600; line-height: 1.4;">
-                    8 x 7 + 12</div>
+                <div class="challenge-math-question" id="challenge-question" style="font-size: 1.1rem; padding: 14px; margin-bottom: 16px; text-align: center; background: rgba(255,255,255,0.05); border-radius: 8px; font-weight:600; line-height: 1.4;">
+                    8 x 7 + 12
+                </div>
 
                 <!-- Dynamic Options Container for Multiple Choice -->
-                <div id="challenge-options-container"
-                    style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;"></div>
+                <div id="challenge-options-container" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;"></div>
 
                 <!-- Text Input Container -->
                 <div class="form-group" id="challenge-input-group">
-                    <input type="text" id="challenge-answer" class="form-control" placeholder="Enter answer here..."
-                        required style="text-align: center; font-size: 1.1rem;">
+                    <input type="text" id="challenge-answer" class="form-control" placeholder="Enter answer here..." required style="text-align: center; font-size: 1.1rem;">
                 </div>
-                <div class="challenge-feedback" id="challenge-feedback"
-                    style="margin-top: 10px; font-weight: 600; text-align: center; min-height: 24px;"></div>
+                <div class="challenge-feedback" id="challenge-feedback" style="margin-top: 10px; font-weight: 600; text-align: center; min-height: 24px;"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%;">SUBMIT
-                    ANSWER</button>
+                <button type="button" class="btn btn-primary" id="submit-challenge-btn" style="width: 100%; font-weight: 700; letter-spacing: 0.04em;">SUBMIT ANSWER</button>
             </div>
         </div>
     </div>
@@ -223,11 +319,11 @@
         <source src="/assets/sounds/radar.mp3" type="audio/mpeg">
     </audio>
 
-    <script src="../js/config.js?v=1.0.6"></script>
-    <script src="../js/utils.js?v=1.0.6"></script>
-    <script src="../js/auth.js?v=1.0.6"></script>
+    <script src="../js/config.js?v=1.0.8"></script>
+    <script src="../js/utils.js?v=1.0.8"></script>
+    <script src="../js/auth.js?v=1.0.8"></script>
     <script>protectPage('user');</script>
-    <script src="../js/user.js?v=1.0.6"></script>
+    <script src="../js/user.js?v=1.0.8"></script>
 </body>
 
 </html>
