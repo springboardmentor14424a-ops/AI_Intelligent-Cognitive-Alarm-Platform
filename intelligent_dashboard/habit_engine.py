@@ -156,6 +156,11 @@ class HabitScoringEngine:
         return round(max(10.0, min(100.0, score)), 1)
 
     @classmethod
+    def calculate_sleep_routine_score(cls, user_id: int, db: Session) -> float:
+        """Alias for calculate_sleep_schedule_adherence_score (Sleep Routine Scoring)."""
+        return cls.calculate_sleep_schedule_adherence_score(user_id, db)
+
+    @classmethod
     def calculate_productivity_score(cls, user_id: int, db: Session) -> float:
         """
         Calculates Overall Productivity Score (0 - 100).
@@ -164,6 +169,15 @@ class HabitScoringEngine:
         consistency = cls.calculate_wake_up_consistency_score(user_id, db)
         challenge = cls.calculate_challenge_completion_score(user_id, db)
         return round((consistency * 0.5) + (challenge * 0.5), 1)
+
+    @classmethod
+    def calculate_habit_adherence_score(cls, user_id: int, db: Session) -> float:
+        """
+        Calculates overall Habit Adherence Score using the weighted model:
+        35% Wake-Up Consistency + 25% Challenge Completion + 20% Snooze Reduction + 20% Sleep Adherence
+        """
+        result = cls.compute_and_persist_habit_score(user_id, db)
+        return float(result.get("habit_score", 50.0))
 
     @classmethod
     def compute_and_persist_habit_score(cls, user_id: int, db: Session) -> Dict[str, Any]:

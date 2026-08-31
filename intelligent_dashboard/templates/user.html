@@ -986,6 +986,157 @@
                     </div>
                 </div>
 
+                <!-- Behavioral Analytics Engine Showcase (5 Telemetry Pillars) -->
+                <div style="margin-top: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <div>
+                            <h3 style="font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin: 0;">
+                                <span>📈</span> Behavioral Analytics Engine
+                            </h3>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin: 4px 0 0 0;">
+                                Continuous behavioral telemetry analyzing snooze tendencies, wake drift, cognitive productivity correlation, habit consistency, and circadian sleep architecture.
+                            </p>
+                        </div>
+                        <span class="badge badge-active" style="font-size: 11px;">Telemetry Active</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+                        <!-- 1. Snooze Pattern Analysis -->
+                        <div class="glass-card" style="border-top: 3px solid #f59e0b;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">🛌</span>
+                                    <h4 style="font-size: 14px; margin: 0;">Snooze Pattern Analysis</h4>
+                                </div>
+                                <span class="badge badge-warning" style="font-size: 10px;">{{ behavioral_data.snooze_patterns.severity_tier }}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Avg Snoozes / Wake</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #f59e0b;">{{ behavioral_data.snooze_patterns.avg_snoozes_per_wake }}</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Zero-Snooze Rate</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #10b981;">{{ behavioral_data.snooze_patterns.zero_snooze_rate_pct }}%</div>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+                                <strong>Peak Snooze Day:</strong> <span style="color: var(--text-primary);">{{ behavioral_data.snooze_patterns.peak_snooze_day }}</span> (Weekdays: {{ behavioral_data.snooze_patterns.weekday_snoozes }} | Weekends: {{ behavioral_data.snooze_patterns.weekend_snoozes }})
+                            </div>
+                            <div style="font-size: 11px; color: #fbbf24; background: rgba(245, 158, 11, 0.08); padding: 6px 10px; border-radius: 6px; line-height: 1.3;">
+                                💡 {{ behavioral_data.snooze_patterns.recommendation }}
+                            </div>
+                        </div>
+
+                        <!-- 2. Wake-Up Behavior Tracking -->
+                        <div class="glass-card" style="border-top: 3px solid #38bdf8;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">⏰</span>
+                                    <h4 style="font-size: 14px; margin: 0;">Wake-Up Behavior Tracking</h4>
+                                </div>
+                                <span class="badge badge-info" style="font-size: 10px;">{{ behavioral_data.wake_up_behavior.waking_consistency_status }}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Avg Drift From Target</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #38bdf8;">+{{ behavioral_data.wake_up_behavior.avg_drift_minutes }}m</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">On-Time Wake Rate</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #4ade80;">{{ behavioral_data.wake_up_behavior.on_time_rate_pct }}%</div>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+                                <strong>Target:</strong> {{ behavioral_data.wake_up_behavior.target_wake_up_time }} &nbsp;|&nbsp; <strong>Avg Actual:</strong> {{ behavioral_data.wake_up_behavior.avg_actual_wake_time }}
+                            </div>
+                            <div style="font-size: 11px; color: #38bdf8; background: rgba(56, 189, 248, 0.08); padding: 6px 10px; border-radius: 6px; line-height: 1.3;">
+                                ☀️ Morning Wakefulness Rating: <strong>{{ behavioral_data.wake_up_behavior.avg_wakefulness_rating }}/10</strong>
+                            </div>
+                        </div>
+
+                        <!-- 3. Productivity Correlation Analysis -->
+                        <div class="glass-card" style="border-top: 3px solid #a78bfa;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">⚡</span>
+                                    <h4 style="font-size: 14px; margin: 0;">Productivity Correlation</h4>
+                                </div>
+                                <span class="badge badge-info" style="font-size: 10px; background: rgba(167, 139, 250, 0.15); color: #a78bfa;">Alertness {{ behavioral_data.productivity_correlation.cognitive_alertness_index }}%</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Productivity Score</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #a78bfa;">{{ behavioral_data.productivity_correlation.productivity_score }}</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Prime Cognitive Window</div>
+                                    <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-top: 4px;">{{ behavioral_data.productivity_correlation.peak_performance_hour }}</div>
+                                </div>
+                            </div>
+                            <ul style="margin: 0; padding-left: 16px; font-size: 11px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">
+                                {% for ins in behavioral_data.productivity_correlation.insights %}
+                                    <li>{{ ins }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                        <!-- 4. Habit Consistency Monitoring -->
+                        <div class="glass-card" style="border-top: 3px solid #10b981;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">🏆</span>
+                                    <h4 style="font-size: 14px; margin: 0;">Habit Consistency</h4>
+                                </div>
+                                <span class="badge badge-active" style="font-size: 10px;">{{ behavioral_data.habit_consistency.badge }}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Current Streak</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #10b981;">{{ behavioral_data.habit_consistency.current_streak_days }} Days</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Weekly Compliance</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #34d399;">{{ behavioral_data.habit_consistency.weekly_compliance_pct }}%</div>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+                                <strong>Consistency Tier:</strong> {{ behavioral_data.habit_consistency.consistency_tier }}
+                            </div>
+                            <div style="font-size: 11px; color: #10b981; background: rgba(16, 185, 129, 0.08); padding: 6px 10px; border-radius: 6px; line-height: 1.3;">
+                                🎯 <strong>{{ behavioral_data.habit_consistency.days_to_next_milestone }} days</strong> until next circadian milestone badge!
+                            </div>
+                        </div>
+
+                        <!-- 5. Sleep Pattern Analytics -->
+                        <div class="glass-card" style="border-top: 3px solid #ec4899;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 18px;">🌙</span>
+                                    <h4 style="font-size: 14px; margin: 0;">Sleep Pattern Analytics</h4>
+                                </div>
+                                <span class="badge badge-info" style="font-size: 10px; background: rgba(236, 72, 153, 0.15); color: #ec4899;">Score {{ behavioral_data.sleep_patterns.alignment_score }}</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Planned Sleep Duration</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: #ec4899;">{{ behavioral_data.sleep_patterns.calculated_sleep_duration_hours }}h</div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px;">
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Sleep Debt</div>
+                                    <div style="font-size: 18px; font-weight: 800; color: {{ '#4ade80' if behavioral_data.sleep_patterns.sleep_debt_minutes <= 15 else '#f87171' }};">{{ behavioral_data.sleep_patterns.sleep_debt_minutes }} min</div>
+                                </div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 6px;">
+                                <strong>Bedtime:</strong> {{ behavioral_data.sleep_patterns.target_bedtime }} &nbsp;|&nbsp; <strong>Wake:</strong> {{ behavioral_data.sleep_patterns.target_wake_time }}
+                            </div>
+                            <div style="font-size: 11px; color: #ec4899; background: rgba(236, 72, 153, 0.08); padding: 6px 10px; border-radius: 6px; line-height: 1.3;">
+                                🌌 {{ behavioral_data.sleep_patterns.circadian_alignment }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- 5-Pillar Recommendation Engine Showcase -->
                 <div style="margin-top: 24px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
