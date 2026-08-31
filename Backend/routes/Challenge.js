@@ -7,7 +7,8 @@ const {
     savePerformance,
     analyzePerformance,
     getPersonalizedChallenge,
-    getAnalytics
+    getAnalytics,
+    saveWakeUpVerification
 } = require("../controllers/challengeController");
 
 router.post(
@@ -33,6 +34,15 @@ router.get(
 router.get(
     "/personalized/:userId",
     getPersonalizedChallenge
+);
+
+// =====================================================
+// SAVE WAKE-UP VERIFICATION
+// =====================================================
+
+router.post(
+    "/wake-up-verification",
+    saveWakeUpVerification
 );
 
 module.exports = router;

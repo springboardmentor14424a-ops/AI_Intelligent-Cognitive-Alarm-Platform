@@ -1368,7 +1368,138 @@ async function getAnalytics(req, res) {
     }
 
 }
+// =====================================================
+// SAVE WAKE-UP VERIFICATION
+// =====================================================
 
+async function saveWakeUpVerification(req, res) {
+
+    try {
+
+        const {
+            userId,
+            alarmId,
+            wakefulnessRating,
+            totalQuestions,
+            correctAnswers,
+            wrongAnswers,
+            accuracy,
+            verificationTime,
+            verificationStatus
+        } = req.body;
+
+
+        // ---------------------------------------------
+        // Validate required data
+        // ---------------------------------------------
+
+        if (!userId) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "User ID is required."
+
+            });
+
+        }
+
+
+        // ---------------------------------------------
+        // Insert verification record
+        // ---------------------------------------------
+
+        const result = await pool.query(
+    `
+    INSERT INTO wake_up_verification (
+
+        user_id,
+        alarm_id,
+        wakefulness_rating,
+        total_questions,
+        correct_answers,
+        wrong_answers,
+        accuracy,
+        verification_time,
+        verification_status,
+        verified_at
+
+    )
+
+    VALUES (
+
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9::varchar,
+        CASE
+            WHEN $9::varchar = 'passed'
+            THEN CURRENT_TIMESTAMP
+            ELSE NULL
+        END
+
+    )
+
+    RETURNING *
+    `,
+    [
+        userId,
+        alarmId || null,
+        wakefulnessRating || 0,
+        totalQuestions || 0,
+        correctAnswers || 0,
+        wrongAnswers || 0,
+        accuracy || 0,
+        verificationTime || 0,
+        verificationStatus || "failed"
+    ]
+);
+
+        // ---------------------------------------------
+        // Success response
+        // ---------------------------------------------
+
+        return res.status(201).json({
+
+            success: true,
+
+            message:
+                "Wake-up verification saved successfully.",
+
+            verification:
+                result.rows[0]
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Wake-up verification save error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                error.message ||
+                "Failed to save wake-up verification."
+
+        });
+
+    }
+
+}
 // =====================================================
 // Export
 // =====================================================
@@ -1377,5 +1508,6 @@ module.exports = {
     savePerformance,
     analyzePerformance,
     getPersonalizedChallenge,
-    getAnalytics
+    getAnalytics,
+    saveWakeUpVerification
 };

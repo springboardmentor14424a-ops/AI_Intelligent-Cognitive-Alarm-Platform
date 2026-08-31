@@ -9,6 +9,46 @@ let currentChallengeType = null;
 let currentDifficulty = null;
 
 // ==========================================
+// WAKE-UP VERIFICATION
+// ==========================================
+
+let wakeUpVerification = {
+    active: false,
+
+    // Current verification stage
+    phase: "wakefulness",
+
+    // Wakefulness rating
+    wakefulnessRating: 0,
+
+    // Consecutive correct answers required
+    requiredConsecutive: 3,
+    consecutiveCorrect: 0,
+
+    // Question tracking
+    totalQuestions: 0,
+    requiredQuestions: 3,
+
+    // Accuracy tracking
+    correctAnswers: 0,
+    wrongAnswers: 0,
+
+    // Extra questions caused by wrong answers
+    extraQuestions: 0,
+
+    // Time tracking
+    verificationStartTime: null,
+
+    timeLimit: 0,
+    verificationTimer: null,
+    timeRemaining: 0,
+    timeChallengeActive: false,
+
+    // Final status
+    verified: false
+};
+
+// ==========================================
 // CHALLENGE PERFORMANCE TRACKING
 // ==========================================
 
@@ -418,9 +458,14 @@ function showNextAlarm() {
         activeAlarm.difficulty
     );
 
+    
+
     answerInput.value = "";
 
     alarmPopup.style.display = "flex";
+
+    // Start wake-up verification
+    startWakeUpVerification();
 
     // Play alarm sound
     alarmSound.currentTime = 0;
@@ -518,7 +563,33 @@ function removeQuizOptions() {
     }
 }
 
-function dismissAlarm(){
+function dismissAlarm() {
+
+    // ==========================================
+    // ANTI-SNOOZE / DISMISS VALIDATION
+    // ==========================================
+
+    if (
+        !wakeUpVerification.verified
+    ) {
+
+        console.log(
+            "🚫 Alarm dismissal blocked - verification required"
+        );
+
+        alert(
+            "🧠 Complete the wake-up verification before dismissing the alarm."
+        );
+
+        return;
+    }
+
+
+    console.log(
+        "✅ Alarm dismissal authorized"
+    );
+
+
 
     alarmSound.pause();
 
@@ -560,6 +631,23 @@ function dismissAlarm(){
 
 
 function snoozeAlarm(){
+
+if (
+    wakeUpVerification.active &&
+    !wakeUpVerification.verified
+) {
+
+    console.log(
+        "🚫 Snooze blocked during wake-up verification"
+    );
+
+    alert(
+        "🧠 Snooze is disabled until wake-up verification is completed."
+    );
+
+    return;
+}
+
     snoozeCount++;
 
     stats.totalSnoozes++;
@@ -1527,6 +1615,625 @@ function checkAnswer() {
         return;
     }
 
+    // ==========================================
+// WAKE-UP VERIFICATION FLOW
+// ==========================================
+
+if (
+    wakeUpVerification.active &&
+    wakeUpVerification.phase === "wakefulness"
+) {
+
+    const rating =
+        Number(userAnswer);
+
+    // Validate rating
+    if (
+        !Number.isInteger(rating) ||
+        rating < 1 ||
+        rating > 10
+    ) {
+
+        alert(
+            "Please enter a wakefulness rating from 1 to 10."
+        );
+
+        answerInput.focus();
+
+        return;
+    }
+
+
+    wakeUpVerification.wakefulnessRating =
+        rating;
+
+
+    console.log(
+        "Wakefulness rating:",
+        rating
+    );
+
+
+    // ------------------------------------------
+    // LOW WAKEFULNESS
+    // ------------------------------------------
+
+    if (rating <= 5) {
+
+        // User needs more verification
+        wakeUpVerification.requiredConsecutive = 4;
+
+        wakeUpVerification.requiredQuestions = 4;
+
+
+        console.log(
+            "⚠ Low wakefulness. Additional challenges required."
+        );
+
+
+        const result =
+            document.getElementById(
+                "challengeResult"
+            );
+
+        if (result) {
+
+            result.innerText =
+                "😴 You appear to be sleepy. " +
+                "Complete additional challenges to confirm wakefulness.";
+
+            result.style.display = "block";
+        }
+
+    }
+
+
+    // ------------------------------------------
+    // GOOD WAKEFULNESS
+    // ------------------------------------------
+
+    else {
+
+        wakeUpVerification.requiredConsecutive = 3;
+
+        wakeUpVerification.requiredQuestions = 3;
+
+
+        console.log(
+            "✅ Wakefulness level acceptable."
+        );
+
+
+        const result =
+            document.getElementById(
+                "challengeResult"
+            );
+
+        if (result) {
+
+            result.innerText =
+                "✅ Wakefulness confirmed. " +
+                "Now complete the cognitive verification.";
+
+            result.style.display = "block";
+        }
+
+    }
+
+
+    // Move to cognitive challenges
+    setTimeout(() => {
+
+        startVerificationChallenges();
+
+    }, 700);
+
+
+    return;
+}
+
+// ==========================================
+// MULTI-STEP COGNITIVE VERIFICATION
+// ==========================================
+
+if (
+    wakeUpVerification.active &&
+    wakeUpVerification.phase === "challenge"
+) {
+
+    const userAnswer =
+        answerInput.value.trim();
+
+
+    const normalizeAnswer =
+        answer => {
+
+            return String(answer)
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, "")
+                .replace(/[.,!?;:]+$/g, "");
+
+        };
+
+
+    const userAnswerNormalized =
+        normalizeAnswer(userAnswer);
+
+
+    const correctAnswerNormalized =
+        normalizeAnswer(
+            currentChallengeAnswer
+        );
+
+
+    wakeUpVerification.totalQuestions++;
+
+
+    // ==========================================
+    // CORRECT
+    // ==========================================
+
+    if (
+        userAnswerNormalized ===
+        correctAnswerNormalized
+    ) {
+
+        wakeUpVerification.correctAnswers++;
+
+        wakeUpVerification.consecutiveCorrect++;
+
+
+        console.log(
+            "✅ Verification answer correct"
+        );
+
+        console.log(
+            "Consecutive correct:",
+            wakeUpVerification.consecutiveCorrect
+        );
+
+
+        updateVerificationProgress();
+
+
+        // --------------------------------------
+        // VERIFICATION COMPLETE
+        // --------------------------------------
+
+        if (
+    wakeUpVerification.consecutiveCorrect >=
+    wakeUpVerification.requiredConsecutive
+) {
+
+    startTimeBasedChallenge();
+
+    return;
+}
+
+
+        // --------------------------------------
+        // NEXT QUESTION
+        // --------------------------------------
+
+        answerInput.value = "";
+
+        generateQuestion(
+            activeAlarm.challengeType,
+            activeAlarm.difficulty
+        );
+
+        return;
+    }
+
+
+    // ==========================================
+    // WRONG
+    // ==========================================
+
+    wakeUpVerification.wrongAnswers++;
+
+    wakeUpVerification.consecutiveCorrect = 0;
+
+    wakeUpVerification.extraQuestions++;
+
+    // Every wrong answer adds another question
+    wakeUpVerification.requiredQuestions++;
+
+
+    console.log(
+        "❌ Verification answer incorrect"
+    );
+
+    console.log(
+        "Extra question added."
+    );
+
+    console.log(
+        "New required question count:",
+        wakeUpVerification.requiredQuestions
+    );
+
+
+    const result =
+        document.getElementById(
+            "challengeResult"
+        );
+
+    if (result) {
+
+        result.innerText =
+            "❌ Incorrect answer.\n" +
+            "Your consecutive streak has been reset.\n" +
+            "An additional question has been added.";
+
+        result.style.display = "block";
+    }
+
+
+    updateVerificationProgress();
+
+
+    // Generate another challenge
+    answerInput.value = "";
+
+    setTimeout(() => {
+
+        generateQuestion(
+            activeAlarm.challengeType,
+            activeAlarm.difficulty
+        );
+
+    }, 700);
+
+
+    return;
+}
+
+// ==========================================
+// TIME-BASED CHALLENGE ANSWER
+// ==========================================
+
+if (
+    wakeUpVerification.active &&
+    wakeUpVerification.phase === "timeChallenge"
+) {
+
+    const userAnswer =
+        answerInput.value.trim();
+
+
+    if (userAnswer === "") {
+
+        alert(
+            "Please enter your answer."
+        );
+
+        answerInput.focus();
+
+        return;
+    }
+
+
+    // Stop timer
+    if (
+        wakeUpVerification.verificationTimer
+    ) {
+
+        clearInterval(
+            wakeUpVerification.verificationTimer
+        );
+
+        wakeUpVerification.verificationTimer =
+            null;
+    }
+
+
+    wakeUpVerification.timeChallengeActive =
+        false;
+
+
+    wakeUpVerification.totalQuestions++;
+
+
+    const normalizeAnswer =
+        answer => {
+
+            return String(answer)
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, "")
+                .replace(/[.,!?;:]+$/g, "");
+
+        };
+
+
+    const userAnswerNormalized =
+        normalizeAnswer(userAnswer);
+
+
+    const correctAnswerNormalized =
+        normalizeAnswer(
+            currentChallengeAnswer
+        );
+
+
+    // ======================================
+    // CORRECT
+    // ======================================
+
+    if (
+        userAnswerNormalized ===
+        correctAnswerNormalized
+    ) {
+
+        wakeUpVerification.correctAnswers++;
+
+        console.log(
+            "✅ Time-based challenge completed correctly"
+        );
+
+
+        const result =
+            document.getElementById(
+                "challengeResult"
+            );
+
+
+        if (result) {
+
+            result.innerText =
+                "✅ Time-based challenge completed!";
+
+            result.style.display = "block";
+        }
+
+
+        setTimeout(() => {
+
+            completeWakeUpVerification();
+
+        }, 700);
+
+
+        return;
+    }
+
+
+    // ======================================
+    // WRONG
+    // ======================================
+
+    wakeUpVerification.wrongAnswers++;
+
+
+    wakeUpVerification.consecutiveCorrect =
+        0;
+
+
+    wakeUpVerification.extraQuestions++;
+
+
+    const result =
+        document.getElementById(
+            "challengeResult"
+        );
+
+
+    if (result) {
+
+        result.innerText =
+            "❌ Incorrect answer. " +
+            "Another verification challenge is required.";
+
+        result.style.display = "block";
+    }
+
+
+    setTimeout(() => {
+
+        startVerificationChallenges();
+
+    }, 1000);
+
+
+    return;
+}
+
+// ==========================================
+// COMPLETE WAKE-UP VERIFICATION
+// ==========================================
+
+// ==========================================
+// COMPLETE WAKE-UP VERIFICATION
+// ==========================================
+
+async function completeWakeUpVerification() {
+
+    // ------------------------------------------
+    // Mark verification as passed
+    // ------------------------------------------
+
+    wakeUpVerification.verified = true;
+
+    wakeUpVerification.active = false;
+
+
+    // ------------------------------------------
+    // Calculate final accuracy
+    // ------------------------------------------
+
+    const accuracy =
+        getVerificationAccuracy();
+
+
+    // ------------------------------------------
+    // Calculate total verification time
+    // ------------------------------------------
+
+    const verificationTime =
+        wakeUpVerification.verificationStartTime
+            ? Math.round(
+                (Date.now() -
+                    wakeUpVerification.verificationStartTime) / 1000
+            )
+            : 0;
+
+
+    // ------------------------------------------
+    // Final verification information
+    // ------------------------------------------
+
+    console.log(
+        "🎉 WAKE-UP VERIFICATION PASSED"
+    );
+
+    console.log(
+        "Wakefulness:",
+        wakeUpVerification.wakefulnessRating
+    );
+
+    console.log(
+        "Questions:",
+        wakeUpVerification.totalQuestions
+    );
+
+    console.log(
+        "Correct:",
+        wakeUpVerification.correctAnswers
+    );
+
+    console.log(
+        "Wrong:",
+        wakeUpVerification.wrongAnswers
+    );
+
+    console.log(
+        "Accuracy:",
+        accuracy + "%"
+    );
+
+    console.log(
+        "Verification time:",
+        verificationTime + " seconds"
+    );
+
+
+    // ==========================================
+    // SAVE VERIFICATION TO POSTGRESQL
+    // ==========================================
+
+    try {
+
+        const response =
+            await fetch(
+                "http://localhost:5000/api/challenges/wake-up-verification",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        userId:
+                            Number(
+                                localStorage.getItem("userId")
+                            ) || 1,
+
+                        alarmId: null,
+
+                        wakefulnessRating:
+                            wakeUpVerification.wakefulnessRating,
+
+                        totalQuestions:
+                            wakeUpVerification.totalQuestions,
+
+                        correctAnswers:
+                            wakeUpVerification.correctAnswers,
+
+                        wrongAnswers:
+                            wakeUpVerification.wrongAnswers,
+
+                        accuracy:
+                            accuracy,
+
+                        verificationTime:
+                            verificationTime,
+
+                        verificationStatus:
+                            "passed"
+
+                    })
+                }
+            );
+
+
+        const data =
+            await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.message ||
+                "Failed to save wake-up verification."
+            );
+
+        }
+
+
+        console.log(
+            "✅ Wake-up verification saved to PostgreSQL:",
+            data.verification
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ Failed to save wake-up verification:",
+            error
+        );
+
+    }
+
+
+    // ==========================================
+    // SHOW SUCCESS MESSAGE
+    // ==========================================
+
+    const result =
+        document.getElementById(
+            "challengeResult"
+        );
+
+
+    if (result) {
+
+        result.innerText =
+            "🎉 Wake-up verification successful!\n" +
+            "Cognitive accuracy: " +
+            accuracy +
+            "%\n" +
+            "Alarm dismissed.";
+
+        result.style.display = "block";
+    }
+
+
+    // ==========================================
+    // STOP ALARM
+    // ==========================================
+
+    setTimeout(() => {
+
+        dismissAlarm();
+
+    }, 1000);
+
+}
     // Normalize answers
     function normalizeAnswer(answer) {
 
@@ -2359,4 +3066,360 @@ if (visualAnalyticsMenu) {
         }
     );
 
+}
+
+// ==========================================
+// START WAKE-UP VERIFICATION
+// ==========================================
+
+function startWakeUpVerification() {
+
+    wakeUpVerification = {
+
+        active: true,
+
+        phase: "wakefulness",
+
+        wakefulnessRating: 0,
+
+        requiredConsecutive: 3,
+
+        consecutiveCorrect: 0,
+
+        totalQuestions: 0,
+
+        requiredQuestions: 3,
+
+        correctAnswers: 0,
+
+        wrongAnswers: 0,
+
+        extraQuestions: 0,
+
+        verificationStartTime: Date.now(),
+
+        verified: false
+
+    };
+
+    console.log(
+        "🧠 Wake-up verification started"
+    );
+
+    console.log(
+        "Required consecutive correct:",
+        wakeUpVerification.requiredConsecutive
+    );
+
+    showWakefulnessAssessment();
+}
+// ==========================================
+// WAKEFULNESS ASSESSMENT
+// ==========================================
+
+function showWakefulnessAssessment() {
+
+    question.innerText =
+        "How awake are you right now?";
+
+    answerInput.value = "";
+
+    answerInput.placeholder =
+        "Enter a number from 1 to 10";
+
+    const result =
+        document.getElementById("challengeResult");
+
+    if (result) {
+
+        result.innerText =
+            "🧠 Wakefulness Check: Rate yourself from 1 to 10.";
+
+        result.style.display = "block";
+    }
+
+    console.log(
+        "Waiting for wakefulness rating..."
+    );
+}
+
+// ==========================================
+// TIME-BASED WAKE-UP CHALLENGE
+// ==========================================
+
+async function startTimeBasedChallenge() {
+
+    wakeUpVerification.phase =
+        "timeChallenge";
+
+    wakeUpVerification.timeChallengeActive =
+        true;
+
+    // Select time based on difficulty
+    switch (currentDifficulty) {
+
+        case "Easy":
+            wakeUpVerification.timeLimit = 30;
+            break;
+
+        case "Medium":
+            wakeUpVerification.timeLimit = 45;
+            break;
+
+        case "Hard":
+            wakeUpVerification.timeLimit = 60;
+            break;
+
+        case "Expert":
+            wakeUpVerification.timeLimit = 60;
+            break;
+
+        default:
+            wakeUpVerification.timeLimit = 30;
+    }
+
+    wakeUpVerification.timeRemaining =
+        wakeUpVerification.timeLimit;
+
+
+    console.log(
+        "⏱ Time-based challenge started"
+    );
+
+    console.log(
+        "Time limit:",
+        wakeUpVerification.timeLimit,
+        "seconds"
+    );
+
+
+    // Generate a thought-provoking challenge
+    const timeChallengeTypes = [
+        "riddle",
+        "word",
+        "logic",
+        "pattern"
+    ];
+
+    const randomIndex =
+        Math.floor(
+            Math.random() *
+            timeChallengeTypes.length
+        );
+
+    const challengeType =
+        timeChallengeTypes[randomIndex];
+
+
+    await generateQuestion(
+        challengeType,
+        currentDifficulty
+    );
+
+
+    startVerificationCountdown();
+}
+
+// ==========================================
+// VERIFICATION COUNTDOWN
+// ==========================================
+
+function startVerificationCountdown() {
+
+    // Clear any previous timer
+    if (wakeUpVerification.verificationTimer) {
+
+        clearInterval(
+            wakeUpVerification.verificationTimer
+        );
+    }
+
+
+    wakeUpVerification.verificationTimer =
+        setInterval(() => {
+
+            wakeUpVerification.timeRemaining--;
+
+
+            updateTimeDisplay();
+
+
+            if (
+                wakeUpVerification.timeRemaining <= 0
+            ) {
+
+                clearInterval(
+                    wakeUpVerification.verificationTimer
+                );
+
+                wakeUpVerification.verificationTimer =
+                    null;
+
+                handleTimeChallengeTimeout();
+
+            }
+
+        }, 1000);
+}
+
+// ==========================================
+// TIME DISPLAY
+// ==========================================
+
+function updateTimeDisplay() {
+
+    const result =
+        document.getElementById(
+            "challengeResult"
+        );
+
+    if (!result) {
+        return;
+    }
+
+
+    const minutes =
+        Math.floor(
+            wakeUpVerification.timeRemaining / 60
+        );
+
+    const seconds =
+        wakeUpVerification.timeRemaining % 60;
+
+
+    const formattedTime =
+        `${String(minutes).padStart(2, "0")}:` +
+        `${String(seconds).padStart(2, "0")}`;
+
+
+    result.innerText =
+        `⏱ Time remaining: ${formattedTime}`;
+
+    result.style.display = "block";
+}
+
+// ==========================================
+// TIMEOUT
+// ==========================================
+
+function handleTimeChallengeTimeout() {
+
+    wakeUpVerification.timeChallengeActive =
+        false;
+
+
+    wakeUpVerification.wrongAnswers++;
+
+
+    console.log(
+        "⏰ Time-based challenge expired"
+    );
+
+
+    const result =
+        document.getElementById(
+            "challengeResult"
+        );
+
+
+    if (result) {
+
+        result.innerText =
+            "⏰ Time expired!\n" +
+            "The challenge was not completed.";
+
+        result.style.display = "block";
+    }
+
+
+    // Reset consecutive streak
+    wakeUpVerification.consecutiveCorrect =
+        0;
+
+
+    // Add another challenge
+    wakeUpVerification.extraQuestions++;
+
+
+    setTimeout(() => {
+
+        startVerificationChallenges();
+
+    }, 1000);
+}
+
+// ==========================================
+// START VERIFICATION CHALLENGES
+// ==========================================
+
+function startVerificationChallenges() {
+
+    wakeUpVerification.phase =
+        "challenge";
+
+    wakeUpVerification.consecutiveCorrect =
+        0;
+
+    wakeUpVerification.requiredQuestions =
+        wakeUpVerification.requiredConsecutive;
+
+    console.log(
+        "🧠 Cognitive verification started"
+    );
+
+    console.log(
+        "Required consecutive correct:",
+        wakeUpVerification.requiredConsecutive
+    );
+
+    generateQuestion(
+        activeAlarm.challengeType,
+        activeAlarm.difficulty
+    );
+
+    updateVerificationProgress();
+}
+
+// ==========================================
+// VERIFICATION PROGRESS
+// ==========================================
+
+function updateVerificationProgress() {
+
+    const result =
+        document.getElementById(
+            "challengeResult"
+        );
+
+    if (!result) {
+        return;
+    }
+
+    result.innerText =
+        `🧠 Wake-up Verification\n` +
+        `Consecutive Correct: ` +
+        `${wakeUpVerification.consecutiveCorrect} / ` +
+        `${wakeUpVerification.requiredConsecutive}\n` +
+        `Questions: ` +
+        `${wakeUpVerification.totalQuestions} / ` +
+        `${wakeUpVerification.requiredQuestions}\n` +
+        `Accuracy: ` +
+        `${getVerificationAccuracy()}%`;
+
+    result.style.display = "block";
+}
+function getVerificationAccuracy() {
+
+    if (
+        wakeUpVerification.totalQuestions === 0
+    ) {
+        return 0;
+    }
+
+    return Math.round(
+        (
+            wakeUpVerification.correctAnswers /
+            wakeUpVerification.totalQuestions
+        ) * 100
+    );
 }
