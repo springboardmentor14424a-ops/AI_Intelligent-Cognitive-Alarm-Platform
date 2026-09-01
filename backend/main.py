@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import math
 import os
 import re
@@ -22,16 +23,22 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 
+logger = logging.getLogger(__name__)
+
 try:
     from .alarm_service import next_occurrence
+    from .gemini_service import get_gemini_service
 except ImportError:  # Supports `uvicorn main:app` when running from backend/.
     from alarm_service import next_occurrence
+    from gemini_service import get_gemini_service
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/brainos")
 JWT_SECRET = os.getenv("JWT_SECRET", "change-this-before-production")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 SESSION_SECRET = os.getenv("SESSION_SECRET", JWT_SECRET)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+USE_GEMINI_CHALLENGES = os.getenv("USE_GEMINI_CHALLENGES", "true").lower() == "true"
 ALGORITHM, EXPIRE_MINUTES = "HS256", 60 * 24
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
@@ -47,10 +54,31 @@ oauth.register(
     client_kwargs={"scope": "openid email profile"},
 )
 
+app = FastAPI(title="BrainOS API")
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET,
+    same_site="lax",
+    https_only=False,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        FRONTEND_URL,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+scheduler = BackgroundScheduler(timezone="UTC")
 
 class Base(DeclarativeBase):
     pass
-
 
 class Role(str, Enum):
     USER = "USER"
@@ -98,7 +126,7 @@ class Alarm(Base):
     alarm_id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     alarm_time: Mapped[time] = mapped_column(Time)
-    repeat_days: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    repeat_days: Mapped[str | None] = mapped_column(String(100), nullable=True)
     difficulty: Mapped[str] = mapped_column(String(30), default="MEDIUM")
     status: Mapped[str] = mapped_column(String(30), default="ACTIVE")
     title: Mapped[str] = mapped_column(String(120), default="Wake mission")
@@ -106,13 +134,21 @@ class Alarm(Base):
     sound: Mapped[str] = mapped_column(String(80), default="Neural Dawn")
     vibration: Mapped[bool] = mapped_column(Boolean, default=True)
     snooze_minutes: Mapped[int] = mapped_column(Integer, default=5)
-    # Daybreak Route opens before the alarm and gives the user a short wake sequence.
     daybreak_route_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     wake_window_minutes: Mapped[int] = mapped_column(Integer, default=15)
+    challenge_type: Mapped[str] = mapped_column(String(30), default="AUTO")
+    wake_verification_mode: Mapped[str] = mapped_column(String(30), default="SINGLE")
+    notification_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
     )
 
 
@@ -134,11 +170,16 @@ class ChallengeAttempt(Base):
 
     challenge_id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    alarm_id: Mapped[int | None] = mapped_column(
+        ForeignKey("alarms.alarm_id", ondelete="SET NULL"), nullable=True, index=True
+    )
     challenge_type: Mapped[str] = mapped_column(String(40))
     difficulty: Mapped[str] = mapped_column(String(30))
     intent: Mapped[str] = mapped_column(String(60))
     prompt: Mapped[str] = mapped_column(SQLText)
     expected_answer: Mapped[str] = mapped_column(String(255))
+    # Safe multiple-choice options; the expected answer itself is never exposed separately.
+    options: Mapped[list[str]] = mapped_column(JSON, default=list)
     submitted_answer: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(30), default="ACTIVE", index=True)
     max_attempts: Mapped[int] = mapped_column(Integer, default=2)
@@ -148,12 +189,14 @@ class ChallengeAttempt(Base):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
     is_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    verification_passed: Mapped[bool] = mapped_column(Boolean, default=False)
     elapsed_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class SleepLog(Base):
+
     __tablename__ = "sleep_logs"
 
     sleep_id: Mapped[int] = mapped_column(primary_key=True)
@@ -197,6 +240,26 @@ class AlarmInput(BaseModel):
     status: str = "ACTIVE"
     daybreak_route_enabled: bool = True
     wake_window_minutes: int = Field(default=15, ge=0, le=60)
+    challenge_type: str = Field(default="AUTO", min_length=2, max_length=30)
+    wake_verification_mode: str = Field(default="SINGLE", min_length=3, max_length=30)
+    notification_enabled: bool = True
+
+
+class AlarmPatchInput(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=120)
+    alarm_time: str | None = None
+    alarm_type: str | None = None
+    repeat_days: str | None = None
+    difficulty: str | None = None
+    sound: str | None = Field(default=None, max_length=80)
+    vibration: bool | None = None
+    snooze_minutes: int | None = Field(default=None, ge=0, le=30)
+    status: str | None = None
+    daybreak_route_enabled: bool | None = None
+    wake_window_minutes: int | None = Field(default=None, ge=0, le=60)
+    challenge_type: str | None = Field(default=None, min_length=2, max_length=30)
+    wake_verification_mode: str | None = Field(default=None, min_length=3, max_length=30)
+    notification_enabled: bool | None = None
 
 
 class MissionInput(BaseModel):
@@ -227,10 +290,14 @@ class RoleUpdateInput(BaseModel):
 class ChallengeGenerateInput(BaseModel):
     # Omit this (or use AUTO) to get a server-selected challenge type.
     challenge_type: str | None = Field(default=None, min_length=2, max_length=40)
-    # `type` is accepted as a compact client-side alias for challenge_type.
     type: str | None = Field(default=None, min_length=2, max_length=40)
     difficulty: str | None = Field(default=None, min_length=3, max_length=30)
     intent: str = Field(default="WAKE_UP", min_length=2, max_length=60)
+    alarm_id: int | None = Field(default=None, ge=1)
+
+
+class AssistantPromptInput(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
 
 
 class ChallengeCompletionInput(BaseModel):
@@ -245,19 +312,25 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-VALID_DIFFICULTIES = {"EASY", "MEDIUM", "HARD"}
-DIFFICULTY_LEVELS = ("EASY", "MEDIUM", "HARD")
+VALID_DIFFICULTIES = {"BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"}
+DIFFICULTY_LEVELS = ("BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT")
+ALARM_TYPES = {"DAILY", "WEEKDAY", "WEEKEND", "ONE_TIME", "SMART_ADAPTIVE"}
+WAKE_VERIFICATION_MODES = {"SINGLE", "MULTI_STEP", "CONSECUTIVE", "TIMED", "ACCURACY"}
 ACTIVE_CHALLENGE_STATUS = "ACTIVE"
 CHALLENGE_TERMINAL_STATUSES = {"SOLVED", "FAILED", "TIMED_OUT"}
 CHALLENGE_ALIASES = {
     "MATH": "MATH",
     "MATH_PROBLEM": "MATH",
+    "MATH_PROBLEMS": "MATH",
     "LOGIC": "LOGIC",
     "LOGIC_PUZZLE": "LOGIC",
+    "LOGIC_PUZZLES": "LOGIC",
     "MEMORY": "MEMORY",
     "MEMORY_CHALLENGE": "MEMORY",
+    "MEMORY_CHALLENGES": "MEMORY",
     "WORD": "WORD",
     "WORD_GAME": "WORD",
+    "WORD_GAMES": "WORD",
     "PATTERN": "PATTERN",
     "PATTERN_RECOGNITION": "PATTERN",
     "RIDDLE": "RIDDLE",
@@ -265,9 +338,10 @@ CHALLENGE_ALIASES = {
     "QUIZ": "QUIZ",
     "QUICK_QUIZ": "QUIZ",
     "REACTION": "REACTION",
+    "REACTION_CHALLENGE": "REACTION",
+    "REACTION_CHALLENGES": "REACTION",
 }
 CHALLENGE_TYPES = ("MATH", "LOGIC", "MEMORY", "WORD", "PATTERN", "RIDDLE", "QUIZ", "REACTION")
-
 
 def db_session():
     db = SessionLocal()
@@ -315,6 +389,118 @@ def owned_alarm(alarm_id: int, user: User, db: Session):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alarm not found")
     return alarm
 
+def verify_wake_completion(alarm: Alarm, user: User, db: Session) -> ChallengeAttempt | None:
+    """Evaluate the selected wake-verification policy against recent WAKE_UP attempts."""
+    now = datetime.now(timezone.utc)
+    if alarm.last_fired_at is None:
+        return None
+    fired_at = as_utc(alarm.last_fired_at)
+    recent = list(
+        db.scalars(
+            select(ChallengeAttempt)
+            .where(
+                ChallengeAttempt.user_id == user.id,
+                ChallengeAttempt.completed.is_(True),
+                ChallengeAttempt.intent == "WAKE_UP",
+                ChallengeAttempt.completed_at.is_not(None),
+                ChallengeAttempt.completed_at >= now - timedelta(minutes=20),
+                ChallengeAttempt.completed_at >= fired_at,
+                ChallengeAttempt.alarm_id == alarm.alarm_id,
+            )
+            .order_by(ChallengeAttempt.completed_at.desc())
+            .limit(6)
+        ).all()
+    )
+    if not recent:
+        return None
+
+    mode = normalize_wake_verification_mode(alarm.wake_verification_mode)
+    successful = [challenge for challenge in recent if challenge.is_correct and challenge.verification_passed]
+
+    if mode == "SINGLE":
+        return successful[0] if successful else None
+
+    if mode == "MULTI_STEP":
+        return successful[0] if len(successful) >= 2 else None
+
+    if mode == "CONSECUTIVE":
+        if len(recent) < 2:
+            return None
+        first_two = recent[:2]
+        return first_two[0] if all(challenge.is_correct and challenge.verification_passed for challenge in first_two) else None
+
+    if mode == "TIMED":
+        candidate = successful[0] if successful else None
+        if candidate is None:
+            return None
+        limit = candidate.time_limit_seconds or challenge_time_limit(candidate.difficulty)
+        return candidate if candidate.elapsed_seconds is not None and candidate.elapsed_seconds <= limit else None
+
+    # ACCURACY: evaluate the last 3 completed wake checks (including failed checks).
+    window = recent[:3]
+    if len(window) < 3:
+        return None
+    accuracy = sum(1 for challenge in window if challenge.is_correct) / len(window)
+    return window[0] if accuracy >= 0.80 and window[0].verification_passed else None
+
+@app.post("/alarms/{alarm_id}/complete-wake")
+def complete_wake_alarm(
+    alarm_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
+    alarm = owned_alarm(alarm_id, user, db)
+
+    if alarm.status != "RINGING":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Alarm is not currently ringing",
+        )
+
+    recent_wake = verify_wake_completion(alarm, user, db)
+    if recent_wake is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Complete the required wake verification ({alarm.wake_verification_mode.lower()}) before stopping this alarm. Additional verified checkpoint(s) may be required.",
+        )
+
+    alarm.snoozed_until = None
+    alarm.last_completed_at = datetime.now(timezone.utc)
+
+    alarm_type = str(alarm.alarm_type or "").upper()
+
+    if alarm_type == "ONE_TIME":
+        alarm.status = "COMPLETED"
+        next_at = None
+    else:
+        alarm.status = "ACTIVE"
+
+        profile = ensure_profile(user, db)
+        current_time = local_now(profile)
+        occurrence = scheduled_occurrence(
+            alarm,
+            latest_sleep_score(user.id, db),
+            current_time,
+            profile,
+            db,
+        )
+        next_at = (
+            occurrence.replace(tzinfo=safe_zone(profile.timezone)).astimezone(timezone.utc)
+            if occurrence
+            else None
+        )
+
+    db.commit()
+    db.refresh(alarm)
+
+    return {
+        "alarm_id": alarm.alarm_id,
+        "status": alarm.status,
+        "next_at": next_at.isoformat() if next_at else None,
+        "message": "Wake protocol completed",
+    }
+
+
 
 def owned_challenge(challenge_id: int, user: User, db: Session):
     challenge = db.get(ChallengeAttempt, challenge_id)
@@ -350,8 +536,47 @@ def parse_alarm_clock(value: str) -> time:
 
 def normalize_difficulty(value: str | None, fallback: str = "MEDIUM") -> str:
     normalized = (value or fallback).strip().upper()
+    aliases = {"NOVICE": "BEGINNER", "ADVANCED": "HARD", "MASTER": "EXPERT"}
+    normalized = aliases.get(normalized, normalized)
     if normalized not in VALID_DIFFICULTIES:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="difficulty must be EASY, MEDIUM, or HARD")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="difficulty must be BEGINNER, EASY, MEDIUM, HARD, or EXPERT",
+        )
+    return normalized
+
+
+def normalize_alarm_type(value: str | None) -> str:
+    normalized = (value or "DAILY").strip().upper().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "ONE_OFF": "ONE_TIME",
+        "WEEKDAYS": "WEEKDAY",
+        "WEEKENDS": "WEEKEND",
+        "SMART": "SMART_ADAPTIVE",
+    }
+    normalized = aliases.get(normalized, normalized)
+    if normalized not in ALARM_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="alarm_type must be DAILY, WEEKDAY, WEEKEND, ONE_TIME, or SMART_ADAPTIVE",
+        )
+    return normalized
+
+
+def normalize_wake_verification_mode(value: str | None) -> str:
+    normalized = (value or "SINGLE").strip().upper().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "MULTISTEP": "MULTI_STEP",
+        "CONSECUTIVE_CORRECT": "CONSECUTIVE",
+        "TIME_BASED": "TIMED",
+        "COGNITIVE_ACCURACY": "ACCURACY",
+    }
+    normalized = aliases.get(normalized, normalized)
+    if normalized not in WAKE_VERIFICATION_MODES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="wake_verification_mode must be SINGLE, MULTI_STEP, CONSECUTIVE, TIMED, or ACCURACY",
+        )
     return normalized
 
 
@@ -412,13 +637,24 @@ def normalize_answer(value: object) -> str:
 
 
 def challenge_time_limit(difficulty: str) -> int:
-    return {"EASY": 90, "MEDIUM": 75, "HARD": 60}[difficulty]
+    return {
+        "BEGINNER": 110,
+        "EASY": 90,
+        "MEDIUM": 75,
+        "HARD": 60,
+        "EXPERT": 45,
+    }[difficulty]
 
 
 def challenge_max_attempts(difficulty: str) -> int:
-    """Keep early confidence-building challenges forgiving without making hard ones trivial."""
-
-    return {"EASY": 3, "MEDIUM": 2, "HARD": 2}[difficulty]
+    """Tighten verification as difficulty increases without making beginner too punitive."""
+    return {
+        "BEGINNER": 3,
+        "EASY": 3,
+        "MEDIUM": 2,
+        "HARD": 2,
+        "EXPERT": 1,
+    }[difficulty]
 
 
 def as_utc(moment: datetime) -> datetime:
@@ -492,6 +728,22 @@ def challenge_metrics(attempts: list[ChallengeAttempt]) -> dict:
     }
 
 
+def user_performance_rating(metrics: dict) -> dict:
+    """Return a stable 1-5 user-performance rating from recent challenge results."""
+    completed = int(metrics.get("completed", 0) or 0)
+    if completed == 0:
+        return {"score": 0, "label": "No data", "stars": "☆☆☆☆☆"}
+    accuracy = float(metrics.get("accuracy", 0.0) or 0.0)
+    speed_ratio = metrics.get("median_speed_ratio")
+    speed_score = 1.0 if speed_ratio is None else max(0.0, min(1.0, 1.0 - max(0.0, float(speed_ratio) - 0.45) / 0.85))
+    failure_streak = int(metrics.get("failure_streak", 0) or 0)
+    consistency_score = max(0.0, 1.0 - min(4, failure_streak) / 4)
+    composite = accuracy * 0.70 + speed_score * 0.20 + consistency_score * 0.10
+    score = 5 if composite >= 0.90 else 4 if composite >= 0.75 else 3 if composite >= 0.60 else 2 if composite >= 0.40 else 1
+    labels = {1: "Beginner", 2: "Needs practice", 3: "Developing", 4: "Strong", 5: "Expert"}
+    return {"score": score, "label": labels[score], "stars": "★" * score + "☆" * (5 - score)}
+
+
 def choose_challenge_type(user_id: int, requested_type: str | None, db: Session) -> tuple[str, str]:
     raw_type = (requested_type or "").strip()
     if raw_type and raw_type.upper() != "AUTO":
@@ -519,46 +771,106 @@ def choose_challenge_difficulty(
     profile: UserProfile, user_id: int, challenge_type: str, requested_difficulty: str | None, db: Session
 ) -> tuple[str, str]:
     requested = (requested_difficulty or "").strip().upper()
-    baseline = normalize_difficulty(requested, profile.difficulty_preference) if requested and requested != "AUTO" else normalize_difficulty(profile.difficulty_preference)
+
+    # An explicit difficulty is a deliberate user choice; adaptive logic only runs
+    # when AUTO/None is requested.
+    if requested and requested != "AUTO":
+        selected = normalize_difficulty(requested, profile.difficulty_preference)
+        return selected, f"Using your selected {selected.lower()} difficulty."
+
+    baseline = normalize_difficulty(profile.difficulty_preference)
     all_recent = recent_completed_challenges(user_id, db, limit=12)
     typed_recent = recent_completed_challenges(user_id, db, challenge_type=challenge_type, limit=12)
-    recent = typed_recent if len(typed_recent) >= 2 else all_recent
+    recent = typed_recent if len(typed_recent) >= 3 else all_recent
     if not recent:
         return baseline, f"Starting at your {baseline.lower()} preference until your route has performance history."
 
     metrics = challenge_metrics(recent)
+    rating = user_performance_rating(metrics)["score"]
     base_level = DIFFICULTY_LEVELS.index(baseline)
-    if metrics["highest_solved_level"] is not None:
-        base_level = max(base_level, metrics["highest_solved_level"])
 
-    is_fast = metrics["median_speed_ratio"] is not None and metrics["median_speed_ratio"] <= 0.7
+    is_fast = metrics["median_speed_ratio"] is not None and metrics["median_speed_ratio"] <= 0.70
     is_strong = (
         len(recent) >= 3
-        and metrics["accuracy"] >= 0.8
+        and metrics["accuracy"] >= 0.85
         and is_fast
-        and metrics["average_failed_attempts"] <= 0.5
+        and metrics["average_failed_attempts"] <= 0.25
         and metrics["failure_streak"] == 0
+        and rating >= 4
     )
     is_struggling = (
         len(recent) >= 2
         and (
-            metrics["accuracy"] < 0.5
-            or (metrics["median_speed_ratio"] is not None and metrics["median_speed_ratio"] >= 0.9)
+            metrics["accuracy"] < 0.50
+            or (metrics["median_speed_ratio"] is not None and metrics["median_speed_ratio"] >= 0.90)
             or metrics["average_failed_attempts"] >= 1
             or metrics["failure_streak"] >= 2
+            or rating <= 2
         )
     )
+
     if is_strong:
         level = min(base_level + 1, len(DIFFICULTY_LEVELS) - 1)
         chosen = DIFFICULTY_LEVELS[level]
-        return chosen, f"Recent {round(metrics['accuracy'] * 100)}% accuracy and quick finishes moved you to {chosen.lower()}."
+        return chosen, (
+            f"Adaptive engine detected {round(metrics['accuracy'] * 100)}% accuracy, "
+            f"fast completion, and stable attempts; increased difficulty to {chosen.lower()}."
+        )
+
     if is_struggling:
         level = max(base_level - 1, 0)
         chosen = DIFFICULTY_LEVELS[level]
-        return chosen, f"Recent retries and timing suggest a {chosen.lower()} reset will build momentum."
-    chosen = DIFFICULTY_LEVELS[base_level]
-    return chosen, f"Keeping you at {chosen.lower()} while your accuracy and pace stabilize."
+        return chosen, (
+            f"Adaptive engine detected retries, slower completion, or reduced accuracy; "
+            f"reduced difficulty to {chosen.lower()} to rebuild consistency."
+        )
 
+    return baseline, f"Keeping {baseline.lower()} while accuracy and pace stabilize."
+
+
+
+def challenge_options(challenge_type: str, expected_answer: str, nonce: str, difficulty: str) -> list[str]:
+    """Return safe, deterministic answer choices for challenge types where choices improve usability."""
+    normalized_type = normalize_challenge_type(challenge_type)
+    answer = str(expected_answer)
+    digest = hashlib.sha256(f"options|{normalized_type}|{difficulty}|{nonce}|{answer}".encode("utf-8")).digest()
+    seed = int.from_bytes(digest[:4], "big")
+
+    if normalized_type == "LOGIC":
+        return ["yes", "no"] if answer.lower() in {"yes", "no"} else []
+
+    if normalized_type == "MATH" and re.fullmatch(r"-?\d+", answer):
+        numeric = int(answer)
+        candidates = [numeric - 2, numeric - 1, numeric + 1, numeric + 2]
+        candidates.insert(seed % 4, numeric)
+        return [str(value) for value in dict.fromkeys(candidates)]
+
+    if normalized_type == "PATTERN" and re.fullmatch(r"-?\d+", answer):
+        numeric = int(answer)
+        step = 1 + (seed % 5)
+        candidates = [numeric - step, numeric - 1, numeric, numeric + step]
+        return [str(value) for value in dict.fromkeys(candidates)]
+
+    if normalized_type == "WORD":
+        pool = ["MORNING", "FOCUS", "BALANCE", "ROUTINE", "CLARITY", "ENERGY", "WAKE", "ATTENTION"]
+        distractors = [word for word in pool if word.lower() != answer.lower()]
+        rotated = distractors[seed % len(distractors):] + distractors[:seed % len(distractors)]
+        return [answer] + rotated[:3]
+
+    if normalized_type == "RIDDLE":
+        pool = ["towel", "keyboard", "clock", "map", "globe", "shadow"]
+        distractors = [item for item in pool if item.lower() != answer.lower()]
+        return [answer] + distractors[:3]
+
+    if normalized_type == "QUIZ":
+        if answer.lower() == "mars":
+            return ["mars", "venus", "jupiter", "mercury"]
+        if answer == "60":
+            return ["30", "45", "60", "90"]
+        if answer.lower() == "carbon dioxide":
+            return ["oxygen", "carbon dioxide", "nitrogen", "hydrogen"]
+
+    return []
 
 def challenge_public_payload(challenge: ChallengeAttempt, now: datetime | None = None, selection_reason: str | None = None) -> dict:
     current = now or datetime.now(timezone.utc)
@@ -568,6 +880,7 @@ def challenge_public_payload(challenge: ChallengeAttempt, now: datetime | None =
         "difficulty": challenge.difficulty,
         "intent": challenge.intent,
         "question": challenge.prompt,
+        "options": list(challenge.options or []),
         "time_limit_seconds": challenge.time_limit_seconds,
         "max_attempts": challenge.max_attempts,
         "attempt_count": challenge.attempt_count,
@@ -608,7 +921,7 @@ def deterministic_challenge(challenge_type: str, difficulty: str, intent: str, n
     digest = hashlib.sha256(f"{challenge_type}|{difficulty}|{intent}|{nonce}".encode("utf-8")).digest()
     number = int.from_bytes(digest[:4], "big")
     context = intent.replace("_", " ").strip().title()
-    level = {"EASY": 1, "MEDIUM": 2, "HARD": 3}[difficulty]
+    level = {"BEGINNER": 1, "EASY": 1, "MEDIUM": 2, "HARD": 3, "EXPERT": 4}[difficulty]
 
     if challenge_type == "MATH":
         left, right = 4 + number % 12, 3 + (number // 11) % 12
@@ -672,9 +985,63 @@ def deterministic_challenge(challenge_type: str, difficulty: str, intent: str, n
     return f"{context} reaction check: type {phrase} exactly to confirm you are present.", phrase, "Type the displayed word."
 
 
+def generate_challenge_with_gemini(
+    challenge_type: str,
+    difficulty: str,
+    intent: str,
+    user_profile: dict,
+) -> tuple[str, str, str, str]:
+    """
+    Generate a challenge using Gemini API with fallback to deterministic generation.
+    
+    Returns:
+        Tuple of (prompt, expected_answer, instructions, source)
+        where source is "GEMINI" or "DETERMINISTIC"
+    """
+    if not USE_GEMINI_CHALLENGES:
+        # Fallback directly if Gemini is disabled
+        prompt, answer, instructions = deterministic_challenge(
+            challenge_type, difficulty, intent, secrets.token_urlsafe(12)
+        )
+        return prompt, answer, instructions, "DETERMINISTIC"
+    
+    gemini_service = get_gemini_service()
+    prompt, answer, instructions, source = gemini_service.generate_challenge_with_fallback(
+        challenge_type,
+        difficulty,
+        user_profile,
+        intent,
+        lambda ct, d, i: deterministic_challenge(ct, d, i, secrets.token_urlsafe(12)),
+    )
+    return prompt, answer, instructions, source
+
+
+def valid_generated_challenge(prompt: str, answer: str, instructions: str) -> bool:
+    """Reject malformed AI output before it can become a persisted challenge."""
+    return (
+        bool(str(prompt or "").strip())
+        and bool(normalize_answer(answer))
+        and bool(str(instructions or "").strip())
+        and len(str(prompt)) <= 4000
+        and len(str(answer)) <= 255
+        and len(str(instructions)) <= 1000
+    )
+
+
 def latest_sleep_score(user_id: int, db: Session) -> int | None:
+    recent_sleep = db.scalar(
+        select(SleepLog.quality)
+        .where(SleepLog.user_id == user_id)
+        .order_by(SleepLog.wake_time.desc())
+        .limit(1)
+    )
+    if recent_sleep is not None:
+        return round(float(recent_sleep))
     return db.scalar(
-        select(Analytics.sleep_score).where(Analytics.user_id == user_id).order_by(Analytics.recorded_at.desc()).limit(1)
+        select(Analytics.sleep_score)
+        .where(Analytics.user_id == user_id)
+        .order_by(Analytics.recorded_at.desc())
+        .limit(1)
     )
 
 
@@ -682,73 +1049,295 @@ def local_now(profile: UserProfile) -> datetime:
     return datetime.now(timezone.utc).astimezone(safe_zone(profile.timezone)).replace(tzinfo=None, second=0, microsecond=0)
 
 
-def next_alarm_options(user: User, db: Session, now: datetime | None = None) -> tuple[UserProfile, datetime, list[tuple[Alarm, datetime]]]:
+def smart_adaptive_offset_minutes(
+    alarm: Alarm,
+    profile: UserProfile | None,
+    db: Session | None,
+    sleep_score: int | None,
+) -> int:
+    """Deterministically tune a Smart Adaptive alarm without pretending to use ML."""
+    offset = 0
+    if sleep_score is not None:
+        offset += 15 if sleep_score < 50 else 5 if sleep_score < 70 else 0
+
+    if profile and profile.target_sleep_duration_minutes and profile.target_sleep_duration_minutes >= 540:
+        # A user who explicitly prioritizes a longer sleep target gets a small
+        # recovery buffer only when their recorded recovery is below target.
+        if sleep_score is not None and sleep_score < 70:
+            offset += 2
+
+    if db is not None:
+        wake_attempts = list(
+            db.scalars(
+                select(ChallengeAttempt)
+                .where(
+                    ChallengeAttempt.user_id == alarm.user_id,
+                    ChallengeAttempt.intent == "WAKE_UP",
+                    ChallengeAttempt.completed.is_(True),
+                )
+                .order_by(ChallengeAttempt.completed_at.desc(), ChallengeAttempt.created_at.desc())
+                .limit(8)
+            ).all()
+        )
+        if wake_attempts:
+            metrics = challenge_metrics(wake_attempts)
+            if metrics["accuracy"] < 0.50 or metrics["failure_streak"] >= 2:
+                offset += 5
+            elif metrics["accuracy"] >= 0.85 and metrics["failure_streak"] == 0:
+                offset -= 2
+            if alarm.difficulty in {"HARD", "EXPERT"} and metrics["accuracy"] < 0.65:
+                offset += 3
+
+    return max(-5, min(20, offset))
+
+
+def scheduled_occurrence(
+    alarm: Alarm,
+    sleep_score: int | None,
+    current_time: datetime,
+    profile: UserProfile | None = None,
+    db: Session | None = None,
+) -> datetime | None:
+    alarm_type = normalize_alarm_type(alarm.alarm_type)
+    alarm_time = alarm.alarm_time
+    if alarm_type == "SMART_ADAPTIVE":
+        offset = smart_adaptive_offset_minutes(alarm, profile, db, sleep_score)
+        alarm_time = (
+            datetime.combine(current_time.date(), alarm_time) + timedelta(minutes=offset)
+        ).time()
+    return next_occurrence(
+        alarm_time,
+        alarm_type,
+        alarm.repeat_days,
+        None,
+        current_time,
+    )
+
+
+def next_alarm_options(
+    user: User,
+    db: Session,
+    now: datetime | None = None,
+) -> tuple[UserProfile, datetime, list[tuple[Alarm, datetime]]]:
     profile = ensure_profile(user, db)
     current_time = now or local_now(profile)
     score = latest_sleep_score(user.id, db)
-    active = db.scalars(select(Alarm).where(Alarm.user_id == user.id, Alarm.status == "ACTIVE")).all()
-    options = [
-        (alarm, next_occurrence(alarm.alarm_time, alarm.alarm_type, alarm.repeat_days, score, current_time))
-        for alarm in active
+
+    active = db.scalars(
+        select(Alarm).where(
+            Alarm.user_id == user.id,
+            Alarm.status == "ACTIVE",
+        )
+    ).all()
+
+    options: list[tuple[Alarm, datetime]] = []
+
+    zone = safe_zone(profile.timezone)
+    current_utc = current_time.replace(tzinfo=zone).astimezone(timezone.utc)
+    changed = False
+
+    for alarm in active:
+        snoozed_until = alarm.snoozed_until
+
+        if snoozed_until is not None:
+            snooze_utc = as_utc(snoozed_until).astimezone(timezone.utc)
+            if snooze_utc > current_utc:
+                options.append((alarm, snooze_utc))
+                continue
+
+            # A snooze is a one-off occurrence. Once it is past, never make a
+            # stale browser reopen it as a fresh ringing alarm.
+            alarm.snoozed_until = None
+            changed = True
+            if alarm.alarm_type == "ONE_TIME":
+                alarm.status = "COMPLETED"
+                continue
+
+        occurrence = scheduled_occurrence(
+            alarm,
+            score,
+            current_time,
+            profile,
+            db,
+        )
+
+        if occurrence:
+            occurrence_utc = occurrence.replace(tzinfo=zone).astimezone(timezone.utc)
+            options.append((alarm, occurrence_utc))
+        elif alarm.alarm_type == "ONE_TIME":
+            # A one-time occurrence that is already past is complete, not a
+            # dormant alarm waiting to be resurrected on the next app load.
+            alarm.status = "COMPLETED"
+            changed = True
+
+    if changed:
+        db.commit()
+
+    return profile, current_time, options
+
+@app.post("/alarms/{alarm_id}/snooze")
+def snooze_alarm(
+    alarm_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
+    alarm = owned_alarm(alarm_id, user, db)
+
+    if alarm.status != "RINGING":
+        if alarm.snoozed_until and as_utc(alarm.snoozed_until) > datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Alarm is already snoozed",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Alarm is not currently ringing",
+        )
+
+    minutes = max(0, int(alarm.snooze_minutes or 0))
+
+    if minutes <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Snooze is disabled for this alarm",
+        )
+
+    now = datetime.now(timezone.utc)
+    alarm.snoozed_until = now + timedelta(minutes=minutes)
+    alarm.status = "ACTIVE"
+
+    db.commit()
+    db.refresh(alarm)
+
+    return {
+        "alarm_id": alarm.alarm_id,
+        "snoozed_until": alarm.snoozed_until,
+        "snooze_minutes": minutes,
+        "status": "SNOOZED",
+    }
+
+@app.get("/alarms/notifications/due")
+def due_alarm_notifications(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    now_utc = datetime.now(timezone.utc)
+    ringing = db.scalars(
+        select(Alarm)
+        .where(
+            Alarm.user_id == user.id,
+            Alarm.status == "RINGING",
+            Alarm.notification_enabled.is_(True),
+        )
+        .order_by(Alarm.last_fired_at.desc())
+    ).all()
+    fresh = []
+    changed = False
+    for alarm in ringing:
+        if alarm.last_fired_at is None:
+            alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
+            changed = True
+            continue
+        age = now_utc - as_utc(alarm.last_fired_at)
+        if timedelta(0) <= age <= timedelta(minutes=RINGING_STALE_MINUTES):
+            fresh.append(alarm)
+        else:
+            alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
+            changed = True
+    if changed:
+        db.commit()
+    return [
+        {
+            "alarm_id": alarm.alarm_id,
+            "title": alarm.title,
+            "alarm_time": alarm.alarm_time.strftime("%H:%M"),
+            "sound": alarm.sound,
+            "vibration": alarm.vibration,
+            "fired_at": alarm.last_fired_at,
+        }
+        for alarm in fresh
     ]
-    return profile, current_time, [(alarm, occurrence) for alarm, occurrence in options if occurrence]
 
 
-app = FastAPI(title="BrainOS API")
-scheduler = BackgroundScheduler(timezone="UTC")
-app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET, same_site="lax", https_only=False)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[FRONTEND_URL],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+RINGING_STALE_MINUTES = 15
+SCHEDULER_LATE_GRACE_SECONDS = 65
 
 
-def fire_due_alarms():
-    """Dispatch only alarms whose recurrence resolves to this local minute for each user."""
+def due_within_scheduler_window(due_at: datetime, now_utc: datetime) -> bool:
+    """Return true only for an occurrence the ten-second scheduler can safely fire."""
+    age_seconds = (now_utc - due_at).total_seconds()
+    return 0 <= age_seconds <= SCHEDULER_LATE_GRACE_SECONDS
 
-    now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+
+def fire_due_alarms(now: datetime | None = None):
+    """Dispatch a scheduled or snoozed occurrence once, preserving user timezones."""
+    now_utc = as_utc(now or datetime.now(timezone.utc))
     with SessionLocal() as db:
-        active_alarms = db.scalars(select(Alarm).where(Alarm.status == "ACTIVE")).all()
+        # PostgreSQL workers cannot claim the same active alarm; SQLite safely
+        # ignores the lock clause in local/test environments.
+        active_alarms = db.scalars(
+            select(Alarm)
+            .where(Alarm.status == "ACTIVE")
+            .with_for_update(skip_locked=True)
+        ).all()
         profile_cache: dict[int, UserProfile] = {}
         score_cache: dict[int, int | None] = {}
-        fired = False
+        changed = False
+
         for alarm in active_alarms:
             if alarm.user_id not in profile_cache:
-                profile_cache[alarm.user_id] = db.scalar(select(UserProfile).where(UserProfile.user_id == alarm.user_id)) or UserProfile(
-                    user_id=alarm.user_id
-                )
+                profile_cache[alarm.user_id] = db.scalar(
+                    select(UserProfile).where(UserProfile.user_id == alarm.user_id)
+                ) or UserProfile(user_id=alarm.user_id)
             if alarm.user_id not in score_cache:
                 score_cache[alarm.user_id] = latest_sleep_score(alarm.user_id, db)
+
             profile = profile_cache[alarm.user_id]
             zone = safe_zone(profile.timezone)
-            current_local = now_utc.astimezone(zone).replace(tzinfo=None)
-            current_local = current_local.replace(second=0, microsecond=0)
-            due_local = next_occurrence(
-                alarm.alarm_time,
-                alarm.alarm_type,
-                alarm.repeat_days,
+            snoozed_until = alarm.snoozed_until
+            if snoozed_until is not None:
+                snooze_utc = as_utc(snoozed_until).astimezone(timezone.utc)
+                if snooze_utc > now_utc:
+                    continue
+                if due_within_scheduler_window(snooze_utc, now_utc):
+                    alarm.last_fired_at = now_utc
+                    alarm.snoozed_until = None
+                    alarm.status = "RINGING"
+                    logger.info("BrainOS snoozed alarm fired: user=%s alarm=%s", alarm.user_id, alarm.alarm_id)
+                    changed = True
+                    continue
+                # Never re-ring a snooze that was missed while the backend was
+                # down. A recurring signal returns to its normal next slot.
+                alarm.snoozed_until = None
+                changed = True
+                if alarm.alarm_type == "ONE_TIME":
+                    alarm.status = "COMPLETED"
+                    continue
+
+            current_local = now_utc.astimezone(zone).replace(tzinfo=None, second=0, microsecond=0)
+            due_local = scheduled_occurrence(
+                alarm,
                 score_cache[alarm.user_id],
                 current_local - timedelta(minutes=1),
+                profile,
+                db,
             )
-            if due_local != current_local:
+            if due_local is None:
+                if alarm.alarm_type == "ONE_TIME":
+                    alarm.status = "COMPLETED"
+                    changed = True
                 continue
-            due_utc = due_local.replace(tzinfo=zone).astimezone(timezone.utc).replace(second=0, microsecond=0)
-            if alarm.last_fired_at:
-                previous = alarm.last_fired_at
-                if previous.tzinfo is None:
-                    previous = previous.replace(tzinfo=timezone.utc)
-                if previous.astimezone(timezone.utc).replace(second=0, microsecond=0) == due_utc:
-                    continue
-            print(f"BrainOS alarm fired: user={alarm.user_id}, alarm={alarm.alarm_id}, title={alarm.title}")
+
+            due_utc = due_local.replace(tzinfo=zone).astimezone(timezone.utc)
+            if not due_within_scheduler_window(due_utc, now_utc):
+                continue
+            if alarm.last_fired_at and as_utc(alarm.last_fired_at).replace(second=0, microsecond=0) == due_utc.replace(second=0, microsecond=0):
+                continue
+
             alarm.last_fired_at = now_utc
-            if alarm.alarm_type.upper() == "ONE_TIME":
-                alarm.status = "COMPLETED"
-            fired = True
-        if fired:
+            alarm.snoozed_until = None
+            alarm.status = "RINGING"
+            logger.info("BrainOS alarm fired: user=%s alarm=%s", alarm.user_id, alarm.alarm_id)
+            changed = True
+
+        if changed:
             db.commit()
 
 
@@ -766,6 +1355,20 @@ def create_tables():
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS daybreak_route_enabled BOOLEAN DEFAULT TRUE",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS wake_window_minutes INTEGER DEFAULT 15",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS last_fired_at TIMESTAMPTZ",
+            "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS last_completed_at TIMESTAMPTZ",
+            "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMPTZ",
+            "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS challenge_type VARCHAR(30) DEFAULT 'AUTO'",
+            "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS wake_verification_mode VARCHAR(30) DEFAULT 'SINGLE'",
+            "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN DEFAULT TRUE",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS alarm_id INTEGER",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS options JSONB DEFAULT '[]'::jsonb",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS status VARCHAR(30) DEFAULT 'ACTIVE'",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS max_attempts INTEGER DEFAULT 2",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS attempt_count INTEGER DEFAULT 0",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS time_limit_seconds INTEGER DEFAULT 75",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
+            "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS verification_passed BOOLEAN DEFAULT FALSE",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
         ]
@@ -773,7 +1376,7 @@ def create_tables():
             for statement in statements:
                 connection.execute(text(statement))
     if not scheduler.running:
-        scheduler.add_job(fire_due_alarms, "interval", minutes=1, id="alarm_dispatch", replace_existing=True)
+        scheduler.add_job(fire_due_alarms, "interval", seconds=10, id="alarm_dispatch", replace_existing=True, max_instances=1, coalesce=True)
         scheduler.start()
 
 
@@ -788,7 +1391,21 @@ def health():
     return {"status": "neural core online"}
 
 
+@app.post("/assistant/help")
+def assistant_help(data: AssistantPromptInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    profile_record = ensure_profile(user, db)
+    user_profile = {
+        "timezone": profile_record.timezone,
+        "productivity_goal": profile_record.productivity_goal or "focus better in the morning",
+        "habit_preferences": profile_record.habit_preferences or [],
+    }
+    service = get_gemini_service()
+    reply = service.generate_assistant_reply(data.message, user_profile)
+    return {"reply": reply, "source": service.last_response_source}
+
+
 @app.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def register(data: RegisterInput, db: Session = Depends(db_session)):
     if db.scalar(select(User).where(User.email == data.email.lower())):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists.")
@@ -802,6 +1419,7 @@ def register(data: RegisterInput, db: Session = Depends(db_session)):
 
 
 @app.post("/login", response_model=TokenResponse)
+@app.post("/api/auth/login", response_model=TokenResponse, include_in_schema=False)
 def login(data: LoginInput, db: Session = Depends(db_session)):
     user = db.scalar(select(User).where(User.email == data.email.lower()))
     if not user or not user.password or not pwd_context.verify(data.password, user.password):
@@ -838,6 +1456,7 @@ def profile(user: User = Depends(current_user), db: Session = Depends(db_session
 
 
 @app.patch("/profile")
+@app.put("/profile", include_in_schema=False)
 def update_profile(data: ProfileUpdate, user: User = Depends(current_user), db: Session = Depends(db_session)):
     profile_record = ensure_profile(user, db)
     supplied = data.model_fields_set
@@ -906,92 +1525,208 @@ def set_user_role(
     return {"id": target.id, "email": target.email, "role": target.role}
 
 
-@app.post("/alarm", status_code=status.HTTP_201_CREATED)
+def serialize_alarm(alarm: Alarm, db: Session, user: User, next_at: datetime | None = None) -> dict:
+    if next_at is None and alarm.status == "ACTIVE":
+        _, _, options = next_alarm_options(user, db)
+        next_at = next((moment for candidate, moment in options if candidate.alarm_id == alarm.alarm_id), None)
+
+    return {
+        "alarm_id": alarm.alarm_id,
+        "user_id": alarm.user_id,
+        "alarm_time": alarm.alarm_time.strftime("%H:%M"),
+        "repeat_days": alarm.repeat_days,
+        "difficulty": alarm.difficulty,
+        "status": alarm.status,
+        "title": alarm.title,
+        "alarm_type": alarm.alarm_type,
+        "sound": alarm.sound,
+        "vibration": alarm.vibration,
+        "snooze_minutes": alarm.snooze_minutes,
+        "daybreak_route_enabled": alarm.daybreak_route_enabled,
+        "wake_window_minutes": alarm.wake_window_minutes,
+        "challenge_type": alarm.challenge_type,
+        "wake_verification_mode": alarm.wake_verification_mode,
+        "notification_enabled": alarm.notification_enabled,
+        "snoozed_until": alarm.snoozed_until,
+        "last_fired_at": alarm.last_fired_at,
+        "last_completed_at": alarm.last_completed_at,
+        "next_at": next_at,
+    }
+
+
+@app.post("/alarms", status_code=status.HTTP_201_CREATED)
+@app.post("/alarm", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def create_alarm(data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    alarm_type = normalize_alarm_type(data.alarm_type)
+    status_value = data.status.upper() if data.status.upper() in {"ACTIVE", "DISABLED"} else "ACTIVE"
+    challenge_type = (
+        normalize_challenge_type(data.challenge_type)
+        if data.challenge_type.upper() != "AUTO"
+        else "AUTO"
+    )
     alarm = Alarm(
         user_id=user.id,
         alarm_time=parse_alarm_clock(data.alarm_time),
         title=data.title.strip(),
-        alarm_type=data.alarm_type.upper(),
+        alarm_type=alarm_type,
         repeat_days=data.repeat_days,
         difficulty=normalize_difficulty(data.difficulty),
         sound=data.sound,
         vibration=data.vibration,
         snooze_minutes=data.snooze_minutes,
-        status=data.status.upper(),
+        status=status_value,
         daybreak_route_enabled=data.daybreak_route_enabled,
         wake_window_minutes=data.wake_window_minutes,
+        challenge_type=challenge_type,
+        wake_verification_mode=normalize_wake_verification_mode(data.wake_verification_mode),
+        notification_enabled=data.notification_enabled,
     )
     db.add(alarm)
     db.commit()
     db.refresh(alarm)
-    return alarm
+    return serialize_alarm(alarm, db, user)
 
 
 @app.get("/alarms")
 def alarms(user: User = Depends(current_user), db: Session = Depends(db_session)):
-    return db.scalars(select(Alarm).where(Alarm.user_id == user.id).order_by(Alarm.alarm_time)).all()
+    records = db.scalars(
+        select(Alarm).where(Alarm.user_id == user.id).order_by(Alarm.alarm_time)
+    ).all()
+    return [serialize_alarm(alarm, db, user) for alarm in records]
 
 
-@app.patch("/alarm/{alarm_id}")
+@app.put("/alarms/{alarm_id:int}")
+@app.patch("/alarm/{alarm_id:int}", include_in_schema=False)
 def update_alarm(alarm_id: int, data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
     alarm = owned_alarm(alarm_id, user, db)
     alarm.alarm_time = parse_alarm_clock(data.alarm_time)
     alarm.title = data.title.strip()
-    alarm.alarm_type = data.alarm_type.upper()
+    alarm.alarm_type = normalize_alarm_type(data.alarm_type)
     alarm.repeat_days = data.repeat_days
     alarm.difficulty = normalize_difficulty(data.difficulty)
     alarm.sound = data.sound
     alarm.vibration = data.vibration
     alarm.snooze_minutes = data.snooze_minutes
-    alarm.status = data.status.upper()
+    alarm.status = data.status.upper() if data.status.upper() in {"ACTIVE", "DISABLED"} else "ACTIVE"
     alarm.daybreak_route_enabled = data.daybreak_route_enabled
     alarm.wake_window_minutes = data.wake_window_minutes
+    alarm.challenge_type = (
+        normalize_challenge_type(data.challenge_type)
+        if data.challenge_type.upper() != "AUTO"
+        else "AUTO"
+    )
+    alarm.wake_verification_mode = normalize_wake_verification_mode(data.wake_verification_mode)
+    alarm.notification_enabled = data.notification_enabled
+    alarm.snoozed_until = None
+    alarm.last_fired_at = None
     db.commit()
     db.refresh(alarm)
-    return alarm
+    return serialize_alarm(alarm, db, user)
 
 
-@app.delete("/alarm/{alarm_id}", status_code=status.HTTP_204_NO_CONTENT)
+@app.patch("/alarms/{alarm_id:int}")
+def patch_alarm(
+    alarm_id: int,
+    data: AlarmPatchInput,
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
+    """Apply only supplied alarm fields; PUT remains the complete replacement API."""
+    alarm = owned_alarm(alarm_id, user, db)
+    supplied = data.model_fields_set
+    if not supplied:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Provide at least one alarm field")
+
+    if "title" in supplied:
+        if data.title is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="title cannot be null")
+        alarm.title = data.title.strip()
+    if "alarm_time" in supplied:
+        if data.alarm_time is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="alarm_time cannot be null")
+        alarm.alarm_time = parse_alarm_clock(data.alarm_time)
+    if "alarm_type" in supplied:
+        if data.alarm_type is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="alarm_type cannot be null")
+        alarm.alarm_type = normalize_alarm_type(data.alarm_type)
+    if "repeat_days" in supplied:
+        alarm.repeat_days = data.repeat_days
+    if "difficulty" in supplied:
+        if data.difficulty is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="difficulty cannot be null")
+        alarm.difficulty = normalize_difficulty(data.difficulty)
+    if "sound" in supplied:
+        if data.sound is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="sound cannot be null")
+        alarm.sound = data.sound.strip()
+    if "vibration" in supplied:
+        alarm.vibration = bool(data.vibration)
+    if "snooze_minutes" in supplied:
+        if data.snooze_minutes is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="snooze_minutes cannot be null")
+        alarm.snooze_minutes = data.snooze_minutes
+    if "daybreak_route_enabled" in supplied:
+        alarm.daybreak_route_enabled = bool(data.daybreak_route_enabled)
+    if "wake_window_minutes" in supplied:
+        if data.wake_window_minutes is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="wake_window_minutes cannot be null")
+        alarm.wake_window_minutes = data.wake_window_minutes
+    if "challenge_type" in supplied:
+        if data.challenge_type is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="challenge_type cannot be null")
+        alarm.challenge_type = "AUTO" if data.challenge_type.upper() == "AUTO" else normalize_challenge_type(data.challenge_type)
+    if "wake_verification_mode" in supplied:
+        if data.wake_verification_mode is None:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="wake_verification_mode cannot be null")
+        alarm.wake_verification_mode = normalize_wake_verification_mode(data.wake_verification_mode)
+    if "notification_enabled" in supplied:
+        alarm.notification_enabled = bool(data.notification_enabled)
+    if "status" in supplied:
+        requested_status = str(data.status or "").upper()
+        if requested_status not in {"ACTIVE", "DISABLED"}:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="status must be ACTIVE or DISABLED")
+        alarm.status = requested_status
+
+    if supplied.intersection({"alarm_time", "alarm_type", "repeat_days", "status", "snooze_minutes"}):
+        alarm.snoozed_until = None
+        if alarm.status != "RINGING":
+            alarm.last_fired_at = None
+    db.commit()
+    db.refresh(alarm)
+    return serialize_alarm(alarm, db, user)
+
+
+@app.delete("/alarms/{alarm_id:int}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/alarm/{alarm_id:int}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 def delete_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
     db.delete(owned_alarm(alarm_id, user, db))
     db.commit()
 
-
-@app.post("/alarms", status_code=status.HTTP_201_CREATED)
-def create_alarm_rest(data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    return create_alarm(data, user, db)
-
-
-@app.get("/alarms/{alarm_id}")
-def get_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    return owned_alarm(alarm_id, user, db)
-
-
-@app.put("/alarms/{alarm_id}")
-def update_alarm_rest(alarm_id: int, data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    return update_alarm(alarm_id, data, user, db)
-
-
-@app.delete("/alarms/{alarm_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_alarm_rest(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    return delete_alarm(alarm_id, user, db)
-
-
-@app.patch("/alarms/{alarm_id}/{command}")
-def toggle_alarm(alarm_id: int, command: str, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    if command not in {"enable", "disable"}:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Use enable or disable")
+@app.patch("/alarms/{alarm_id}/enable")
+def enable_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
     alarm = owned_alarm(alarm_id, user, db)
-    alarm.status = "ACTIVE" if command == "enable" else "DISABLED"
+    alarm.status = "ACTIVE"
+    alarm.snoozed_until = None
+    alarm.last_fired_at = None
     db.commit()
-    return {"alarm_id": alarm_id, "status": alarm.status}
+    db.refresh(alarm)
+    return serialize_alarm(alarm, db, user)
 
+
+@app.patch("/alarms/{alarm_id}/disable")
+def disable_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    alarm = owned_alarm(alarm_id, user, db)
+    alarm.status = "DISABLED"
+    alarm.snoozed_until = None
+    db.commit()
+    db.refresh(alarm)
+    return serialize_alarm(alarm, db, user)
 
 @app.get("/alarms/today")
 def today_alarms(user: User = Depends(current_user), db: Session = Depends(db_session)):
-    _, current_time, options = next_alarm_options(user, db)
-    return [alarm for alarm, occurrence in options if occurrence.date() == current_time.date()]
+    profile, current_time, options = next_alarm_options(user, db)
+    zone = safe_zone(profile.timezone)
+    return [alarm for alarm, occurrence in options if occurrence.astimezone(zone).date() == current_time.date()]
 
 
 @app.get("/alarms/upcoming")
@@ -1002,14 +1737,56 @@ def upcoming_alarms(user: User = Depends(current_user), db: Session = Depends(db
         for alarm, occurrence in sorted(options, key=lambda item: item[1])
     ]
 
-
 @app.post("/alarms/check-next")
 def check_next_alarm(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    now_utc = datetime.now(timezone.utc)
+    ringing = db.scalars(
+        select(Alarm)
+        .where(Alarm.user_id == user.id, Alarm.status == "RINGING")
+        .order_by(Alarm.last_fired_at.desc())
+    ).all()
+
+    if ringing:
+        fresh = []
+        for alarm in ringing:
+            fired_at = alarm.last_fired_at
+            if fired_at is None:
+                alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
+                alarm.snoozed_until = None
+                continue
+            if fired_at.tzinfo is None:
+                fired_at = fired_at.replace(tzinfo=timezone.utc)
+            age = now_utc - fired_at.astimezone(timezone.utc)
+            if timedelta(0) <= age <= timedelta(minutes=RINGING_STALE_MINUTES):
+                fresh.append((alarm, fired_at))
+            else:
+                # Recover abandoned/stale ringing states after a browser/backend restart.
+                alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
+                alarm.snoozed_until = None
+
+        if fresh:
+            alarm, fired_at = fresh[0]
+            db.commit()
+            db.refresh(alarm)
+            return {
+                "next_alarm": serialize_alarm(alarm, db, user),
+                "next_at": fired_at,
+                "state": "RINGING",
+            }
+
+        db.commit()
+
     _, _, options = next_alarm_options(user, db)
     if not options:
-        return {"next_alarm": None}
+        return {"next_alarm": None, "next_at": None, "state": "IDLE"}
+
     alarm, moment = min(options, key=lambda item: item[1])
-    return {"next_alarm": alarm, "next_at": moment}
+    return {"next_alarm": serialize_alarm(alarm, db, user, next_at=moment), "next_at": moment, "state": "SCHEDULED"}
+
+
+@app.get("/alarms/{alarm_id:int}")
+def get_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    return serialize_alarm(owned_alarm(alarm_id, user, db), db, user)
 
 
 @app.get("/daybreak-route")
@@ -1096,22 +1873,56 @@ def complete_mission(mission_id: int, user: User = Depends(current_user), db: Se
 @app.post("/challenge", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @app.post("/challenges/generate", status_code=status.HTTP_201_CREATED)
 def generate_challenge(data: ChallengeGenerateInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    """Build a time-bound challenge without ever exposing the expected answer."""
+    """Build a time-bound challenge without ever exposing the expected answer. Uses Gemini for personalization if enabled."""
 
     profile_record = ensure_profile(user, db)
     challenge_type, type_reason = choose_challenge_type(user.id, data.type or data.challenge_type, db)
     difficulty, difficulty_reason = choose_challenge_difficulty(profile_record, user.id, challenge_type, data.difficulty, db)
     intent = data.intent.strip().upper().replace("-", "_").replace(" ", "_") or "WAKE_UP"
-    prompt, expected_answer, instructions = deterministic_challenge(challenge_type, difficulty, intent, secrets.token_urlsafe(12))
+    
+    # Build profile dict for Gemini personalization
+    user_profile = {
+        "timezone": profile_record.timezone,
+        "productivity_goal": profile_record.productivity_goal or "general wellness",
+        "habit_preferences": profile_record.habit_preferences or [],
+        "difficulty_preference": profile_record.difficulty_preference,
+        "preferred_wake_time": profile_record.preferred_wake_time.strftime("%H:%M") if profile_record.preferred_wake_time else None,
+    }
+    
+    # Generate challenge with Gemini fallback to deterministic
+    prompt, expected_answer, instructions, source = generate_challenge_with_gemini(
+        challenge_type, difficulty, intent, user_profile
+    )
+    if not valid_generated_challenge(prompt, expected_answer, instructions):
+        prompt, expected_answer, instructions = deterministic_challenge(
+            challenge_type,
+            difficulty,
+            intent,
+            secrets.token_urlsafe(12),
+        )
+        source = "DETERMINISTIC"
+    options = challenge_options(challenge_type, normalize_answer(expected_answer), secrets.token_urlsafe(12), difficulty)
+
     created_at = datetime.now(timezone.utc)
     limit = challenge_time_limit(difficulty)
+    if data.alarm_id is not None:
+        alarm_for_challenge = owned_alarm(data.alarm_id, user, db)
+        if alarm_for_challenge.status != "RINGING":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Alarm is not currently ringing",
+            )
+        intent = "WAKE_UP"
+
     challenge = ChallengeAttempt(
         user_id=user.id,
+        alarm_id=data.alarm_id,
         challenge_type=challenge_type,
         difficulty=difficulty,
         intent=intent,
         prompt=prompt,
         expected_answer=normalize_answer(expected_answer),
+        options=options,
         status=ACTIVE_CHALLENGE_STATUS,
         max_attempts=challenge_max_attempts(difficulty),
         attempt_count=0,
@@ -1125,6 +1936,7 @@ def generate_challenge(data: ChallengeGenerateInput, user: User = Depends(curren
     db.refresh(challenge)
     payload = challenge_public_payload(challenge, created_at, f"{type_reason} {difficulty_reason}")
     payload["instructions"] = instructions
+    payload["source"] = source  # Include source for debugging/transparency
     return payload
 
 
@@ -1142,6 +1954,7 @@ def complete_challenge_attempt(challenge_id: int, data: ChallengeCompletionInput
         challenge.status = "TIMED_OUT"
         challenge.completed = True
         challenge.is_correct = False
+        challenge.verification_passed = False
         challenge.elapsed_seconds = float(challenge.time_limit_seconds or challenge_time_limit(challenge.difficulty))
         challenge.completed_at = now
         db.commit()
@@ -1154,6 +1967,7 @@ def complete_challenge_attempt(challenge_id: int, data: ChallengeCompletionInput
     if is_correct:
         challenge.status = "SOLVED"
         challenge.completed = True
+        challenge.verification_passed = challenge.intent == "WAKE_UP"
         challenge.elapsed_seconds = challenge_elapsed_seconds(challenge, now)
         challenge.completed_at = now
         insight = "Checkpoint complete. Your accuracy and pace will shape the next route."
@@ -1188,6 +2002,7 @@ def validate_challenge(challenge_id: int, data: ChallengeCompletionInput, user: 
 def performance_payload(attempts: list[ChallengeAttempt]) -> dict:
     metrics = challenge_metrics(attempts)
     highest = metrics["highest_solved_level"]
+    rating = user_performance_rating(metrics)
     return {
         "completed": metrics["completed"],
         "correct": metrics["correct"],
@@ -1198,6 +2013,9 @@ def performance_payload(attempts: list[ChallengeAttempt]) -> dict:
         "average_failed_attempts": round(metrics["average_failed_attempts"], 2),
         "failure_streak": metrics["failure_streak"],
         "highest_completed_difficulty": DIFFICULTY_LEVELS[highest] if highest is not None else None,
+        "user_rating": rating["score"],
+        "user_rating_label": rating["label"],
+        "user_rating_stars": rating["stars"],
     }
 
 
@@ -1208,6 +2026,7 @@ def challenge_performance(user: User = Depends(current_user), db: Session = Depe
             select(ChallengeAttempt)
             .where(ChallengeAttempt.user_id == user.id, ChallengeAttempt.completed.is_(True))
             .order_by(ChallengeAttempt.completed_at.desc(), ChallengeAttempt.created_at.desc())
+            .limit(20)
         ).all()
     )
     profile_record = ensure_profile(user, db)
@@ -1219,8 +2038,12 @@ def challenge_performance(user: User = Depends(current_user), db: Session = Depe
         "correct_count": overall["correct"],
         "accuracy_percent": overall["accuracy_percent"],
         "average_completion_seconds": overall["average_completion_seconds"],
+        "median_speed_percent_of_limit": overall["median_speed_percent_of_limit"],
         "failed_attempts": overall["failed_attempts"],
         "failure_streak": overall["failure_streak"],
+        "user_rating": overall["user_rating"],
+        "user_rating_label": overall["user_rating_label"],
+        "user_rating_stars": overall["user_rating_stars"],
         "by_type": {challenge_type: performance_payload([attempt for attempt in attempts if attempt.challenge_type == challenge_type]) for challenge_type in CHALLENGE_TYPES},
         "by_difficulty": {difficulty: performance_payload([attempt for attempt in attempts if attempt.difficulty == difficulty]) for difficulty in DIFFICULTY_LEVELS},
         "recommendation": {
@@ -1247,12 +2070,42 @@ def analytics(user: User = Depends(current_user), db: Session = Depends(db_sessi
     records = list(
         db.scalars(select(Analytics).where(Analytics.user_id == user.id).order_by(Analytics.recorded_at.desc()).limit(7))
     )
-    if not records:
-        return {"focus_score": 74, "habit_score": 68, "sleep_score": 72, "history": [56, 63, 59, 71, 67, 82, 74]}
-    latest = records[0]
+    attempts = list(
+        db.scalars(
+            select(ChallengeAttempt)
+            .where(ChallengeAttempt.user_id == user.id, ChallengeAttempt.completed.is_(True))
+            .order_by(ChallengeAttempt.completed_at.desc(), ChallengeAttempt.created_at.desc())
+            .limit(20)
+        ).all()
+    )
+    challenge_data = performance_payload(attempts)
+    sleep_records = list(
+        db.scalars(
+            select(SleepLog)
+            .where(SleepLog.user_id == user.id)
+            .order_by(SleepLog.wake_time.desc())
+            .limit(7)
+        ).all()
+    )
+    latest = records[0] if records else None
+    sleep_score = (
+        round(sum(float(record.quality) for record in sleep_records) / len(sleep_records))
+        if sleep_records
+        else (latest.sleep_score if latest else 0)
+    )
+    wake_attempts = [attempt for attempt in attempts if attempt.intent == "WAKE_UP"]
+    wake_successes = sum(1 for attempt in wake_attempts if attempt.is_correct and attempt.verification_passed)
+    wake_failures = sum(1 for attempt in wake_attempts if not attempt.is_correct)
     return {
-        "focus_score": latest.focus_score,
-        "habit_score": latest.habit_score,
-        "sleep_score": latest.sleep_score,
-        "history": [record.sleep_score for record in reversed(records)],
+        "focus_score": round(challenge_data["accuracy_percent"]) if attempts else (latest.focus_score if latest else 0),
+        "habit_score": latest.habit_score if latest else 0,
+        "sleep_score": sleep_score,
+        "history": [record.quality for record in reversed(sleep_records)] or [record.sleep_score for record in reversed(records)],
+        "challenge_performance": challenge_data,
+        "user_rating": challenge_data["user_rating"],
+        "user_rating_label": challenge_data["user_rating_label"],
+        "user_rating_stars": challenge_data["user_rating_stars"],
+        "wake_successes": wake_successes,
+        "wake_failures": wake_failures,
+        "difficulty_progression": [attempt.difficulty for attempt in reversed(attempts)],
     }

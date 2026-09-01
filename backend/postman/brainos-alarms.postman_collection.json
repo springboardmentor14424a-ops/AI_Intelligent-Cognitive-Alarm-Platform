@@ -1,10 +1,31 @@
 {
-  "info": {"name": "BrainOS Module 3 — Alarms", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
-  "variable": [{"key": "baseUrl", "value": "http://localhost:8000"}, {"key": "token", "value": "paste-jwt-here"}],
+  "info": {
+    "name": "BrainOS API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {"key": "baseUrl", "value": "http://127.0.0.1:8000"},
+    {"key": "token", "value": ""},
+    {"key": "alarmId", "value": "1"},
+    {"key": "challengeId", "value": "1"}
+  ],
   "item": [
-    {"name": "Create alarm", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}, {"key": "Content-Type", "value": "application/json"}], "url": "{{baseUrl}}/alarms", "body": {"mode": "raw", "raw": "{\n  \"title\": \"Morning focus\",\n  \"alarm_time\": \"07:00\",\n  \"alarm_type\": \"WEEKDAY\",\n  \"difficulty\": \"MEDIUM\",\n  \"sound\": \"Neural Dawn\",\n  \"vibration\": true,\n  \"snooze_minutes\": 5\n}"}}},
-    {"name": "List alarms", "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": "{{baseUrl}}/alarms"}},
-    {"name": "Disable alarm", "request": {"method": "PATCH", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": "{{baseUrl}}/alarms/1/disable"}},
-    {"name": "Next alarm", "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{token}}"}], "url": "{{baseUrl}}/alarms/check-next"}}
+    {"name": "Health", "request": {"method":"GET","url":"{{baseUrl}}/health"}},
+    {"name": "Register", "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"name\":\"Demo User\",\"email\":\"demo@example.com\",\"password\":\"Password@123\",\"role\":\"USER\"}"},"url":"{{baseUrl}}/api/auth/register"}},
+    {"name": "Login", "request": {"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"demo@example.com\",\"password\":\"Password@123\"}"},"url":"{{baseUrl}}/api/auth/login"}},
+    {"name": "Profile", "request": {"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/profile"}},
+    {"name": "Create Alarm", "request": {"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"title\":\"Morning Focus\",\"alarm_time\":\"07:13\",\"alarm_type\":\"WEEKDAY\",\"repeat_days\":\"Mon,Tue,Wed,Thu,Fri\",\"difficulty\":\"MEDIUM\",\"sound\":\"Neural Dawn\",\"vibration\":true,\"snooze_minutes\":5,\"status\":\"ACTIVE\",\"wake_verification_mode\":\"SINGLE\",\"notification_enabled\":true}"},"url":"{{baseUrl}}/alarms"}},
+    {"name":"List Alarms","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms"}},
+    {"name":"Enable Alarm","request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/{{alarmId}}/enable"}},
+    {"name":"Disable Alarm","request":{"method":"PATCH","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/{{alarmId}}/disable"}},
+    {"name":"Snooze Alarm","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/{{alarmId}}/snooze"}},
+    {"name":"Check Next Alarm","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/check-next"}},
+    {"name":"Generate Challenge","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"challenge_type\":\"PATTERN\",\"difficulty\":\"MEDIUM\",\"intent\":\"WAKE_UP\",\"alarm_id\":{{alarmId}}}"},"url":"{{baseUrl}}/challenges/generate"}},
+    {"name":"Validate Challenge","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"answer\":\"46\"}"},"url":"{{baseUrl}}/challenges/{{challengeId}}/validate"}},
+    {"name":"Challenge Performance","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/challenges/performance"}},
+    {"name":"Complete Wake","request":{"method":"POST","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/{{alarmId}}/complete-wake"}},
+    {"name":"Today Alarms","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/today"}},
+    {"name":"Upcoming Alarms","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/upcoming"}},
+    {"name":"Due Notifications","request":{"method":"GET","header":[{"key":"Authorization","value":"Bearer {{token}}"}],"url":"{{baseUrl}}/alarms/notifications/due"}}
   ]
 }

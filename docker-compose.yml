@@ -2,18 +2,35 @@ services:
   database:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: brainos
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["5432:5432"]
-    volumes: [postgres_data:/var/lib/postgresql/data]
+      POSTGRES_DB: ${POSTGRES_DB:-brainos}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-brainos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   api:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@database:5432/brainos
-      JWT_SECRET: change-this-before-production
-      FRONTEND_URL: http://localhost:5173
-    ports: ["8000:8000"]
-    depends_on: [database]
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-brainos}
+      JWT_SECRET: ${JWT_SECRET:-change-this-before-production}
+      SESSION_SECRET: ${SESSION_SECRET:-change-this-before-production}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      USE_GEMINI_CHALLENGES: ${USE_GEMINI_CHALLENGES:-true}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      database:
+        condition: service_healthy
+
 volumes:
   postgres_data:
