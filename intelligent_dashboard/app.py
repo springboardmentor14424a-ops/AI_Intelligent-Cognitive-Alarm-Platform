@@ -248,7 +248,7 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
         
     alarms = db.query(Alarm).filter(Alarm.user_id == current_user.id).all()
     notifications = db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).all()
-    performances = db.query(ChallengePerformance).filter(ChallengePerformance.user_id == current_user.id).order_by(ChallengePerformance.created_at.desc()).all()
+    performances = db.query(ChallengePerformance).filter(ChallengePerformance.user_id == current_user.id).order_by(ChallengePerformance.created_at.desc()).limit(10).all()
     profile = current_user.profile
     
     habit_data = HabitScoringEngine.compute_and_persist_habit_score(current_user.id, db)
