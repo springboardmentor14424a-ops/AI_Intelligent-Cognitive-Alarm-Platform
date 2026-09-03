@@ -451,6 +451,30 @@ def admin_download_backup(
     )
 
 
+@router.get("/announcements")
+def admin_get_announcements(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """Retrieve all announcements for admin management."""
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    from database import Announcement
+    announcements = db.query(Announcement).order_by(Announcement.created_at.desc()).all()
+    return [
+        {
+            "id": a.id,
+            "title": a.title,
+            "content": a.content,
+            "target_role": a.target_role,
+            "priority": a.priority,
+            "created_at": a.created_at.isoformat() if a.created_at else None
+        }
+        for a in announcements
+    ]
+
+
 @router.get("/feedback")
 def admin_get_all_feedback(
     db: Session = Depends(get_db),

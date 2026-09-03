@@ -532,43 +532,119 @@ def generate_pattern_recognition(difficulty: str):
 
 
 def generate_riddle(difficulty: str):
-    """Rich pool of diverse riddles categorized by difficulty."""
+    """Rich pool of 15+ diverse riddles per difficulty with strict deduplication."""
     diff = difficulty.lower()
     if diff == "beginner":
         riddles = [
             {"q": "What goes up but never comes down?", "ans": "age", "options": ["age", "balloon", "kite", "sun"]},
             {"q": "If you throw a red stone into the blue sea, what does it become?", "ans": "wet", "options": ["wet", "blue", "red", "sunk"]},
             {"q": "What has a head and a tail, but no body?", "ans": "coin", "options": ["coin", "snake", "comet", "pin"]},
-            {"q": "What has hands but cannot clap?", "ans": "clock", "options": ["clock", "glove", "statue", "tree"]}
+            {"q": "What has hands but cannot clap?", "ans": "clock", "options": ["clock", "glove", "statue", "tree"]},
+            {"q": "I am tall when I am young and short when I am old. What am I?", "ans": "candle", "options": ["candle", "tree", "person", "pencil"]},
+            {"q": "What has legs but cannot walk?", "ans": "table", "options": ["table", "chair", "dog", "statue"]},
+            {"q": "What has one eye but cannot see?", "ans": "needle", "options": ["needle", "camera", "cyclops", "storm"]},
+            {"q": "What can you catch but not throw?", "ans": "cold", "options": ["cold", "ball", "fish", "train"]},
+            {"q": "What has teeth but cannot bite?", "ans": "comb", "options": ["comb", "saw", "cat", "zipper"]},
+            {"q": "What is full of holes but still holds water?", "ans": "sponge", "options": ["sponge", "net", "cloth", "basket"]},
+            {"q": "What has a face and two hands but no arms or legs?", "ans": "clock", "options": ["clock", "doll", "mirror", "phone"]},
+            {"q": "What comes once in a minute, twice in a moment, but never in a thousand years?", "ans": "M", "options": ["M", "second", "event", "T"]},
+            {"q": "What word becomes shorter when you add two letters to it?", "ans": "short", "options": ["short", "small", "brief", "tiny"]},
+            {"q": "What has a bark but no bite?", "ans": "tree", "options": ["tree", "dog", "oak", "log"]},
+            {"q": "What gets bigger the more you take from it?", "ans": "hole", "options": ["hole", "debt", "knowledge", "room"]},
         ]
     elif diff == "easy":
         riddles = [
             {"q": "What has to be broken before you can use it?", "ans": "egg", "options": ["egg", "glass", "promise", "clock"]},
             {"q": "What gets wetter the more it dries?", "ans": "towel", "options": ["towel", "water", "sponge", "sun"]},
             {"q": "What belongs to you, but other people use it more than you do?", "ans": "name", "options": ["name", "money", "phone", "car"]},
-            {"q": "What has a neck but no head?", "ans": "bottle", "options": ["bottle", "shirt", "guitar", "vase"]}
+            {"q": "What has a neck but no head?", "ans": "bottle", "options": ["bottle", "shirt", "guitar", "vase"]},
+            {"q": "What can run but never walks, has a mouth but never talks?", "ans": "river", "options": ["river", "wind", "fish", "clock"]},
+            {"q": "What is so fragile that saying its name breaks it?", "ans": "silence", "options": ["silence", "glass", "promise", "ice"]},
+            {"q": "What has roots as nobody sees, is taller than trees, up up up it goes and yet never grows?", "ans": "mountain", "options": ["mountain", "tree", "cloud", "tower"]},
+            {"q": "What flies without wings?", "ans": "time", "options": ["time", "airplane", "kite", "bird"]},
+            {"q": "What runs around the whole yard without moving?", "ans": "fence", "options": ["fence", "dog", "sprinkler", "path"]},
+            {"q": "What comes down but never goes up?", "ans": "rain", "options": ["rain", "snow", "elevator", "kite"]},
+            {"q": "I have cities but no houses, forests but no trees, and water but no fish. What am I?", "ans": "map", "options": ["map", "globe", "picture", "painting"]},
+            {"q": "What invention lets you look right through a wall?", "ans": "window", "options": ["window", "telescope", "mirror", "camera"]},
+            {"q": "What goes through cities and fields but never moves?", "ans": "road", "options": ["road", "river", "train", "wind"]},
+            {"q": "What has 88 keys but can't open a single door?", "ans": "piano", "options": ["piano", "keychain", "safe", "computer"]},
+            {"q": "What gets sharper the more you use it?", "ans": "mind", "options": ["mind", "knife", "pencil", "tool"]},
         ]
     elif diff == "hard":
         riddles = [
             {"q": "The person who makes it has no need of it; the person who buys it has no use for it. The person who uses it can neither see nor feel it. What is it?", "ans": "coffin", "options": ["coffin", "car", "mirror", "house"]},
             {"q": "What can travel all around the world while remaining in a corner?", "ans": "stamp", "options": ["stamp", "bird", "airplane", "shadow"]},
             {"q": "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?", "ans": "map", "options": ["map", "globe", "picture", "dream"]},
-            {"q": "I am not alive, but I grow; I don't have lungs, but I need air; I don't have a mouth, but water kills me. What am I?", "ans": "fire", "options": ["fire", "plant", "balloon", "shadow"]}
+            {"q": "I am not alive, but I grow; I don't have lungs, but I need air; I don't have a mouth, but water kills me. What am I?", "ans": "fire", "options": ["fire", "plant", "balloon", "shadow"]},
+            {"q": "What speaks every language but was never taught any?", "ans": "echo", "options": ["echo", "translator", "music", "wind"]},
+            {"q": "What is greater than God, more evil than the devil, the poor have it, the rich need it, and if you eat it you'll die?", "ans": "nothing", "options": ["nothing", "greed", "poverty", "dust"]},
+            {"q": "The eight of us go forth, not back, to protect our king from a foe's attack. What are we?", "ans": "chess pawns", "options": ["chess pawns", "soldiers", "fingers", "guards"]},
+            {"q": "I am always hungry, I must always be fed. The finger I touch, will soon turn red. What am I?", "ans": "fire", "options": ["fire", "rust", "acid", "sun"]},
+            {"q": "I have branches, but no fruit, trunk, or leaves. What am I?", "ans": "bank", "options": ["bank", "river", "tree", "road"]},
+            {"q": "You answer me, but I never ask you a question. What am I?", "ans": "doorbell", "options": ["doorbell", "mirror", "book", "phone"]},
+            {"q": "What has a golden tail and a golden head and in the middle nothing but dead?", "ans": "candle", "options": ["candle", "coin", "snake", "torch"]},
+            {"q": "I am light as a feather, but the strongest person can't hold me for more than 5 minutes. What am I?", "ans": "breath", "options": ["breath", "shadow", "feather", "air"]},
+            {"q": "What is always in front of you but can't be seen?", "ans": "future", "options": ["future", "air", "wind", "hope"]},
+            {"q": "The more of me you have, the less you see. What am I?", "ans": "darkness", "options": ["darkness", "light", "fog", "silence"]},
+            {"q": "Forward I am heavy, but backward I am not. What am I?", "ans": "ton", "options": ["ton", "lead", "stone", "not"]},
         ]
     elif diff == "expert":
         riddles = [
             {"q": "A box without hinges, key, or lid, yet golden treasure inside is hid. What is it?", "ans": "egg", "options": ["egg", "chest", "casket", "banana"]},
             {"q": "What starts with T, ends with T, and has T in it?", "ans": "teapot", "options": ["teapot", "tent", "ticket", "toast"]},
             {"q": "The more you take, the more you leave behind. What am I?", "ans": "footsteps", "options": ["footsteps", "memories", "breaths", "time"]},
-            {"q": "What can run but never walks, has a mouth but never talks, has a head but never weeps, has a bed but never sleeps?", "ans": "river", "options": ["river", "ocean", "clock", "wind"]}
+            {"q": "What can run but never walks, has a mouth but never talks, has a head but never weeps, has a bed but never sleeps?", "ans": "river", "options": ["river", "ocean", "clock", "wind"]},
+            {"q": "I am taken from a mine and shut up in a wooden case, from which I am never released, and yet I am used by almost every person. What am I?", "ans": "pencil", "options": ["pencil", "diamond", "coal", "gold"]},
+            {"q": "If you have me, you want to share me. If you share me, you haven't got me. What am I?", "ans": "secret", "options": ["secret", "gift", "knowledge", "love"]},
+            {"q": "What is made of water, but if you put it into water, it will die?", "ans": "ice", "options": ["ice", "cloud", "salt", "snow"]},
+            {"q": "I have a head but no body, a heart but no blood, leaves but no branches, and I grow without wood. What am I?", "ans": "lettuce", "options": ["lettuce", "tree", "flower", "book"]},
+            {"q": "What force and strength cannot get through, I with a gentle touch can do, and many in the street would stand, were I not as a friend at hand. What am I?", "ans": "key", "options": ["key", "money", "lock", "password"]},
+            {"q": "I am not alive, yet I grow. I don't have lungs, yet I need air. I don't have a mouth, yet water kills me. What am I?", "ans": "fire", "options": ["fire", "rust", "plant", "mold"]},
+            {"q": "I'm lighter than air but a million men cannot lift me. What am I?", "ans": "bubble", "options": ["bubble", "feather", "shadow", "cloud"]},
+            {"q": "People buy me to eat but never eat me. What am I?", "ans": "plate", "options": ["plate", "spoon", "packaging", "tray"]},
+            {"q": "What word is spelled incorrectly in every dictionary?", "ans": "incorrectly", "options": ["incorrectly", "error", "wrong", "mistake"]},
+            {"q": "A man who was outside in the rain without an umbrella or hat didn't get a single hair on his head wet. Why?", "ans": "bald", "options": ["bald", "hat", "hood", "fast"]},
+            {"q": "What question can you never answer yes to?", "ans": "Are you asleep yet?", "options": ["Are you asleep yet?", "Are you happy?", "Are you awake?", "Is it raining?"]},
         ]
     else:  # Medium
         riddles = [
             {"q": "I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?", "ans": "echo", "options": ["echo", "ghost", "whistle", "cloud"]},
             {"q": "What has many keys but can't open a single lock?", "ans": "piano", "options": ["piano", "keychain", "map", "door"]},
             {"q": "What has one eye but cannot see?", "ans": "needle", "options": ["needle", "cyclops", "storm", "hurricane"]},
-            {"q": "What can you catch, but not throw?", "ans": "cold", "options": ["cold", "ball", "fish", "train"]}
+            {"q": "What can you catch, but not throw?", "ans": "cold", "options": ["cold", "ball", "fish", "train"]},
+            {"q": "What goes up when rain comes down?", "ans": "umbrella", "options": ["umbrella", "flood", "temperature", "spirits"]},
+            {"q": "I have no life but I can die. What am I?", "ans": "battery", "options": ["battery", "plant", "fire", "robot"]},
+            {"q": "The faster you run, the harder it is to catch me. What am I?", "ans": "breath", "options": ["breath", "shadow", "wind", "cheetah"]},
+            {"q": "What has words but never speaks?", "ans": "book", "options": ["book", "sign", "mute", "note"]},
+            {"q": "What loses its head in the morning and gets it back at night?", "ans": "pillow", "options": ["pillow", "candle", "hat", "bed"]},
+            {"q": "What is so delicate that saying its name breaks it?", "ans": "silence", "options": ["silence", "glass", "ice", "promise"]},
+            {"q": "What can fill a room but takes up no space?", "ans": "light", "options": ["light", "air", "sound", "warmth"]},
+            {"q": "You use me more and more the older you get. What am I?", "ans": "memory", "options": ["memory", "phone", "glasses", "cane"]},
+            {"q": "What building has the most stories?", "ans": "library", "options": ["library", "skyscraper", "hospital", "school"]},
+            {"q": "What is yours but others use it more than you?", "ans": "name", "options": ["name", "mirror", "money", "identity"]},
+            {"q": "What breaks yet never falls, and falls yet never breaks?", "ans": "day and night", "options": ["day and night", "glass", "rain", "wave"]},
         ]
+
+    # Pick a random riddle that hasn't been shown recently
+    shuffled = riddles.copy()
+    random.shuffle(shuffled)
+    for r in shuffled:
+        if r["q"] not in _RECENT_QUESTIONS:
+            _RECENT_QUESTIONS.add(r["q"])
+            if len(_RECENT_QUESTIONS) > 300:
+                try:
+                    _RECENT_QUESTIONS.pop()
+                except Exception:
+                    pass
+            return {
+                "challenge_type": "Riddles",
+                "difficulty": difficulty,
+                "question": r["q"],
+                "expected_answer": r["ans"],
+                "hint": "Think abstractly about metaphors and wordplay.",
+                "options": r.get("options", [])
+            }
+    # Fallback if all have been shown
     r = random.choice(riddles)
     return {
         "challenge_type": "Riddles",
@@ -587,32 +663,113 @@ def generate_quick_quiz(difficulty: str):
         quizzes = [
             {"q": "How many days are in a week?", "ans": "7", "options": ["5", "6", "7", "8"]},
             {"q": "What color is grass?", "ans": "Green", "options": ["Blue", "Red", "Green", "Yellow"]},
-            {"q": "How many hours are in a full day?", "ans": "24", "options": ["12", "24", "48", "60"]}
+            {"q": "How many hours are in a full day?", "ans": "24", "options": ["12", "24", "48", "60"]},
+            {"q": "How many months are in a year?", "ans": "12", "options": ["10", "12", "15", "52"]},
+            {"q": "What is 2 + 2?", "ans": "4", "options": ["2", "3", "4", "5"]},
+            {"q": "Which planet is closest to the sun?", "ans": "Mercury", "options": ["Earth", "Venus", "Mercury", "Mars"]},
+            {"q": "How many legs does a spider have?", "ans": "8", "options": ["6", "8", "10", "12"]},
+            {"q": "What color is the sky on a clear day?", "ans": "Blue", "options": ["Red", "Blue", "Green", "Yellow"]},
+            {"q": "How many continents are on Earth?", "ans": "7", "options": ["5", "6", "7", "8"]},
+            {"q": "What is H2O commonly known as?", "ans": "water", "options": ["salt", "water", "oxygen", "acid"]},
+            {"q": "How many seconds are in a minute?", "ans": "60", "options": ["30", "60", "100", "120"]},
+            {"q": "What is the largest mammal on Earth?", "ans": "Blue whale", "options": ["Elephant", "Blue whale", "Giraffe", "Rhino"]},
+            {"q": "Which instrument has black and white keys?", "ans": "Piano", "options": ["Guitar", "Drum", "Piano", "Flute"]},
+            {"q": "What shape has three sides?", "ans": "Triangle", "options": ["Circle", "Square", "Triangle", "Rectangle"]},
+            {"q": "How many zeros are in one thousand?", "ans": "3", "options": ["2", "3", "4", "5"]},
         ]
     elif diff == "easy":
         quizzes = [
             {"q": "How many sides does a hexagon have?", "ans": "6", "options": ["5", "6", "7", "8"]},
             {"q": "Which is the largest ocean on Earth?", "ans": "Pacific", "options": ["Atlantic", "Indian", "Pacific", "Arctic"]},
-            {"q": "What color is formed by mixing Blue and Yellow?", "ans": "Green", "options": ["Purple", "Green", "Orange", "Brown"]}
+            {"q": "What color is formed by mixing Blue and Yellow?", "ans": "Green", "options": ["Purple", "Green", "Orange", "Brown"]},
+            {"q": "What is the capital of France?", "ans": "Paris", "options": ["Rome", "London", "Paris", "Berlin"]},
+            {"q": "Which gas do plants absorb from the air?", "ans": "Carbon dioxide", "options": ["Oxygen", "Carbon dioxide", "Nitrogen", "Helium"]},
+            {"q": "What is the longest river in the world?", "ans": "Nile", "options": ["Amazon", "Nile", "Yangtze", "Mississippi"]},
+            {"q": "How many bones are in the adult human body?", "ans": "206", "options": ["196", "206", "216", "226"]},
+            {"q": "Which is the smallest country in the world?", "ans": "Vatican City", "options": ["Monaco", "Vatican City", "San Marino", "Liechtenstein"]},
+            {"q": "What does WWW stand for in web addresses?", "ans": "World Wide Web", "options": ["World Wide Web", "Wide World Web", "Western Wide Web", "World Web Wide"]},
+            {"q": "How many players are on a basketball team on the court?", "ans": "5", "options": ["4", "5", "6", "7"]},
+            {"q": "What organ pumps blood around the body?", "ans": "Heart", "options": ["Lungs", "Heart", "Liver", "Kidney"]},
+            {"q": "Which is the tallest mountain in the world?", "ans": "Mount Everest", "options": ["K2", "Mount Everest", "Kangchenjunga", "Annapurna"]},
+            {"q": "What does DNA stand for?", "ans": "Deoxyribonucleic acid", "options": ["Digital Nucleic Acid", "Deoxyribonucleic acid", "Dual Nucleic Array", "Dynamic Neural Acid"]},
+            {"q": "Which planet has the most moons in our solar system?", "ans": "Saturn", "options": ["Jupiter", "Saturn", "Uranus", "Neptune"]},
+            {"q": "What is the chemical formula for common salt?", "ans": "NaCl", "options": ["NaCl", "H2O", "CO2", "KCl"]},
         ]
     elif diff == "hard":
         quizzes = [
             {"q": "What is the chemical symbol for Gold?", "ans": "Au", "options": ["Ag", "Au", "Fe", "Cu"]},
             {"q": "In computer science, how many bits are in a byte?", "ans": "8", "options": ["4", "8", "16", "32"]},
-            {"q": "What is the capital city of Australia?", "ans": "Canberra", "options": ["Sydney", "Melbourne", "Canberra", "Brisbane"]}
+            {"q": "What is the capital city of Australia?", "ans": "Canberra", "options": ["Sydney", "Melbourne", "Canberra", "Brisbane"]},
+            {"q": "What is the name of the process by which plants make food?", "ans": "Photosynthesis", "options": ["Respiration", "Photosynthesis", "Fermentation", "Oxidation"]},
+            {"q": "Which element has the atomic number 79?", "ans": "Gold", "options": ["Silver", "Gold", "Platinum", "Copper"]},
+            {"q": "What is the largest bone in the human body?", "ans": "Femur", "options": ["Tibia", "Femur", "Spine", "Humerus"]},
+            {"q": "Which famous scientist developed the theory of relativity?", "ans": "Einstein", "options": ["Newton", "Einstein", "Curie", "Tesla"]},
+            {"q": "What is the powerhouse of the cell?", "ans": "Mitochondria", "options": ["Nucleus", "Mitochondria", "Ribosome", "Lysosome"]},
+            {"q": "In what year did World War II end?", "ans": "1945", "options": ["1943", "1944", "1945", "1946"]},
+            {"q": "What is the hardest natural substance on Earth?", "ans": "Diamond", "options": ["Diamond", "Quartz", "Titanium", "Obsidian"]},
+            {"q": "What is the SI unit of electric current?", "ans": "Ampere", "options": ["Volt", "Watt", "Ohm", "Ampere"]},
+            {"q": "Which programming language is known as the mother of all languages?", "ans": "C", "options": ["Python", "Java", "C", "FORTRAN"]},
+            {"q": "How many chromosomes does a normal human cell contain?", "ans": "46", "options": ["23", "44", "46", "48"]},
+            {"q": "What is the speed of sound in air at room temperature (m/s approx)?", "ans": "343", "options": ["300", "343", "400", "500"]},
+            {"q": "Who invented the telephone?", "ans": "Alexander Graham Bell", "options": ["Thomas Edison", "Alexander Graham Bell", "Nikola Tesla", "Benjamin Franklin"]},
         ]
     elif diff == "expert":
         quizzes = [
             {"q": "Which country has the most natural lakes in the world?", "ans": "Canada", "options": ["Canada", "USA", "Russia", "Brazil"]},
-            {"q": "What is the speed of light in vacuum? (in km/s approximately)", "ans": "300000", "options": ["150000", "300000", "450000", "600000"]},
-            {"q": "Who wrote 'Hamlet'?", "ans": "William Shakespeare", "options": ["Charles Dickens", "William Shakespeare", "Mark Twain", "Jane Austen"]}
+            {"q": "What is the speed of light in vacuum (in km/s approximately)?", "ans": "300000", "options": ["150000", "300000", "450000", "600000"]},
+            {"q": "Who wrote 'Hamlet'?", "ans": "William Shakespeare", "options": ["Charles Dickens", "William Shakespeare", "Mark Twain", "Jane Austen"]},
+            {"q": "What is the Chandrasekhar limit (in solar masses)?", "ans": "1.4", "options": ["0.8", "1.4", "2.0", "3.0"]},
+            {"q": "Which particle is responsible for the weak nuclear force?", "ans": "W boson", "options": ["Gluon", "Photon", "W boson", "Graviton"]},
+            {"q": "In Euclidean geometry, what is the sum of interior angles of a pentagon?", "ans": "540", "options": ["360", "450", "540", "720"]},
+            {"q": "What is the chemical composition of ozone?", "ans": "O3", "options": ["O2", "O3", "O4", "CO3"]},
+            {"q": "Who formulated the laws of planetary motion?", "ans": "Kepler", "options": ["Newton", "Galileo", "Kepler", "Copernicus"]},
+            {"q": "What is the world's oldest known programming language still in use?", "ans": "FORTRAN", "options": ["COBOL", "FORTRAN", "Lisp", "Assembly"]},
+            {"q": "Which organelle is responsible for protein synthesis?", "ans": "Ribosome", "options": ["Golgi body", "Ribosome", "ER", "Mitochondria"]},
+            {"q": "What is the half-life of Carbon-14 (approx years)?", "ans": "5730", "options": ["1000", "3700", "5730", "10000"]},
+            {"q": "What does GPS stand for?", "ans": "Global Positioning System", "options": ["Global Positioning System", "General Projection Satellite", "Geo-Polar System", "Global Path System"]},
+            {"q": "Which acid is produced in the human stomach for digestion?", "ans": "Hydrochloric acid", "options": ["Sulfuric acid", "Nitric acid", "Hydrochloric acid", "Acetic acid"]},
+            {"q": "What is the first element in the periodic table?", "ans": "Hydrogen", "options": ["Helium", "Hydrogen", "Lithium", "Oxygen"]},
+            {"q": "Who developed the Python programming language?", "ans": "Guido van Rossum", "options": ["Linus Torvalds", "Guido van Rossum", "Dennis Ritchie", "James Gosling"]},
         ]
     else:  # Medium
         quizzes = [
             {"q": "Which planet in our solar system is known as the Red Planet?", "ans": "Mars", "options": ["Venus", "Mars", "Jupiter", "Saturn"]},
             {"q": "How many minutes are in 2.5 hours?", "ans": "150", "options": ["120", "130", "150", "180"]},
-            {"q": "Who painted the Mona Lisa?", "ans": "Leonardo da Vinci", "options": ["Pablo Picasso", "Vincent van Gogh", "Leonardo da Vinci", "Claude Monet"]}
+            {"q": "Who painted the Mona Lisa?", "ans": "Leonardo da Vinci", "options": ["Pablo Picasso", "Vincent van Gogh", "Leonardo da Vinci", "Claude Monet"]},
+            {"q": "What is the currency of Japan?", "ans": "Yen", "options": ["Won", "Yen", "Dollar", "Rupee"]},
+            {"q": "How many strings does a standard guitar have?", "ans": "6", "options": ["4", "5", "6", "7"]},
+            {"q": "What is the freezing point of water in Celsius?", "ans": "0", "options": ["-10", "0", "10", "32"]},
+            {"q": "Which gas makes up the majority of Earth's atmosphere?", "ans": "Nitrogen", "options": ["Oxygen", "Carbon dioxide", "Nitrogen", "Argon"]},
+            {"q": "How many sides does a pentagon have?", "ans": "5", "options": ["4", "5", "6", "7"]},
+            {"q": "What is the capital of Germany?", "ans": "Berlin", "options": ["Munich", "Berlin", "Hamburg", "Frankfurt"]},
+            {"q": "Which organ is responsible for filtering blood in the human body?", "ans": "Kidney", "options": ["Liver", "Kidney", "Spleen", "Heart"]},
+            {"q": "What is the square root of 144?", "ans": "12", "options": ["10", "11", "12", "13"]},
+            {"q": "Who is known as the father of computers?", "ans": "Charles Babbage", "options": ["Alan Turing", "Charles Babbage", "Bill Gates", "John Von Neumann"]},
+            {"q": "What is the boiling point of water in Celsius?", "ans": "100", "options": ["80", "90", "100", "120"]},
+            {"q": "Which country won the FIFA World Cup in 2018?", "ans": "France", "options": ["Germany", "Brazil", "France", "Croatia"]},
+            {"q": "What does the acronym CPU stand for?", "ans": "Central Processing Unit", "options": ["Central Processing Unit", "Core Power Unit", "Computer Processing Utility", "Control Processing Unit"]},
         ]
+
+    # Strict deduplication: pick first unseen question in shuffled pool
+    shuffled = quizzes.copy()
+    random.shuffle(shuffled)
+    for qz in shuffled:
+        if qz["q"] not in _RECENT_QUESTIONS:
+            _RECENT_QUESTIONS.add(qz["q"])
+            if len(_RECENT_QUESTIONS) > 300:
+                try:
+                    _RECENT_QUESTIONS.pop()
+                except Exception:
+                    pass
+            return {
+                "challenge_type": "Quick Quizzes",
+                "difficulty": difficulty,
+                "question": qz["q"],
+                "expected_answer": qz["ans"],
+                "hint": "Recall foundational facts.",
+                "options": qz.get("options", [])
+            }
+    # Fallback
     qz = random.choice(quizzes)
     return {
         "challenge_type": "Quick Quizzes",

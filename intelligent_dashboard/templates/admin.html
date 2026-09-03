@@ -97,11 +97,11 @@
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Avg Habit Score</span>
-                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #4ade80;">{{ avg_habit_score | round(1) }}/100</h3>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #4ade80;">{{ stats.avg_habit_score if stats and stats.avg_habit_score is defined else 50.0 }}/100</h3>
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Challenges</span>
-                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #a78bfa;">{{ total_challenges }}</h3>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #a78bfa;">{{ stats.total_challenges if stats and stats.total_challenges is defined else 0 }}</h3>
                     </div>
                     <div class="glass-card">
                         <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Wellness Coaches</span>
@@ -584,29 +584,69 @@
         new Chart(document.getElementById('growthChart'), {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                labels: {{ growth_labels | tojson }},
                 datasets: [{
-                    label: 'Registrations',
-                    data: [10, 25, 45, 80, 120, 175, {{ stats.total_users }}],
+                    label: 'Cumulative Registrations',
+                    data: {{ growth_data | tojson }},
                     borderColor: '#3b82f6',
-                    fill: false,
-                    tension: 0.4
+                    backgroundColor: 'rgba(59, 130, 246, 0.18)',
+                    borderWidth: 2.5,
+                    pointBackgroundColor: '#60a5fa',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.5,
+                    pointRadius: 4.5,
+                    fill: true,
+                    tension: 0.35
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        title: { display: true, text: 'Total Users', color: '#94a3b8' },
+                        grid: { color: 'rgba(255, 255, 255, 0.06)' }
+                    }
+                }
+            }
         });
 
         new Chart(document.getElementById('dauChart'), {
             type: 'bar',
             data: {
-                labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                labels: {{ dau_labels | tojson }},
                 datasets: [{
-                    label: 'Active Users',
-                    data: [15, 22, 18, 30, 24, 12, 28],
-                    backgroundColor: '#8b5cf6'
+                    label: 'Active Log Events',
+                    data: {{ dau_data | tojson }},
+                    backgroundColor: [
+                        'rgba(56, 189, 248, 0.85)',   // Mon - Cyan
+                        'rgba(129, 140, 248, 0.85)',  // Tue - Indigo
+                        'rgba(167, 139, 250, 0.85)',  // Wed - Purple
+                        'rgba(236, 72, 153, 0.85)',   // Thu - Pink
+                        'rgba(245, 158, 11, 0.85)',   // Fri - Amber
+                        'rgba(16, 185, 129, 0.85)',   // Sat - Emerald
+                        'rgba(239, 68, 68, 0.85)'     // Sun - Coral
+                    ],
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.15)'
                 }]
             },
-            options: { responsive: true, maintainAspectRatio: false }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        title: { display: true, text: 'Activity Events', color: '#94a3b8' },
+                        grid: { color: 'rgba(255, 255, 255, 0.06)' }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
         });
 
         // =====================================================================

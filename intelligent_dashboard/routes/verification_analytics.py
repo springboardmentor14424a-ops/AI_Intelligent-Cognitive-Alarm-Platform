@@ -272,11 +272,12 @@ def get_sleep_analytics(
 
 
 @router.get("/analytics/full-dossier", response_class=JSONResponse)
+@router.get("/analytics/predictive-engine", response_class=JSONResponse)
 def get_full_analytics_dossier(
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):
-    """Full unified behavioral telemetry dossier."""
+    """Full unified behavioral telemetry dossier and predictive engine metrics."""
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return BehavioralAnalyticsEngine.get_full_behavioral_dossier(current_user.id, db)
@@ -502,6 +503,20 @@ def list_announcements(
 # =============================================================================
 # 6. REPORTS & EXPORT SYSTEM ENDPOINTS (PDF & Excel)
 # =============================================================================
+
+@router.get("/reports/export")
+def export_report_unified(
+    format: str = Query("pdf", pattern="^(pdf|excel|xlsx|csv)$"),
+    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep)$"),
+    user_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """Unified /reports/export endpoint routing to pdf or excel report generator."""
+    if format in ("excel", "xlsx", "csv"):
+        return export_excel_report(report_type=report_type, user_id=user_id, db=db, current_user=current_user)
+    return export_pdf_report(report_type=report_type, user_id=user_id, db=db, current_user=current_user)
+
 
 @router.get("/reports/export/pdf")
 def export_pdf_report(
