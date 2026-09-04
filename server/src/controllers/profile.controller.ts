@@ -6,52 +6,10 @@ import { users } from '../db/schema/users.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { UpdateProfileInput } from '../schemas/profile.schema.js';
 
-// In-memory fallback state for demo sessions
-const mockProfilesStore: Record<string, any> = {
-  'demo-user-id': {
-    id: 'profile-user-1',
-    userId: 'demo-user-id',
-    fullName: 'Demo User',
-    email: 'user@cognitivealarm.com',
-    wakeUpTime: '07:00 AM',
-    sleepTime: '11:00 PM',
-    sleepDuration: '8 Hours',
-    timezone: 'UTC-5 (EST)',
-    productivityGoal: 'Consistent morning focus and early alarms',
-    difficultyPreference: 'Moderate',
-    habitPreferences: 'Morning Hydration, Digital Sunset, Daily Meditation',
-    updatedAt: new Date().toISOString(),
-  },
-  'demo-coach-id': {
-    id: 'profile-coach-1',
-    userId: 'demo-coach-id',
-    fullName: 'Demo Coach',
-    email: 'coach@cognitivealarm.com',
-    wakeUpTime: '06:00 AM',
-    sleepTime: '10:00 PM',
-    sleepDuration: '8 Hours',
-    timezone: 'UTC-5 (EST)',
-    productivityGoal: 'Optimize trainee sleep and waking routines',
-    difficultyPreference: 'High',
-    habitPreferences: 'Sleep Optimization, Early Walk',
-    updatedAt: new Date().toISOString(),
-  },
-  'demo-admin-id': {
-    id: 'profile-admin-1',
-    userId: 'demo-admin-id',
-    fullName: 'Demo Admin',
-    email: 'admin@cognitivealarm.com',
-    wakeUpTime: '05:30 AM',
-    sleepTime: '09:30 PM',
-    sleepDuration: '8 Hours',
-    timezone: 'UTC',
-    productivityGoal: 'Platform stability and user monitoring',
-    difficultyPreference: 'Expert',
-    habitPreferences: 'System Audit Routine, Deep Work',
-    updatedAt: new Date().toISOString(),
-  },
-};
-
+/**
+ * GET /api/profile
+ * Retrieves user profile directly from PostgreSQL database
+ */
 export const getProfile = async (
   req: Request,
   res: Response,
@@ -63,58 +21,57 @@ export const getProfile = async (
       throw new AppError('Unauthorized', 401);
     }
 
-    // Check mock store for demo sessions
-    if (mockProfilesStore[userId]) {
+    const [existingProfile] = await db
+      .select()
+      .from(profiles)
+      .where(eq(profiles.userId, userId));
+
+    if (existingProfile) {
       res.status(200).json({
         success: true,
-        data: { profile: mockProfilesStore[userId] },
+        data: { profile: existingProfile },
       });
       return;
     }
 
-    // Try database
-    try {
-      const [existingProfile] = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.userId, userId));
+    // Auto-create initial profile row in PostgreSQL if missing
+    const [userRecord] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
 
-      if (existingProfile) {
-        res.status(200).json({
-          success: true,
-          data: { profile: existingProfile },
-        });
-        return;
-      }
-    } catch (_dbError) {
-      // Database not yet migrated or unreachable in dev phase
-    }
+    const userName = userRecord?.name || req.user?.email.split('@')[0] || 'User';
+    const userEmail = userRecord?.email || req.user?.email || 'user@example.com';
 
-    // Fallback default profile
-    const defaultProfile = {
-      id: `profile-${userId}`,
-      userId,
-      fullName: req.user?.email.split('@')[0] || 'User',
-      email: req.user?.email || 'user@example.com',
-      wakeUpTime: '07:00 AM',
-      sleepTime: '11:00 PM',
-      sleepDuration: '8 Hours',
-      timezone: 'UTC',
-      productivityGoal: 'Improve daily focus and waking habits',
-      difficultyPreference: 'Moderate',
-      habitPreferences: 'Morning Hydration, Digital Sunset',
-      updatedAt: new Date().toISOString(),
-    };
+    const [newProfile] = await db
+      .insert(profiles)
+      .values({
+        userId,
+        fullName: userName,
+        email: userEmail,
+        wakeUpTime: '07:00 AM',
+        sleepTime: '11:00 PM',
+        sleepDuration: '8 Hours',
+        timezone: 'UTC',
+        productivityGoal: 'Maintain peak morning focus',
+        difficultyPreference: 'Moderate',
+        habitPreferences: 'Morning Hydration, Digital Sunset',
+      })
+      .returning();
 
     res.status(200).json({
       success: true,
-      data: { profile: defaultProfile },
+      data: { profile: newProfile },
     });
   } catch (error) {
     next(error);
   }
 };
 
+/**
+ * PUT /api/profile
+ * Updates user profile directly in PostgreSQL database
+ */
 export const updateProfile = async (
   req: Request<{}, {}, UpdateProfileInput>,
   res: Response,
@@ -128,60 +85,41 @@ export const updateProfile = async (
 
     const updates = req.body;
 
-    // Update in-memory mock store
-    if (!mockProfilesStore[userId]) {
-      mockProfilesStore[userId] = {
-        id: `profile-${userId}`,
+    const [userRecord] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, userId));
+
+    const defaultName = userRecord?.name || req.user?.email.split('@')[0] || 'User';
+    const defaultEmail = userRecord?.email || req.user?.email || 'user@example.com';
+
+    const [updatedProfile] = await db
+      .insert(profiles)
+      .values({
         userId,
-        fullName: req.user?.email.split('@')[0] || 'User',
-        email: req.user?.email || 'user@example.com',
-        wakeUpTime: '07:00 AM',
-        sleepTime: '11:00 PM',
-        sleepDuration: '8 Hours',
-        timezone: 'UTC',
-        productivityGoal: 'Improve daily focus and waking habits',
-        difficultyPreference: 'Moderate',
-        habitPreferences: 'Morning Hydration, Digital Sunset',
-      };
-    }
-
-    mockProfilesStore[userId] = {
-      ...mockProfilesStore[userId],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Attempt DB update if available
-    try {
-      await db
-        .insert(profiles)
-        .values({
-          userId,
-          fullName: updates.fullName || mockProfilesStore[userId].fullName,
-          email: updates.email || mockProfilesStore[userId].email,
-          wakeUpTime: updates.wakeUpTime || mockProfilesStore[userId].wakeUpTime,
-          sleepTime: updates.sleepTime || mockProfilesStore[userId].sleepTime,
-          sleepDuration: updates.sleepDuration || mockProfilesStore[userId].sleepDuration,
-          timezone: updates.timezone || mockProfilesStore[userId].timezone,
-          productivityGoal: updates.productivityGoal || mockProfilesStore[userId].productivityGoal,
-          difficultyPreference: updates.difficultyPreference || mockProfilesStore[userId].difficultyPreference,
-          habitPreferences: updates.habitPreferences || mockProfilesStore[userId].habitPreferences,
-        })
-        .onConflictDoUpdate({
-          target: profiles.userId,
-          set: {
-            ...updates,
-            updatedAt: new Date(),
-          },
-        });
-    } catch (_dbError) {
-      // Ignored for dev phase fallback
-    }
+        fullName: updates.fullName || defaultName,
+        email: updates.email || defaultEmail,
+        wakeUpTime: updates.wakeUpTime || '07:00 AM',
+        sleepTime: updates.sleepTime || '11:00 PM',
+        sleepDuration: updates.sleepDuration || '8 Hours',
+        timezone: updates.timezone || 'UTC',
+        productivityGoal: updates.productivityGoal || 'Maintain peak morning focus',
+        difficultyPreference: updates.difficultyPreference || 'Moderate',
+        habitPreferences: updates.habitPreferences || 'Morning Hydration, Digital Sunset',
+      })
+      .onConflictDoUpdate({
+        target: profiles.userId,
+        set: {
+          ...updates,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
 
     res.status(200).json({
       success: true,
       message: 'Profile updated successfully',
-      data: { profile: mockProfilesStore[userId] },
+      data: { profile: updatedProfile },
     });
   } catch (error) {
     next(error);

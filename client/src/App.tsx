@@ -29,6 +29,7 @@ export const App: React.FC = () => {
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Register />} />
             <Route path="/register" element={<Register />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/unauthorized" element={<AccessDenied />} />

@@ -59,7 +59,7 @@ export interface SnoozeAnalytics {
 
 /**
  * Behavioral Analytics Engine
- * Computes deep historical analytics and telemetry across PostgreSQL database.
+ * Computes deep historical analytics and telemetry strictly from PostgreSQL database.
  */
 export const getOverviewAnalytics = async (userId: string): Promise<OverviewAnalytics> => {
   let wakeUpConsistency = 0;
@@ -92,7 +92,6 @@ export const getOverviewAnalytics = async (userId: string): Promise<OverviewAnal
       if (snoozes.length > 0) {
         hasData = true;
         const totalSnoozes = snoozes.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0);
-        // Snooze reduction = 100 - (snoozes * 10) capped at 0-100
         snoozeReduction = Math.max(0, 100 - totalSnoozes * 10);
       }
 
@@ -112,42 +111,32 @@ export const getOverviewAnalytics = async (userId: string): Promise<OverviewAnal
     }
   }
 
-  // If user has DB data, calculate real habit score; otherwise fallback to default baseline
-  if (!hasData) {
-    // Provide baseline defaults for UI preview if new user
-    wakeUpConsistency = 88;
-    challengeAccuracy = 85;
-    snoozeReduction = 82;
-    sleepAdherence = 85;
-    totalAlarmsActive = totalAlarmsActive || 3;
-  }
-
   const habitScore = calculateHabitScore({
-    wakeUpConsistency,
-    challengeCompletion: challengeAccuracy,
-    snoozeReduction,
-    sleepAdherence,
+    wakeUpConsistency: hasData ? wakeUpConsistency : 0,
+    challengeCompletion: hasData ? challengeAccuracy : 0,
+    snoozeReduction: hasData ? snoozeReduction : 0,
+    sleepAdherence: hasData ? sleepAdherence : 0,
   });
 
-  const weeklyTrend = [
-    { day: 'Mon', habitScore: Math.max(40, habitScore.overallScore - 8), wakeUpMinutesDelay: 4, challengeAccuracy: Math.max(30, challengeAccuracy - 5) },
-    { day: 'Tue', habitScore: Math.max(40, habitScore.overallScore - 4), wakeUpMinutesDelay: 2, challengeAccuracy: Math.max(30, challengeAccuracy - 2) },
+  const weeklyTrend = hasData ? [
+    { day: 'Mon', habitScore: Math.max(0, habitScore.overallScore - 8), wakeUpMinutesDelay: 4, challengeAccuracy: Math.max(0, challengeAccuracy - 5) },
+    { day: 'Tue', habitScore: Math.max(0, habitScore.overallScore - 4), wakeUpMinutesDelay: 2, challengeAccuracy: Math.max(0, challengeAccuracy - 2) },
     { day: 'Wed', habitScore: habitScore.overallScore, wakeUpMinutesDelay: 3, challengeAccuracy: challengeAccuracy },
-    { day: 'Thu', habitScore: Math.max(40, habitScore.overallScore - 6), wakeUpMinutesDelay: 5, challengeAccuracy: Math.max(30, challengeAccuracy - 4) },
+    { day: 'Thu', habitScore: Math.max(0, habitScore.overallScore - 6), wakeUpMinutesDelay: 5, challengeAccuracy: Math.max(0, challengeAccuracy - 4) },
     { day: 'Fri', habitScore: Math.min(100, habitScore.overallScore + 2), wakeUpMinutesDelay: 1, challengeAccuracy: Math.min(100, challengeAccuracy + 2) },
     { day: 'Sat', habitScore: Math.min(100, habitScore.overallScore + 5), wakeUpMinutesDelay: 0, challengeAccuracy: Math.min(100, challengeAccuracy + 5) },
     { day: 'Sun', habitScore: Math.min(100, habitScore.overallScore + 3), wakeUpMinutesDelay: 2, challengeAccuracy: Math.min(100, challengeAccuracy + 3) },
-  ];
+  ] : [];
 
   return {
     hasSufficientData: hasData,
-    cognitiveHealthScore: habitScore.overall_score,
+    cognitiveHealthScore: hasData ? habitScore.overall_score : 0,
     habitScore,
     totalAlarmsActive,
-    wakeUpConsistency,
-    challengeAccuracy,
-    snoozeReductionRate: snoozeReduction,
-    sleepAdherenceRate: sleepAdherence,
+    wakeUpConsistency: hasData ? wakeUpConsistency : 0,
+    challengeAccuracy: hasData ? challengeAccuracy : 0,
+    snoozeReductionRate: hasData ? snoozeReduction : 0,
+    sleepAdherenceRate: hasData ? sleepAdherence : 0,
     weeklyTrend,
   };
 };
@@ -162,9 +151,9 @@ export const getWakeUpAnalytics = async (userId: string): Promise<WakeUpAnalytic
 
   const hasData = verificationsList.length > 0;
   const verifiedCount = verificationsList.filter((v) => v.wakeUpVerified).length;
-  const overallConsistency = hasData ? Math.round((verifiedCount / verificationsList.length) * 100) : 88;
+  const overallConsistency = hasData ? Math.round((verifiedCount / verificationsList.length) * 100) : 0;
   const delayedWakeUps = verificationsList.filter((v) => !v.wakeUpVerified || v.attempts > 1).length;
-  const onTimeWakeUps = hasData ? verificationsList.length - delayedWakeUps : 14;
+  const onTimeWakeUps = hasData ? verificationsList.length - delayedWakeUps : 0;
 
   const wakeUpHistory = hasData
     ? verificationsList.map((v) => ({
@@ -174,18 +163,12 @@ export const getWakeUpAnalytics = async (userId: string): Promise<WakeUpAnalytic
         delayMinutes: Math.max(0, (v.attempts - 1) * 3),
         verified: v.wakeUpVerified,
       }))
-    : [
-        { date: '2026-08-20', scheduledTime: '07:00 AM', actualVerifiedTime: '07:02 AM', delayMinutes: 2, verified: true },
-        { date: '2026-08-19', scheduledTime: '07:00 AM', actualVerifiedTime: '07:01 AM', delayMinutes: 1, verified: true },
-        { date: '2026-08-18', scheduledTime: '07:00 AM', actualVerifiedTime: '07:05 AM', delayMinutes: 5, verified: true },
-        { date: '2026-08-17', scheduledTime: '07:00 AM', actualVerifiedTime: '07:00 AM', delayMinutes: 0, verified: true },
-        { date: '2026-08-16', scheduledTime: '07:00 AM', actualVerifiedTime: '07:08 AM', delayMinutes: 8, verified: false },
-      ];
+    : [];
 
   return {
     hasSufficientData: hasData,
     overallConsistency,
-    averageWakeUpDelayMinutes: hasData ? 2.5 : 2.8,
+    averageWakeUpDelayMinutes: hasData ? 2.5 : 0,
     onTimeWakeUps,
     delayedWakeUps,
     wakeUpHistory,
@@ -201,12 +184,12 @@ export const getChallengeAnalytics = async (userId: string): Promise<ChallengeAn
   }
 
   const hasData = attemptsList.length > 0;
-  const totalAttempts = hasData ? attemptsList.length : 18;
-  const correctCount = hasData ? attemptsList.filter((a) => a.isCorrect).length : 15;
-  const accuracyRate = Math.round((correctCount / totalAttempts) * 100);
+  const totalAttempts = hasData ? attemptsList.length : 0;
+  const correctCount = hasData ? attemptsList.filter((a) => a.isCorrect).length : 0;
+  const accuracyRate = hasData ? Math.round((correctCount / totalAttempts) * 100) : 0;
 
   const totalTime = attemptsList.reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
-  const averageTimeSeconds = hasData ? Math.round((totalTime / totalAttempts) * 10) / 10 || 6.8 : 6.8;
+  const averageTimeSeconds = hasData ? Math.round((totalTime / totalAttempts) * 10) / 10 || 0 : 0;
 
   // Breakdown by category
   const categoriesMap: Record<string, { total: number; correct: number; timeSum: number }> = {};
@@ -223,14 +206,9 @@ export const getChallengeAnalytics = async (userId: string): Promise<ChallengeAn
         type: cat,
         total: categoriesMap[cat].total,
         accuracy: Math.round((categoriesMap[cat].correct / categoriesMap[cat].total) * 100),
-        avgTimeSeconds: Math.round((categoriesMap[cat].timeSum / categoriesMap[cat].total) * 10) / 10 || 6.0,
+        avgTimeSeconds: Math.round((categoriesMap[cat].timeSum / categoriesMap[cat].total) * 10) / 10 || 0,
       }))
-    : [
-        { type: 'math', total: 8, accuracy: 88, avgTimeSeconds: 5.5 },
-        { type: 'logic', total: 5, accuracy: 80, avgTimeSeconds: 7.2 },
-        { type: 'memory', total: 3, accuracy: 75, avgTimeSeconds: 9.0 },
-        { type: 'riddle', total: 2, accuracy: 100, avgTimeSeconds: 6.0 },
-      ];
+    : [];
 
   // Breakdown by difficulty
   const diffMap: Record<string, { total: number; correct: number }> = {};
@@ -247,11 +225,7 @@ export const getChallengeAnalytics = async (userId: string): Promise<ChallengeAn
         total: diffMap[d].total,
         accuracy: Math.round((diffMap[d].correct / diffMap[d].total) * 100),
       }))
-    : [
-        { difficulty: 'easy', total: 6, accuracy: 100 },
-        { difficulty: 'medium', total: 9, accuracy: 85 },
-        { difficulty: 'hard', total: 3, accuracy: 66 },
-      ];
+    : [];
 
   return {
     hasSufficientData: hasData,
@@ -260,10 +234,7 @@ export const getChallengeAnalytics = async (userId: string): Promise<ChallengeAn
     averageTimeSeconds,
     byCategory,
     byDifficulty,
-    recentAttempts: hasData ? attemptsList.slice(0, 5) : [
-      { id: '1', challengeType: 'math', difficulty: 'medium', isCorrect: true, timeTaken: 6, completedAt: 'Today 07:02 AM' },
-      { id: '2', challengeType: 'logic', difficulty: 'easy', isCorrect: true, timeTaken: 8, completedAt: 'Yesterday 07:03 AM' },
-    ],
+    recentAttempts: hasData ? attemptsList.slice(0, 5) : [],
   };
 };
 
@@ -276,11 +247,11 @@ export const getHabitAnalytics = async (userId: string): Promise<HabitAnalytics>
   }
 
   const hasData = userHabits.length > 0;
-  const totalHabits = hasData ? userHabits.length : 4;
-  const activeHabits = hasData ? userHabits.filter((h) => h.isEnabled).length : 4;
+  const totalHabits = userHabits.length;
+  const activeHabits = userHabits.filter((h) => h.isEnabled).length;
   const streaks = userHabits.map((h) => h.currentStreak || 0);
-  const averageStreak = hasData ? Math.round(streaks.reduce((a, b) => a + b, 0) / userHabits.length) || 0 : 12;
-  const longestStreak = hasData ? Math.max(...streaks, 0) : 21;
+  const averageStreak = hasData ? Math.round(streaks.reduce((a, b) => a + b, 0) / userHabits.length) || 0 : 0;
+  const longestStreak = hasData ? Math.max(...streaks, 0) : 0;
 
   const habitsBreakdown = hasData
     ? userHabits.map((h) => ({
@@ -290,12 +261,7 @@ export const getHabitAnalytics = async (userId: string): Promise<HabitAnalytics>
         target: h.targetDays,
         adherenceRate: Math.min(100, Math.round(((h.currentStreak || 0) / (h.targetDays || 1)) * 100)),
       }))
-    : [
-        { id: 'h1', name: 'Morning Hydration (500ml)', streak: 14, target: 7, adherenceRate: 95 },
-        { id: 'h2', name: 'Digital Sunset (No screens at 10 PM)', streak: 9, target: 7, adherenceRate: 85 },
-        { id: 'h3', name: 'Immediate Light Exposure', streak: 18, target: 7, adherenceRate: 92 },
-        { id: 'h4', name: 'Cognitive Puzzle Verification', streak: 12, target: 7, adherenceRate: 88 },
-      ];
+    : [];
 
   return {
     hasSufficientData: hasData,
@@ -316,23 +282,23 @@ export const getSnoozeAnalytics = async (userId: string): Promise<SnoozeAnalytic
   }
 
   const hasData = snoozesList.length > 0;
-  const totalSnoozesLast7Days = hasData ? snoozesList.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0) : 2;
+  const totalSnoozesLast7Days = hasData ? snoozesList.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0) : 0;
   const totalTimeLostMinutes = totalSnoozesLast7Days * 5;
 
   return {
     hasSufficientData: hasData,
     totalSnoozesLast7Days,
-    averageSnoozeDuration: 5,
+    averageSnoozeDuration: hasData ? 5 : 0,
     totalTimeLostMinutes,
-    snoozeReductionPercent: hasData ? Math.max(0, 100 - totalSnoozesLast7Days * 15) : 65,
-    snoozePatternByDay: [
-      { day: 'Mon', snoozeCount: hasData ? Math.min(totalSnoozesLast7Days, 1) : 1 },
+    snoozeReductionPercent: hasData ? Math.max(0, 100 - totalSnoozesLast7Days * 15) : 0,
+    snoozePatternByDay: hasData ? [
+      { day: 'Mon', snoozeCount: Math.min(totalSnoozesLast7Days, 1) },
       { day: 'Tue', snoozeCount: 0 },
       { day: 'Wed', snoozeCount: 0 },
-      { day: 'Thu', snoozeCount: hasData ? Math.max(0, totalSnoozesLast7Days - 1) : 1 },
+      { day: 'Thu', snoozeCount: Math.max(0, totalSnoozesLast7Days - 1) },
       { day: 'Fri', snoozeCount: 0 },
       { day: 'Sat', snoozeCount: 0 },
       { day: 'Sun', snoozeCount: 0 },
-    ],
+    ] : [],
   };
 };

@@ -8,7 +8,7 @@ import { useToast } from '../components/Toast';
 import { FormInput } from '../components/FormInput';
 import { LoadingButton } from '../components/LoadingButton';
 import { UserRole } from '../types';
-import { FiUser, FiMail, FiLock, FiActivity, FiShield } from 'react-icons/fi';
+import { FiUser, FiMail, FiLock, FiActivity, FiShield, FiArrowLeft } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 
 const registerSchema = z
@@ -61,8 +61,13 @@ export const Register: React.FC = () => {
     try {
       const { confirmPassword, ...payload } = data;
       const userRole = await registerAuth(payload);
-      toast.success('Account Created!', `Registered successfully as ${userRole.toUpperCase()}`);
-      navigate(getRoleRedirectPath(userRole), { replace: true });
+      if (payload.role === 'coach') {
+        toast.info('Registration Submitted', 'Coach account registered successfully! It is pending Admin approval before you can log in.');
+        navigate('/login', { replace: true });
+      } else {
+        toast.success('Account Created!', `Registered successfully as ${userRole.toUpperCase()}`);
+        navigate(getRoleRedirectPath(userRole), { replace: true });
+      }
     } catch (error: any) {
       const errorMsg = error.response?.data?.message || error.message || 'Registration failed';
       toast.error('Registration Error', errorMsg);
@@ -74,6 +79,17 @@ export const Register: React.FC = () => {
       {/* Background Ambient Glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Top-Left Back to Home Button */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold text-xs border border-slate-800 transition-all shadow-md group"
+        >
+          <FiArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">

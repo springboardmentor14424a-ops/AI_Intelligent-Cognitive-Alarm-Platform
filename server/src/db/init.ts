@@ -29,6 +29,12 @@ export const initializeDatabase = async (): Promise<boolean> => {
       END $$;
 
       DO $$ BEGIN
+        CREATE TYPE account_status AS ENUM ('active', 'pending', 'rejected');
+      EXCEPTION
+        WHEN duplicate_object THEN null;
+      END $$;
+
+      DO $$ BEGIN
         CREATE TYPE repeat_type AS ENUM ('daily', 'weekdays', 'weekend', 'one_time', 'smart_adaptive');
       EXCEPTION
         WHEN duplicate_object THEN null;
@@ -45,10 +51,12 @@ export const initializeDatabase = async (): Promise<boolean> => {
         email VARCHAR(255) NOT NULL UNIQUE,
         password_hash TEXT,
         role user_role DEFAULT 'user' NOT NULL,
+        status account_status DEFAULT 'active' NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
       ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS status account_status DEFAULT 'active' NOT NULL;
     `);
 
     // 3. Create Profiles Table
@@ -239,6 +247,40 @@ export const initializeDatabase = async (): Promise<boolean> => {
         score_category VARCHAR(50) NOT NULL,
         summary_message TEXT DEFAULT '' NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `);
+
+    // 14. Create Habit Completions Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS habit_completions (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        habit_id UUID NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
+        completion_date VARCHAR(20) NOT NULL,
+        completion_status VARCHAR(20) DEFAULT 'completed' NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `);
+
+    // 15. Create Alarm Events Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS alarm_events (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        alarm_id UUID REFERENCES alarms(id) ON DELETE CASCADE,
+        event_type VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+      );
+    `);
+
+    // 16. Create Coach User Assignments Table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS coach_user_assignments (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        coach_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(20) DEFAULT 'active' NOT NULL,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
     `);
 

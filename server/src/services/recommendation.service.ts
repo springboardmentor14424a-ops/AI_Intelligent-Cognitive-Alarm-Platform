@@ -7,6 +7,7 @@ import { habits } from '../db/schema/habits.js';
 import { eq } from 'drizzle-orm';
 
 export interface UserTelemetryData {
+  hasSufficientData: boolean;
   snoozeCountLast7Days: number;
   challengeAccuracy: number; // 0-100
   wakeUpConsistency: number; // 0-100
@@ -30,20 +31,24 @@ export interface RecommendationItem {
 
 /**
  * Modular Rule-Based Recommendation Engine.
- * Analyzes telemetry and generates personalized, explainable recommendations.
+ * Analyzes telemetry and generates personalized recommendations strictly based on real conditions.
  */
 export const generateRecommendations = (data: UserTelemetryData): RecommendationItem[] => {
+  if (!data.hasSufficientData) {
+    return [];
+  }
+
   const recommendations: RecommendationItem[] = [];
   const nowStr = new Date().toISOString();
 
   const {
-    snoozeCountLast7Days = 1,
-    challengeAccuracy = 80,
-    wakeUpConsistency = 85,
-    sleepAdherence = 80,
-    averageChallengeTime = 7,
+    snoozeCountLast7Days = 0,
+    challengeAccuracy = 0,
+    wakeUpConsistency = 0,
+    sleepAdherence = 0,
+    averageChallengeTime = 0,
     currentDifficulty = 'Medium',
-    habitStreak = 5,
+    habitStreak = 0,
   } = data;
 
   // 1. High Snooze Rate -> Recommend reducing snooze usage and improving sleep schedule
@@ -71,7 +76,7 @@ export const generateRecommendations = (data: UserTelemetryData): Recommendation
   }
 
   // 2. Low Challenge Accuracy -> Recommend temporarily lowering challenge difficulty
-  if (challengeAccuracy < 65) {
+  if (challengeAccuracy > 0 && challengeAccuracy < 65) {
     recommendations.push({
       id: `rec-diff-${Date.now()}-1`,
       category: 'Challenge Difficulty',
@@ -99,7 +104,7 @@ export const generateRecommendations = (data: UserTelemetryData): Recommendation
   }
 
   // 4. Low Sleep Schedule Adherence -> Recommend maintaining a consistent bedtime
-  if (sleepAdherence < 70) {
+  if (sleepAdherence > 0 && sleepAdherence < 70) {
     recommendations.push({
       id: `rec-sleep-${Date.now()}-1`,
       category: 'Sleep Improvement',
@@ -113,7 +118,7 @@ export const generateRecommendations = (data: UserTelemetryData): Recommendation
   }
 
   // 5. Low Wake-up Consistency -> Recommend establishing a fixed wake-up routine
-  if (wakeUpConsistency < 75) {
+  if (wakeUpConsistency > 0 && wakeUpConsistency < 75) {
     recommendations.push({
       id: `rec-wakeup-${Date.now()}-1`,
       category: 'Wake-up Optimization',
@@ -140,73 +145,70 @@ export const generateRecommendations = (data: UserTelemetryData): Recommendation
     });
   }
 
-  // 7. General Productivity Recommendation
-  recommendations.push({
-    id: `rec-prod-${Date.now()}-1`,
-    category: 'Productivity',
-    title: 'Schedule Deep Work Window at 08:30 AM',
-    description: 'Capitalize on your peak cognitive readiness window 45 to 90 minutes post awakening.',
-    reason: 'Post-challenge cortical arousal reaches maximum neuro-focus within 1-2 hours of waking up.',
-    priority: 'low',
-    actionableStep: 'Block 60 minutes of uninterrupted focus time right after morning routines.',
-    created_at: nowStr,
-  });
-
   return recommendations;
 };
 
 /**
- * Fetches user telemetry from database and generates personalized recommendations.
+ * Fetches user telemetry from database and generates personalized recommendations based strictly on real DB records.
  */
 export const getRecommendationsForUser = async (userId: string): Promise<RecommendationItem[]> => {
-  let snoozeCountLast7Days = 1;
-  let challengeAccuracy = 82;
-  let wakeUpConsistency = 85;
-  let sleepAdherence = 80;
-  let averageChallengeTime = 6.8;
+  let snoozeCountLast7Days = 0;
+  let challengeAccuracy = 0;
+  let wakeUpConsistency = 0;
+  let sleepAdherence = 0;
+  let averageChallengeTime = 0;
   let currentDifficulty = 'Medium';
-  let habitStreak = 5;
+  let habitStreak = 0;
+  let hasSufficientData = false;
 
   if (await isDbConnected()) {
     try {
       // Challenge attempts
       const attempts = await db.select().from(challengeAttempts).where(eq(challengeAttempts.userId, userId));
       if (attempts.length > 0) {
+        hasSufficientData = true;
         const correct = attempts.filter((a) => a.isCorrect).length;
         challengeAccuracy = Math.round((correct / attempts.length) * 100);
         const totalTime = attempts.reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
-        averageChallengeTime = Math.round((totalTime / attempts.length) * 10) / 10 || 6.8;
+        averageChallengeTime = Math.round((totalTime / attempts.length) * 10) / 10 || 0;
       }
 
       // Wake-up verifications
       const verifications = await db.select().from(wakeUpVerifications).where(eq(wakeUpVerifications.userId, userId));
       if (verifications.length > 0) {
+        hasSufficientData = true;
         const verified = verifications.filter((v) => v.wakeUpVerified).length;
         wakeUpConsistency = Math.round((verified / verifications.length) * 100);
       }
 
       // Snooze logs
       const snoozes = await db.select().from(snoozeLogs).where(eq(snoozeLogs.userId, userId));
-      snoozeCountLast7Days = snoozes.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0);
+      if (snoozes.length > 0) {
+        hasSufficientData = true;
+        snoozeCountLast7Days = snoozes.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0);
+      }
 
       // Habits
       const userHabits = await db.select().from(habits).where(eq(habits.userId, userId));
       if (userHabits.length > 0) {
+        hasSufficientData = true;
         habitStreak = Math.max(...userHabits.map((h) => h.currentStreak || 0), 0);
       }
 
       // Sleep logs
       const sleeps = await db.select().from(sleepLogs).where(eq(sleepLogs.userId, userId));
       if (sleeps.length > 0) {
+        hasSufficientData = true;
         const optimal = sleeps.filter((s) => Number(s.sleepDurationHours) >= 7).length;
         sleepAdherence = Math.round((optimal / sleeps.length) * 100);
       }
     } catch (_err) {
-      console.warn('DB error reading user telemetry for recommendations, using default heuristics');
+      console.warn('DB error reading user telemetry for recommendations');
     }
   }
 
   return generateRecommendations({
+    hasSufficientData,
     snoozeCountLast7Days,
     challengeAccuracy,
     wakeUpConsistency,

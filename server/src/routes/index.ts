@@ -9,6 +9,8 @@ import wakeUpRoutes from './wakeUp.routes.js';
 import analyticsRoutes from './analytics.routes.js';
 import reportsRoutes from './reports.routes.js';
 import notificationRoutes from './notification.routes.js';
+import adminRoutes from './admin.routes.js';
+import coachRoutes from './coach.routes.js';
 import { authenticateToken } from '../middleware/auth.middleware.js';
 import {
   getAdaptiveDifficulty,
@@ -30,6 +32,8 @@ router.use('/wakeup', wakeUpRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/reports', reportsRoutes);
 router.use('/notifications', notificationRoutes);
+router.use('/admin', adminRoutes);
+router.use('/coach', coachRoutes);
 
 // Direct Milestone 3 Spec-compliant Endpoint Aliases
 router.get('/adaptive/difficulty', authenticateToken, getAdaptiveDifficulty);

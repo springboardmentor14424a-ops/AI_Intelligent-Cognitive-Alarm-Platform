@@ -5,6 +5,7 @@ import { challenges } from '../db/schema/challenges.js';
 import { challengeAttempts } from '../db/schema/challengeAttempts.js';
 import { updateWakeUpSession } from '../services/wakeUpVerification.service.js';
 import { eq, desc } from 'drizzle-orm';
+import { isUuid } from '../utils/uuid.js';
 
 // In-memory fallback challenge attempts store
 interface InMemoryAttempt {
@@ -317,11 +318,12 @@ export const validateChallengeAnswer = async (req: Request, res: Response): Prom
 
     inMemoryAttempts.unshift(attemptRecord);
 
-    if (await isDbConnected()) {
+    if (await isDbConnected() && isUuid(attemptRecord.userId)) {
       try {
+        const validChallengeId = isUuid(attemptRecord.challengeId) ? attemptRecord.challengeId : null;
         await db.insert(challengeAttempts).values({
           userId: attemptRecord.userId,
-          challengeId: attemptRecord.challengeId,
+          challengeId: validChallengeId,
           answer: attemptRecord.answer,
           isCorrect: attemptRecord.isCorrect,
           timeTaken: attemptRecord.timeTaken,
@@ -419,21 +421,10 @@ export const getChallengeAnalytics = async (req: Request, res: Response): Promis
       attemptsList = inMemoryAttempts.filter((a) => a.userId === userId || userId === 'demo_user_id');
     }
 
-    // Default mock stats if empty
-    if (attemptsList.length === 0) {
-      attemptsList = [
-        { isCorrect: true, timeTaken: 6, challengeType: 'math', difficulty: 'easy' },
-        { isCorrect: true, timeTaken: 9, challengeType: 'logic', difficulty: 'medium' },
-        { isCorrect: false, timeTaken: 12, challengeType: 'memory', difficulty: 'hard' },
-        { isCorrect: true, timeTaken: 5, challengeType: 'riddle', difficulty: 'beginner' },
-        { isCorrect: true, timeTaken: 7, challengeType: 'word', difficulty: 'medium' },
-      ];
-    }
-
     const totalChallenges = attemptsList.length;
     const correctAnswers = attemptsList.filter((a) => a.isCorrect).length;
     const incorrectAnswers = totalChallenges - correctAnswers;
-    const accuracy = totalChallenges > 0 ? Math.round((correctAnswers / totalChallenges) * 100) : 0;
+    const accuracy = totalChallenges > 0 ? Math.round((correctAnswers / totalChallenges) * 100) : null;
     const totalTime = attemptsList.reduce((acc, curr) => acc + (curr.timeTaken || 0), 0);
     const avgCompletionTime = totalChallenges > 0 ? Math.round(totalTime / totalChallenges) : 0;
 

@@ -49,9 +49,9 @@ export const LandingPage: React.FC = () => {
 
       {/* Hero Section */}
       <section className="relative z-10 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center space-y-8">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-inner">
+        {/* /*<div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-inner">
           <FiZap className="w-4 h-4 text-amber-400" /> PostgreSQL & Drizzle ORM Architecture Active
-        </div>
+        </div>*/}
 
         <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight max-w-4xl mx-auto leading-tight">
           Intelligent Cognitive Alarm &{' '}

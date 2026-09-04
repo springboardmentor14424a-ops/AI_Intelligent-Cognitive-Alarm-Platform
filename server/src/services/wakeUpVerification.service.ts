@@ -2,6 +2,7 @@ import { pool, db, isDbConnected } from '../db/index.js';
 import { wakeUpVerifications } from '../db/schema/wakeUpVerifications.js';
 import { challengeAttempts } from '../db/schema/challengeAttempts.js';
 import { eq, and } from 'drizzle-orm';
+import { isUuid } from '../utils/uuid.js';
 
 export interface WakeUpSession {
   id: string;
@@ -16,7 +17,7 @@ export interface WakeUpSession {
   requiredCorrect: number;
 }
 
-// In-memory store fallback when DB is disconnected or for dev mock speed
+// In-memory store fallback
 const inMemorySessions: Map<string, WakeUpSession> = new Map();
 
 export const createWakeUpSession = async (
@@ -39,14 +40,14 @@ export const createWakeUpSession = async (
 
   inMemorySessions.set(session.id, session);
 
-  if (await isDbConnected()) {
+  if (await isDbConnected() && isUuid(userId)) {
     try {
+      const validAlarmId = isUuid(alarmId) ? alarmId! : null;
       const [newRow] = await db
         .insert(wakeUpVerifications)
         .values({
-          id: session.id,
-          userId: session.userId,
-          alarmId: session.alarmId,
+          userId,
+          alarmId: validAlarmId,
           verificationMethod: session.verificationMethod,
           attempts: 0,
           correctAnswers: 0,
@@ -54,10 +55,13 @@ export const createWakeUpSession = async (
         })
         .returning();
       if (newRow) {
+        // Map in-memory key to real PostgreSQL UUID
+        inMemorySessions.delete(session.id);
         session.id = newRow.id;
+        inMemorySessions.set(session.id, session);
       }
     } catch (err) {
-      console.warn('⚠️ DB write failed for wakeUpVerification session, using fallback:', err);
+      console.warn('⚠️ DB write failed for wakeUpVerification session:', err);
     }
   }
 
@@ -70,7 +74,7 @@ export const updateWakeUpSession = async (
 ): Promise<WakeUpSession | null> => {
   let session = inMemorySessions.get(sessionId);
 
-  if (!session && (await isDbConnected())) {
+  if (!session && (await isDbConnected()) && isUuid(sessionId)) {
     try {
       const rows = await db
         .select()
@@ -102,7 +106,6 @@ export const updateWakeUpSession = async (
   if (isCorrect) {
     session.correctAnswers += 1;
   } else if (session.verificationMethod === 'consecutive_correct') {
-    // Reset streak on incorrect answer if consecutive mode
     session.correctAnswers = 0;
   }
 
@@ -113,7 +116,7 @@ export const updateWakeUpSession = async (
 
   inMemorySessions.set(session.id, session);
 
-  if (await isDbConnected()) {
+  if (await isDbConnected() && isUuid(session.id)) {
     try {
       await db
         .update(wakeUpVerifications)
@@ -137,7 +140,7 @@ export const getWakeUpSession = async (sessionId: string): Promise<WakeUpSession
     return inMemorySessions.get(sessionId)!;
   }
 
-  if (await isDbConnected()) {
+  if (await isDbConnected() && isUuid(sessionId)) {
     try {
       const rows = await db
         .select()

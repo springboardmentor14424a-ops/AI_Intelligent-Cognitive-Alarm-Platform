@@ -8,7 +8,7 @@ import { useToast } from '../components/Toast';
 import { FormInput } from '../components/FormInput';
 import { LoadingButton } from '../components/LoadingButton';
 import { UserRole } from '../types';
-import { FiMail, FiLock, FiActivity, FiShield } from 'react-icons/fi';
+import { FiMail, FiLock, FiActivity, FiShield, FiArrowLeft } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 
 const loginSchema = z.object({
@@ -65,6 +65,17 @@ export const Login: React.FC = () => {
       {/* Background Ambient Glows */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
+
+      {/* Top-Left Back to Home Button */}
+      <div className="absolute top-6 left-6 z-20">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white font-semibold text-xs border border-slate-800 transition-all shadow-md group"
+        >
+          <FiArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center">
@@ -158,7 +169,7 @@ export const Login: React.FC = () => {
           <div className="mt-6 text-center border-t border-slate-800/80 pt-5">
             <p className="text-sm text-slate-400">
               Don't have an account?{' '}
-              <Link to="/register" className="font-semibold text-blue-400 hover:text-blue-300 transition-colors">
+              <Link to="/signup" className="font-semibold text-blue-400 hover:text-blue-300 transition-colors">
                 Sign Up
               </Link>
             </p>

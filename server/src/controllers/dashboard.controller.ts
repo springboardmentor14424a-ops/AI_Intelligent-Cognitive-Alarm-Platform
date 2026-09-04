@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { db, isDbConnected } from '../db/index.js';
+import { db } from '../db/index.js';
 import { users } from '../db/schema/users.js';
 import { habits } from '../db/schema/habits.js';
 import { alarms } from '../db/schema/alarms.js';
@@ -7,45 +7,36 @@ import { challenges } from '../db/schema/challenges.js';
 import { challengeAttempts } from '../db/schema/challengeAttempts.js';
 import { wakeUpVerifications } from '../db/schema/wakeUpVerifications.js';
 import { snoozeLogs } from '../db/schema/snoozeLogs.js';
+import { coachUserAssignments } from '../db/schema/coachUserAssignments.js';
 import { calculateHabitScore } from '../services/habitScore.service.js';
+import { eq, inArray, desc } from 'drizzle-orm';
 
 export const getUserDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = req.user?.userId || 'demo-user-id';
-
-    let userAlarmsList: any[] = [];
-    let attemptsCount = 12;
-    let correctCount = 10;
-
-    if (await isDbConnected()) {
-      try {
-        userAlarmsList = await db.select().from(alarms);
-        const attempts = await db.select().from(challengeAttempts);
-        if (attempts.length > 0) {
-          attemptsCount = attempts.length;
-          correctCount = attempts.filter((a) => a.isCorrect).length;
-        }
-      } catch (_dbErr) {}
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, message: 'Unauthorized' });
+      return;
     }
 
-    const accuracy = attemptsCount > 0 ? Math.round((correctCount / attemptsCount) * 100) : 85;
-    const completionRate = '91%';
+    const userAlarmsList = await db
+      .select()
+      .from(alarms)
+      .where(eq(alarms.userId, userId))
+      .orderBy(desc(alarms.createdAt));
 
-    const todayAlarm = userAlarmsList.length > 0
-      ? userAlarmsList[0]
-      : {
-          alarmTitle: 'Morning Executive Wake-Up',
-          alarmTime: '07:00 AM',
-          difficultyLevel: 'Medium',
-          sound: 'Gentle Chime',
-          activeStatus: true,
-        };
+    const attempts = await db
+      .select()
+      .from(challengeAttempts)
+      .where(eq(challengeAttempts.userId, userId))
+      .orderBy(desc(challengeAttempts.completedAt));
 
-    const recentAttempts = [
-      { id: '1', challengeType: 'math', difficulty: 'medium', isCorrect: true, timeTaken: 6, completedAt: 'Today 07:02 AM' },
-      { id: '2', challengeType: 'logic', difficulty: 'easy', isCorrect: true, timeTaken: 8, completedAt: 'Yesterday 07:03 AM' },
-      { id: '3', challengeType: 'memory', difficulty: 'hard', isCorrect: false, timeTaken: 12, completedAt: '2 days ago' },
-    ];
+    const attemptsCount = attempts.length;
+    const correctCount = attempts.filter((a) => a.isCorrect).length;
+    const accuracy = attemptsCount > 0 ? Math.round((correctCount / attemptsCount) * 100) : null;
+    const completionRate = attemptsCount > 0 ? `${Math.round((correctCount / attemptsCount) * 100)}%` : null;
+
+    const todayAlarm = userAlarmsList.length > 0 ? userAlarmsList[0] : null;
 
     res.status(200).json({
       success: true,
@@ -57,65 +48,83 @@ export const getUserDashboard = async (req: Request, res: Response): Promise<voi
         todaysAlarm: todayAlarm,
         challengeMetrics: {
           completionRate,
-          accuracy: `${accuracy}%`,
+          accuracy: accuracy !== null ? `${accuracy}%` : null,
           totalCompleted: attemptsCount,
           correctAnswers: correctCount,
         },
-        recentAttempts,
+        recentAttempts: attempts.slice(0, 5),
         dashboardInfo: {
           title: 'Cognitive Readiness Overview',
           status: 'Active',
-          cognitiveScore: 'Optimal Focus Ready',
+          cognitiveScore: attemptsCount > 0 ? 'Optimal Focus Ready' : 'No data yet',
         },
       },
     });
-  } catch (_err) {
-    res.status(200).json({
-      success: true,
-      message: 'User Dashboard',
-      data: {
-        role: req.user?.role,
-        todaysAlarm: { alarmTitle: 'Morning Executive Wake-Up', alarmTime: '07:00 AM', activeStatus: true },
-        challengeMetrics: { completionRate: '91%', accuracy: '85%', totalCompleted: 12, correctAnswers: 10 },
-        dashboardInfo: { title: 'Cognitive Readiness Overview' },
-      },
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error fetching user dashboard',
     });
   }
 };
 
 export const getCoachDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
-    let totalUsersCount = 12;
-    let habitComplianceRate = '92%';
-    let wakeupConsistency = '88%';
+    const coachId = req.user?.userId;
 
-    let clientPerformance = [
-      { id: '1', name: 'Alex Johnson', email: 'alex.j@example.com', streak: 12, compliance: '94%', challengeCompletion: '95%', challengeAccuracy: '90%', avgTime: '6s', status: 'Optimal' },
-      { id: '2', name: 'Sarah Miller', email: 'sarah.m@example.com', streak: 8, compliance: '88%', challengeCompletion: '88%', challengeAccuracy: '82%', avgTime: '8s', status: 'Good' },
-      { id: '3', name: 'Michael Chen', email: 'm.chen@example.com', streak: 15, compliance: '98%', challengeCompletion: '96%', challengeAccuracy: '94%', avgTime: '5s', status: 'Optimal' },
-      { id: '4', name: 'Emily Davis', email: 'e.davis@example.com', streak: 3, compliance: '65%', challengeCompletion: '70%', challengeAccuracy: '68%', avgTime: '11s', status: 'Attention Needed' },
-      { id: '5', name: 'David Wilson', email: 'd.wilson@example.com', streak: 6, compliance: '82%', challengeCompletion: '86%', challengeAccuracy: '84%', avgTime: '7s', status: 'Good' },
-    ];
+    const assignments = await db
+      .select()
+      .from(coachUserAssignments)
+      .where(eq(coachUserAssignments.coachId, coachId || ''));
 
-    if (await isDbConnected()) {
-      try {
-        const userList = await db.select().from(users);
-        if (userList.length > 0) {
-          totalUsersCount = userList.length;
-          clientPerformance = userList.map((u, idx) => ({
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            streak: 5 + (idx * 2) % 15,
-            compliance: `${80 + (idx * 3) % 20}%`,
-            challengeCompletion: `${85 + (idx * 2) % 15}%`,
-            challengeAccuracy: `${82 + (idx * 4) % 18}%`,
-            avgTime: `${6 + (idx % 4)}s`,
-            status: idx % 4 === 3 ? 'Attention Needed' : (idx % 2 === 0 ? 'Optimal' : 'Good'),
-          }));
-        }
-      } catch (_dbErr) {}
+    const assignedUserIds = assignments.map((a) => a.userId);
+    let userList = await db.select().from(users).where(eq(users.role, 'user'));
+    if (assignedUserIds.length > 0) {
+      userList = await db.select().from(users).where(inArray(users.id, assignedUserIds));
     }
+
+    const totalUsersCount = userList.length;
+
+    const clientPerformance = await Promise.all(
+      userList.map(async (u) => {
+        const attempts = await db.select().from(challengeAttempts).where(eq(challengeAttempts.userId, u.id));
+        const verifications = await db.select().from(wakeUpVerifications).where(eq(wakeUpVerifications.userId, u.id));
+        const uHabits = await db.select().from(habits).where(eq(habits.userId, u.id));
+        const uSnoozes = await db.select().from(snoozeLogs).where(eq(snoozeLogs.userId, u.id));
+
+        const attemptsCount = attempts.length;
+        const correctCount = attempts.filter((a) => a.isCorrect).length;
+        const acc = attemptsCount > 0 ? Math.round((correctCount / attemptsCount) * 100) : null;
+
+        const verifiedCount = verifications.filter((v) => v.wakeUpVerified).length;
+        const comp = verifications.length > 0 ? Math.round((verifiedCount / verifications.length) * 100) : null;
+
+        const totalSnoozes = uSnoozes.reduce((sum, s) => sum + (s.snoozeCount || 1), 0);
+        const streak = uHabits.length > 0 ? Math.max(...uHabits.map((h) => h.currentStreak || 0), 0) : 0;
+
+        let status = 'No data yet';
+        if (attemptsCount > 0 || verifications.length > 0) {
+          if (totalSnoozes > 3 || (acc !== null && acc < 60)) {
+            status = 'Attention Needed';
+          } else if (acc !== null && acc >= 85) {
+            status = 'Optimal';
+          } else {
+            status = 'Good';
+          }
+        }
+
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          streak: attemptsCount > 0 || verifications.length > 0 ? streak : 'No data yet',
+          compliance: comp !== null ? `${comp}%` : 'No data yet',
+          challengeCompletion: attemptsCount > 0 ? `${attemptsCount} attempts` : 'No data yet',
+          challengeAccuracy: acc !== null ? `${acc}%` : 'No data yet',
+          status,
+        };
+      })
+    );
 
     res.status(200).json({
       success: true,
@@ -126,94 +135,68 @@ export const getCoachDashboard = async (req: Request, res: Response): Promise<vo
         email: req.user?.email,
         clientPerformance,
         summaryMetrics: {
-          avgCompletionRate: '91%',
-          avgAccuracy: '86%',
           assignedClientsCount: totalUsersCount,
         },
         dashboardInfo: {
           title: 'Coach Supervision Panel',
           assignedTraineesCount: totalUsersCount,
-          activeSchedules: Math.max(1, Math.floor(totalUsersCount * 0.7)),
-          habitCompliance: habitComplianceRate,
-          wakeupConsistency: wakeupConsistency,
-          coachingAlerts: 'All trainee schedules operational',
         },
       },
     });
-  } catch (_err) {
-    res.status(200).json({
-      success: true,
-      message: 'Coach Dashboard',
-      data: {
-        clientPerformance: [],
-        summaryMetrics: { avgCompletionRate: '91%', avgAccuracy: '86%', assignedClientsCount: 12 },
-        dashboardInfo: { assignedTraineesCount: 12, habitCompliance: '92%', wakeupConsistency: '88%' },
-      },
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error fetching coach dashboard',
     });
   }
 };
 
 export const getAdminDashboard = async (req: Request, res: Response): Promise<void> => {
   try {
-    let totalUsersCount = 142;
-    let totalCoachesCount = 18;
-    let activeAlarmsCount = 84;
-    let habitCount = 312;
-    let totalChallengesCount = 48;
-    let totalAttemptsCount = 310;
-    let avgHabitScore = 82;
-    let avgWakeUpConsistency = 88;
-    let avgChallengeAccuracy = 86;
-    let avgSnoozeRate = 18; // %
-    let activeUsersCount = 118;
+    const dbUsers = await db.select().from(users);
+    const totalUsersCount = dbUsers.length;
+    const totalCoachesCount = dbUsers.filter((u) => u.role === 'coach').length;
+    const activeUsersCount = dbUsers.filter((u) => u.status === 'active').length;
 
-    if (await isDbConnected()) {
-      try {
-        const dbUsers = await db.select().from(users);
-        if (dbUsers.length > 0) {
-          totalUsersCount = dbUsers.length;
-          totalCoachesCount = dbUsers.filter((u) => u.role === 'coach').length || 2;
-          activeUsersCount = Math.max(1, Math.round(totalUsersCount * 0.85));
-        }
+    const dbAlarms = await db.select().from(alarms);
+    const activeAlarmsCount = dbAlarms.filter((a) => a.activeStatus).length;
 
-        const dbAlarms = await db.select().from(alarms);
-        if (dbAlarms.length > 0) {
-          activeAlarmsCount = dbAlarms.filter((a) => a.activeStatus).length;
-        }
+    const dbHabits = await db.select().from(habits);
+    const habitCount = dbHabits.length;
 
-        const dbHabits = await db.select().from(habits);
-        if (dbHabits.length > 0) {
-          habitCount = dbHabits.length;
-        }
+    const dbChallenges = await db.select().from(challenges);
+    const totalChallengesCount = dbChallenges.length;
 
-        const dbAttempts = await db.select().from(challengeAttempts);
-        if (dbAttempts.length > 0) {
-          totalAttemptsCount = dbAttempts.length;
-          const correct = dbAttempts.filter((a) => a.isCorrect).length;
-          avgChallengeAccuracy = Math.round((correct / totalAttemptsCount) * 100);
-        }
+    const dbAttempts = await db.select().from(challengeAttempts);
+    const totalAttemptsCount = dbAttempts.length;
+    const correctAttemptsCount = dbAttempts.filter((a) => a.isCorrect).length;
+    const avgChallengeAccuracy = totalAttemptsCount > 0
+      ? Math.round((correctAttemptsCount / totalAttemptsCount) * 100)
+      : null;
 
-        const dbVerifications = await db.select().from(wakeUpVerifications);
-        if (dbVerifications.length > 0) {
-          const verified = dbVerifications.filter((v) => v.wakeUpVerified).length;
-          avgWakeUpConsistency = Math.round((verified / dbVerifications.length) * 100);
-        }
+    const dbVerifications = await db.select().from(wakeUpVerifications);
+    const totalVerificationsCount = dbVerifications.length;
+    const verifiedWakeUpsCount = dbVerifications.filter((v) => v.wakeUpVerified).length;
+    const avgWakeUpConsistency = totalVerificationsCount > 0
+      ? Math.round((verifiedWakeUpsCount / totalVerificationsCount) * 100)
+      : null;
 
-        const dbSnoozes = await db.select().from(snoozeLogs);
-        if (dbSnoozes.length > 0) {
-          const totalSnoozes = dbSnoozes.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0);
-          avgSnoozeRate = Math.min(100, Math.round((totalSnoozes / (dbUsers.length || 1)) * 10));
-        }
-      } catch (_dbErr) {}
+    const dbSnoozes = await db.select().from(snoozeLogs);
+    const totalSnoozesCount = dbSnoozes.reduce((acc, curr) => acc + (curr.snoozeCount || 1), 0);
+    const avgSnoozeRate = totalUsersCount > 0
+      ? Math.min(100, Math.round((totalSnoozesCount / totalUsersCount) * 10))
+      : 0;
+
+    let avgHabitScore: number | null = null;
+    if (avgWakeUpConsistency !== null && avgChallengeAccuracy !== null) {
+      const calculatedScore = calculateHabitScore({
+        wakeUpConsistency: avgWakeUpConsistency,
+        challengeCompletion: avgChallengeAccuracy,
+        snoozeReduction: Math.max(0, 100 - avgSnoozeRate),
+        sleepAdherence: 80,
+      });
+      avgHabitScore = calculatedScore.overall_score;
     }
-
-    const calculatedScore = calculateHabitScore({
-      wakeUpConsistency: avgWakeUpConsistency,
-      challengeCompletion: avgChallengeAccuracy,
-      snoozeReduction: Math.max(0, 100 - avgSnoozeRate),
-      sleepAdherence: 82,
-    });
-    avgHabitScore = calculatedScore.overall_score;
 
     res.status(200).json({
       success: true,
@@ -226,23 +209,22 @@ export const getAdminDashboard = async (req: Request, res: Response): Promise<vo
           totalUsers: totalUsersCount,
           activeUsers: activeUsersCount,
           avgHabitScore,
-          avgWakeUpConsistency: `${avgWakeUpConsistency}%`,
-          avgChallengeAccuracy: `${avgChallengeAccuracy}%`,
+          avgWakeUpConsistency: avgWakeUpConsistency !== null ? `${avgWakeUpConsistency}%` : 'No data yet',
+          avgChallengeAccuracy: avgChallengeAccuracy !== null ? `${avgChallengeAccuracy}%` : 'No data yet',
           avgSnoozeRate: `${avgSnoozeRate}%`,
-          habitAdherence: `${Math.round((habitCount / (totalUsersCount || 1)) * 25)}%`,
         },
         challengeStats: {
           totalChallenges: totalChallengesCount,
           totalChallengeAttempts: totalAttemptsCount,
-          platformAccuracy: `${avgChallengeAccuracy}%`,
+          platformAccuracy: avgChallengeAccuracy !== null ? `${avgChallengeAccuracy}%` : 'No data yet',
         },
         dashboardInfo: {
           title: 'System Management & Platform Overview',
           totalUsers: totalUsersCount,
           activeUsers: activeUsersCount,
-          avgHabitScore,
-          avgWakeUpConsistency: `${avgWakeUpConsistency}%`,
-          avgChallengeAccuracy: `${avgChallengeAccuracy}%`,
+          avgHabitScore: avgHabitScore !== null ? avgHabitScore : 'No data yet',
+          avgWakeUpConsistency: avgWakeUpConsistency !== null ? `${avgWakeUpConsistency}%` : 'No data yet',
+          avgChallengeAccuracy: avgChallengeAccuracy !== null ? `${avgChallengeAccuracy}%` : 'No data yet',
           avgSnoozeRate: `${avgSnoozeRate}%`,
           totalCoaches: totalCoachesCount,
           totalActiveAlarms: activeAlarmsCount,
@@ -251,30 +233,17 @@ export const getAdminDashboard = async (req: Request, res: Response): Promise<vo
           totalAttempts: totalAttemptsCount,
           systemHealth: '100% Operational',
           rolesDistribution: {
-            users: Math.max(1, totalUsersCount - totalCoachesCount - 1),
+            users: dbUsers.filter((u) => u.role === 'user').length,
             coaches: totalCoachesCount,
-            admins: 1,
+            admins: dbUsers.filter((u) => u.role === 'admin').length,
           },
         },
       },
     });
-  } catch (_err) {
-    res.status(200).json({
-      success: true,
-      message: 'Admin Dashboard',
-      data: {
-        platformMetrics: {
-          totalUsers: 142,
-          activeUsers: 118,
-          avgHabitScore: 82,
-          avgWakeUpConsistency: '88%',
-          avgChallengeAccuracy: '86%',
-          avgSnoozeRate: '18%',
-          habitAdherence: '92%',
-        },
-        challengeStats: { totalChallenges: 48, totalChallengeAttempts: 310, platformAccuracy: '86%' },
-        dashboardInfo: { totalUsers: 142, totalCoaches: 18, totalActiveAlarms: 84, totalHabits: 312, systemHealth: '100% Operational' },
-      },
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error fetching admin dashboard',
     });
   }
 };
@@ -288,8 +257,7 @@ export const getCoachUserDetail = async (req: Request<{ targetUserId: string }>,
     const overview = await getOverviewAnalytics(targetUserId);
     const wakeup = await getWakeUpAnalytics(targetUserId);
     const challenges = await getChallengeAnalytics(targetUserId);
-    const habits = await getHabitAnalytics(targetUserId);
-
+    const habitsAnalyticsData = await getHabitAnalytics(targetUserId);
     const adaptive = await getAdaptiveDifficultyForUser(targetUserId);
 
     res.status(200).json({
@@ -300,7 +268,7 @@ export const getCoachUserDetail = async (req: Request<{ targetUserId: string }>,
         overview,
         wakeup,
         challenges,
-        habits,
+        habits: habitsAnalyticsData,
         adaptiveDifficulty: adaptive,
       },
     });

@@ -64,54 +64,27 @@ export const UserAnalytics: React.FC = () => {
     fetchAnalytics();
   }, []);
 
-  const hasData = overview?.hasSufficientData ?? true;
+  const hasData = overview?.hasSufficientData ?? false;
 
   const weeklyScoreData = overview?.weeklyTrend?.map((t: any) => ({
     label: t.day,
     value: t.habitScore,
-  })) || [
-    { label: 'Mon', value: 78 },
-    { label: 'Tue', value: 82 },
-    { label: 'Wed', value: 85 },
-    { label: 'Thu', value: 80 },
-    { label: 'Fri', value: 88 },
-    { label: 'Sat', value: 92 },
-    { label: 'Sun', value: 89 },
-  ];
+  })) || [];
 
   const wakeupDelayData = wakeupData?.wakeUpHistory?.map((w: any) => ({
     label: w.date ? w.date.slice(5) : 'Day',
     value: w.delayMinutes,
-  })) || [
-    { label: '08-16', value: 8 },
-    { label: '08-17', value: 0 },
-    { label: '08-18', value: 5 },
-    { label: '08-19', value: 1 },
-    { label: '08-20', value: 2 },
-  ];
+  })) || [];
 
   const challengeAccuracyData = challengeData?.byCategory?.map((c: any) => ({
     label: c.type.toUpperCase(),
     value: c.accuracy,
-  })) || [
-    { label: 'MATH', value: 88 },
-    { label: 'LOGIC', value: 80 },
-    { label: 'MEMORY', value: 75 },
-    { label: 'RIDDLE', value: 100 },
-  ];
+  })) || [];
 
   const snoozeTrendData = snoozeData?.snoozePatternByDay?.map((s: any) => ({
     label: s.day,
     value: s.snoozeCount,
-  })) || [
-    { label: 'Mon', value: 1 },
-    { label: 'Tue', value: 0 },
-    { label: 'Wed', value: 0 },
-    { label: 'Thu', value: 1 },
-    { label: 'Fri', value: 0 },
-    { label: 'Sat', value: 0 },
-    { label: 'Sun', value: 0 },
-  ];
+  })) || [];
 
   const getScoreCategoryBadge = (category?: string) => {
     switch (category) {
@@ -122,8 +95,9 @@ export const UserAnalytics: React.FC = () => {
       case 'Developing':
         return <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">Developing (40-59)</span>;
       case 'Needs Improvement':
-      default:
         return <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/30">Needs Improvement (0-39)</span>;
+      default:
+        return <span className="px-2.5 py-1 text-xs font-extrabold rounded-lg bg-slate-800 text-slate-400 border border-slate-700">No data yet</span>;
     }
   };
 
@@ -175,11 +149,11 @@ export const UserAnalytics: React.FC = () => {
               <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400">Weighted Habit Score</span>
               <FiAward className="w-5 h-5 text-cyan-400" />
             </div>
-            <div className="text-4xl font-black text-white">
-              {overview?.habitScore?.overall_score ?? 86}<span className="text-sm font-medium text-slate-400">/100</span>
+            <div className="text-3xl font-black text-white">
+              {hasData ? `${overview?.habitScore?.overall_score} / 100` : 'No data yet'}
             </div>
             <div className="mt-3">
-              {getScoreCategoryBadge(overview?.habitScore?.score_category || 'Good')}
+              {getScoreCategoryBadge(hasData ? overview?.habitScore?.score_category : undefined)}
             </div>
             <div className="text-[10px] text-slate-400 mt-2">
               Formula: 35% Wake + 25% Challenge + 20% Snooze + 20% Sleep
@@ -192,9 +166,11 @@ export const UserAnalytics: React.FC = () => {
               <span className="text-xs font-semibold uppercase tracking-wider">Wake-Up Consistency</span>
               <FiCheckCircle className="w-5 h-5 text-cyan-400" />
             </div>
-            <div className="text-3xl font-black text-white">{overview?.wakeUpConsistency || 88}%</div>
+            <div className="text-3xl font-black text-white">
+              {hasData ? `${overview?.wakeUpConsistency}%` : 'No data yet'}
+            </div>
             <div className="text-xs text-cyan-400 font-semibold">Weight: 35%</div>
-            <div className="text-[11px] text-slate-400">Avg Delay: {wakeupData?.averageWakeUpDelayMinutes || 2.8} mins</div>
+            <div className="text-[11px] text-slate-400">Avg Delay: {hasData ? `${wakeupData?.averageWakeUpDelayMinutes || 0} mins` : 'No data yet'}</div>
           </div>
 
           {/* Challenge Completion & Accuracy */}
@@ -203,9 +179,11 @@ export const UserAnalytics: React.FC = () => {
               <span className="text-xs font-semibold uppercase tracking-wider">Challenge Accuracy</span>
               <FiZap className="w-5 h-5 text-indigo-400" />
             </div>
-            <div className="text-3xl font-black text-white">{overview?.challengeAccuracy || 85}%</div>
+            <div className="text-3xl font-black text-white">
+              {hasData ? `${overview?.challengeAccuracy}%` : 'No data yet'}
+            </div>
             <div className="text-xs text-indigo-400 font-semibold">Weight: 25%</div>
-            <div className="text-[11px] text-slate-400">Avg Speed: {challengeData?.averageTimeSeconds || 6.8}s</div>
+            <div className="text-[11px] text-slate-400">Avg Speed: {hasData ? `${challengeData?.averageTimeSeconds || 0}s` : 'No data yet'}</div>
           </div>
 
           {/* Snooze Reduction */}
@@ -214,9 +192,11 @@ export const UserAnalytics: React.FC = () => {
               <span className="text-xs font-semibold uppercase tracking-wider">Snooze Reduction</span>
               <FiMoon className="w-5 h-5 text-purple-400" />
             </div>
-            <div className="text-3xl font-black text-white">{overview?.snoozeReductionRate || 82}%</div>
+            <div className="text-3xl font-black text-white">
+              {hasData ? `${overview?.snoozeReductionRate}%` : 'No data yet'}
+            </div>
             <div className="text-xs text-purple-400 font-semibold">Weight: 20%</div>
-            <div className="text-[11px] text-slate-400">{snoozeData?.totalSnoozesLast7Days || 2} snoozes this week</div>
+            <div className="text-[11px] text-slate-400">{hasData ? `${snoozeData?.totalSnoozesLast7Days || 0} snoozes this week` : 'No data yet'}</div>
           </div>
 
           {/* Sleep Schedule Adherence */}
@@ -225,9 +205,11 @@ export const UserAnalytics: React.FC = () => {
               <span className="text-xs font-semibold uppercase tracking-wider">Sleep Adherence</span>
               <FiTarget className="w-5 h-5 text-emerald-400" />
             </div>
-            <div className="text-3xl font-black text-white">{overview?.sleepAdherenceRate || 85}%</div>
+            <div className="text-3xl font-black text-white">
+              {hasData ? `${overview?.sleepAdherenceRate}%` : 'No data yet'}
+            </div>
             <div className="text-xs text-emerald-400 font-semibold">Weight: 20%</div>
-            <div className="text-[11px] text-slate-400">Streak: {habitData?.averageStreak || 12} Days</div>
+            <div className="text-[11px] text-slate-400">Streak: {hasData ? `${habitData?.averageStreak || 0} Days` : 'No data yet'}</div>
           </div>
         </div>
 

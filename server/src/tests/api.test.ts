@@ -112,6 +112,7 @@ async function runAllUnitAndIntegrationTests() {
   // 3. Recommendation Engine Tests
   await test('Recommendation Engine — Rule Triggering & Created At Timestamps', () => {
     const recs = generateRecommendations({
+      hasSufficientData: true,
       snoozeCountLast7Days: 4,
       challengeAccuracy: 60,
       wakeUpConsistency: 65,

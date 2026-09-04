@@ -93,14 +93,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const res = await authService.register(payload);
     if (res.success && res.data) {
       const { user, token } = res.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-      setState({
-        user,
-        token,
-        isAuthenticated: true,
-        isLoading: false,
-      });
+      if (token) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        setState({
+          user,
+          token,
+          isAuthenticated: true,
+          isLoading: false,
+        });
+      }
       return user.role;
     }
     throw new Error(res.message || 'Registration failed');

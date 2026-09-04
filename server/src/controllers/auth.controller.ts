@@ -26,104 +26,63 @@ export const register = async (
 
     console.log(`[Auth Debug] Registration attempt for email: ${normalizedEmail}, role: ${role}`);
 
-    const isDbConnected = await checkDatabaseConnection();
+    const targetRole = role || 'user';
+    // If Coach registration, default status to 'pending' for Admin approval workflow; otherwise 'active'
+    const accountStatus: 'active' | 'pending' | 'rejected' = targetRole === 'coach' ? 'pending' : 'active';
 
-    if (isDbConnected) {
-      try {
-        const existingUsers = await db.select().from(users).where(eq(users.email, normalizedEmail));
-        if (existingUsers.length > 0) {
-          throw new AppError('Email address is already registered', 400);
-        }
-
-        const passwordHash = await hashPassword(password);
-        const [newUser] = await db
-          .insert(users)
-          .values({
-            name,
-            email: normalizedEmail,
-            passwordHash,
-            role: role || 'user',
-          })
-          .returning();
-
-        try {
-          await db.insert(profiles).values({
-            userId: newUser.id,
-            fullName: name,
-            email: normalizedEmail,
-            wakeUpTime: '07:00 AM',
-            sleepTime: '11:00 PM',
-            timezone: 'UTC',
-            productivityGoal: 'Maintain peak morning focus',
-            difficultyPreference: 'Moderate',
-          });
-        } catch (_pErr) {}
-
-        const token = generateToken({
-          userId: newUser.id,
-          email: newUser.email,
-          role: newUser.role,
-        });
-
-        res.status(201).json({
-          success: true,
-          message: 'Account registered successfully',
-          data: {
-            user: {
-              id: newUser.id,
-              name: newUser.name,
-              email: newUser.email,
-              role: newUser.role,
-              createdAt: newUser.createdAt,
-            },
-            token,
-          },
-        });
-        return;
-      } catch (dbErr: any) {
-        if (dbErr instanceof AppError) throw dbErr;
-        if (dbErr?.code === '23505') {
-          throw new AppError('Email address is already registered', 400);
-        }
-        console.warn('[Auth Debug] PostgreSQL registration query warning:', dbErr?.message || dbErr);
-      }
-    }
-
-    // Fallback mode registration
-    console.log('[Auth Debug] Using Fallback Mode for Registration');
-    if (devFallbackUsers[normalizedEmail]) {
+    const existingUsers = await db.select().from(users).where(eq(users.email, normalizedEmail));
+    if (existingUsers.length > 0) {
       throw new AppError('Email address is already registered', 400);
     }
 
     const passwordHash = await hashPassword(password);
-    const mockUser = {
-      id: `usr-${Date.now()}`,
-      name,
-      email: normalizedEmail,
-      passwordHash,
-      role: role || 'user',
-      createdAt: new Date().toISOString(),
-    };
-    devFallbackUsers[normalizedEmail] = mockUser;
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        name,
+        email: normalizedEmail,
+        passwordHash,
+        role: targetRole,
+        status: accountStatus,
+      })
+      .returning();
+
+    try {
+      await db.insert(profiles).values({
+        userId: newUser.id,
+        fullName: name,
+        email: normalizedEmail,
+        wakeUpTime: '07:00 AM',
+        sleepTime: '11:00 PM',
+        timezone: 'UTC',
+        productivityGoal: 'Maintain peak morning focus',
+        difficultyPreference: 'Moderate',
+      });
+    } catch (_pErr) {}
 
     const token = generateToken({
-      userId: mockUser.id,
-      email: mockUser.email,
-      role: mockUser.role,
+      userId: newUser.id,
+      email: newUser.email,
+      role: newUser.role,
     });
+
+    const isPending = newUser.status === 'pending';
 
     res.status(201).json({
       success: true,
-      message: 'Account registered successfully',
+      message: isPending
+        ? 'Coach registration submitted successfully. Account is pending Admin approval.'
+        : 'Account registered successfully',
       data: {
         user: {
-          id: mockUser.id,
-          name: mockUser.name,
-          email: mockUser.email,
-          role: mockUser.role,
-          createdAt: mockUser.createdAt,
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          role: newUser.role,
+          status: newUser.status,
+          createdAt: newUser.createdAt,
         },
-        token,
+        token: isPending ? undefined : token,
       },
     });
   } catch (error) {
@@ -133,7 +92,7 @@ export const register = async (
 };
 
 /**
- * Login Controller with Role Validation
+ * Login Controller with Role & Status Validation
  */
 export const login = async (
   req: Request<{}, {}, LoginInput>,
@@ -146,80 +105,54 @@ export const login = async (
 
     console.log(`[Auth Debug] Login attempt for email: ${normalizedEmail}, selectedRole: ${selectedRole}`);
 
-    let authenticatedUser: { id: string; name: string; email: string; passwordHash: string; role: any; createdAt: any } | null = null;
-    let isPasswordValid = false;
+    const [dbUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail));
 
-    const isDbConnected = await checkDatabaseConnection();
-
-    if (isDbConnected) {
-      try {
-        const [dbUser] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, normalizedEmail));
-
-        if (dbUser) {
-          authenticatedUser = {
-            id: dbUser.id,
-            name: dbUser.name,
-            email: dbUser.email,
-            passwordHash: dbUser.passwordHash || '',
-            role: dbUser.role,
-            createdAt: dbUser.createdAt,
-          };
-          if (dbUser.passwordHash) {
-            isPasswordValid = await comparePassword(password, dbUser.passwordHash);
-          }
-        }
-      } catch (dbErr: any) {
-        console.warn('[Auth Debug] PostgreSQL login query warning:', dbErr?.message);
-      }
-    }
-
-    // Check Fallback / Development Dummy Credentials if DB not connected or user not found in DB
-    if (!authenticatedUser) {
-      console.log('[Auth Debug] Checking Fallback Credentials...');
-      const devUser = devFallbackUsers[normalizedEmail];
-      if (devUser) {
-        authenticatedUser = devUser;
-        if (password === 'Admin@123' || password === 'Coach@123' || password === 'User@123') {
-          isPasswordValid = true;
-        } else {
-          isPasswordValid = await comparePassword(password, devUser.passwordHash);
-        }
-      }
-    }
-
-    // 1. Validate User Existence and Password Match
-    if (!authenticatedUser || !isPasswordValid) {
+    if (!dbUser || !dbUser.passwordHash) {
       throw new AppError('Invalid email or password', 401);
     }
 
-    // 2. Validate Selected Role against User's Stored Database Role
-    if (selectedRole && selectedRole !== authenticatedUser.role) {
-      console.warn(`[Auth Debug] Role Mismatch! Selected: ${selectedRole}, Stored: ${authenticatedUser.role}`);
+    const isPasswordValid = await comparePassword(password, dbUser.passwordHash);
+    if (!isPasswordValid) {
+      throw new AppError('Invalid email or password', 401);
+    }
+
+    // Validate Selected Role against Stored Database Role
+    if (selectedRole && selectedRole !== dbUser.role) {
+      console.warn(`[Auth Debug] Role Mismatch! Selected: ${selectedRole}, Stored: ${dbUser.role}`);
       throw new AppError('The selected role does not match your account.', 400);
     }
 
-    // 3. Issue JWT Token
+    // Check account status
+    if (dbUser.status === 'pending') {
+      throw new AppError('Your account is pending approval by an Administrator.', 403);
+    }
+    if (dbUser.status === 'rejected') {
+      throw new AppError('Your account request has been rejected by an Administrator.', 403);
+    }
+
+    // Issue JWT Token
     const token = generateToken({
-      userId: authenticatedUser.id,
-      email: authenticatedUser.email,
-      role: authenticatedUser.role,
+      userId: dbUser.id,
+      email: dbUser.email,
+      role: dbUser.role,
     });
 
-    console.log(`[Auth Debug] Login Successful for ${authenticatedUser.email} [${authenticatedUser.role}]`);
+    console.log(`[Auth Debug] Login Successful for ${dbUser.email} [${dbUser.role}]`);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
         user: {
-          id: authenticatedUser.id,
-          name: authenticatedUser.name,
-          email: authenticatedUser.email,
-          role: authenticatedUser.role,
-          createdAt: authenticatedUser.createdAt,
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role,
+          status: dbUser.status,
+          createdAt: dbUser.createdAt,
         },
         token,
       },

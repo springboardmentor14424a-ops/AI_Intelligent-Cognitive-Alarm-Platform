@@ -1,46 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { randomUUID } from 'crypto';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { habits } from '../db/schema/habits.js';
+import { habitCompletions } from '../db/schema/habitCompletions.js';
 import { AppError } from '../middleware/error.middleware.js';
 import { CreateHabitInput, UpdateHabitInput } from '../schemas/habit.schema.js';
-
-// In-memory fallback store for habits per user
-const mockHabitsStore: Record<string, any[]> = {
-  'demo-user-id': [
-    {
-      id: 'habit-1',
-      userId: 'demo-user-id',
-      habitName: 'Morning Water Hydration (500ml)',
-      targetDays: 7,
-      currentStreak: 5,
-      isEnabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'habit-2',
-      userId: 'demo-user-id',
-      habitName: '10-Minute Starlight Stretching',
-      targetDays: 5,
-      currentStreak: 3,
-      isEnabled: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'habit-3',
-      userId: 'demo-user-id',
-      habitName: 'Digital Screen Sunset at 10 PM',
-      targetDays: 7,
-      currentStreak: 12,
-      isEnabled: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ],
-};
 
 export const getHabits = async (
   req: Request,
@@ -51,33 +15,15 @@ export const getHabits = async (
     const userId = req.user?.userId;
     if (!userId) throw new AppError('Unauthorized', 401);
 
-    if (!mockHabitsStore[userId]) {
-      mockHabitsStore[userId] = [
-        {
-          id: `habit-${Date.now()}-1`,
-          userId,
-          habitName: 'Early Morning Hydration',
-          targetDays: 7,
-          currentStreak: 4,
-          isEnabled: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-      ];
-    }
-
-    // Try DB query
-    try {
-      const dbHabits = await db.select().from(habits).where(eq(habits.userId, userId));
-      if (dbHabits.length > 0) {
-        res.status(200).json({ success: true, data: { habits: dbHabits } });
-        return;
-      }
-    } catch (_err) {}
+    const userHabits = await db
+      .select()
+      .from(habits)
+      .where(eq(habits.userId, userId))
+      .orderBy(desc(habits.createdAt));
 
     res.status(200).json({
       success: true,
-      data: { habits: mockHabitsStore[userId] },
+      data: { habits: userHabits },
     });
   } catch (error) {
     next(error);
@@ -94,20 +40,11 @@ export const getHabitById = async (
     const { id } = req.params;
     if (!userId) throw new AppError('Unauthorized', 401);
 
-    // Try DB
-    try {
-      const [dbHabit] = await db
-        .select()
-        .from(habits)
-        .where(and(eq(habits.id, id), eq(habits.userId, userId)));
-      if (dbHabit) {
-        res.status(200).json({ success: true, data: { habit: dbHabit } });
-        return;
-      }
-    } catch (_err) {}
+    const [habit] = await db
+      .select()
+      .from(habits)
+      .where(and(eq(habits.id, id), eq(habits.userId, userId)));
 
-    const userHabits = mockHabitsStore[userId] || [];
-    const habit = userHabits.find((h) => h.id === id);
     if (!habit) {
       throw new AppError('Habit not found', 404);
     }
@@ -132,33 +69,16 @@ export const createHabit = async (
 
     const { habitName, targetDays, currentStreak, isEnabled } = req.body;
 
-    const newHabit = {
-      id: randomUUID(),
-      userId,
-      habitName,
-      targetDays: targetDays ?? 7,
-      currentStreak: currentStreak ?? 0,
-      isEnabled: isEnabled !== undefined ? isEnabled : true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (!mockHabitsStore[userId]) {
-      mockHabitsStore[userId] = [];
-    }
-    mockHabitsStore[userId].unshift(newHabit);
-
-    // Try DB insert
-    try {
-      await db.insert(habits).values({
-        id: newHabit.id,
+    const [newHabit] = await db
+      .insert(habits)
+      .values({
         userId,
         habitName,
-        targetDays: newHabit.targetDays,
-        currentStreak: newHabit.currentStreak,
-        isEnabled: newHabit.isEnabled,
-      });
-    } catch (_err) {}
+        targetDays: targetDays ?? 7,
+        currentStreak: currentStreak ?? 0,
+        isEnabled: isEnabled !== undefined ? isEnabled : true,
+      })
+      .returning();
 
     res.status(201).json({
       success: true,
@@ -182,28 +102,31 @@ export const updateHabit = async (
 
     const updates = req.body;
 
-    if (!mockHabitsStore[userId]) mockHabitsStore[userId] = [];
+    const [existing] = await db
+      .select()
+      .from(habits)
+      .where(and(eq(habits.id, id), eq(habits.userId, userId)));
 
-    const index = mockHabitsStore[userId].findIndex((h) => h.id === id);
-    if (index === -1) {
+    if (!existing) {
       throw new AppError('Habit not found', 404);
     }
 
-    mockHabitsStore[userId][index] = {
-      ...mockHabitsStore[userId][index],
-      ...updates,
-      updatedAt: new Date().toISOString(),
-    };
+    // Check if streak was updated (habit completed for today)
+    if (updates.currentStreak !== undefined && updates.currentStreak > existing.currentStreak) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      await db.insert(habitCompletions).values({
+        userId,
+        habitId: id,
+        completionDate: todayStr,
+        completionStatus: 'completed',
+      });
+    }
 
-    const updatedHabit = mockHabitsStore[userId][index];
-
-    // Try DB update
-    try {
-      await db
-        .update(habits)
-        .set({ ...updates, updatedAt: new Date() })
-        .where(and(eq(habits.id, id), eq(habits.userId, userId)));
-    } catch (_err) {}
+    const [updatedHabit] = await db
+      .update(habits)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(and(eq(habits.id, id), eq(habits.userId, userId)))
+      .returning();
 
     res.status(200).json({
       success: true,
@@ -225,27 +148,25 @@ export const toggleHabitStatus = async (
     const { id } = req.params;
     if (!userId) throw new AppError('Unauthorized', 401);
 
-    if (!mockHabitsStore[userId]) mockHabitsStore[userId] = [];
+    const [existing] = await db
+      .select()
+      .from(habits)
+      .where(and(eq(habits.id, id), eq(habits.userId, userId)));
 
-    const habit = mockHabitsStore[userId].find((h) => h.id === id);
-    if (!habit) {
+    if (!existing) {
       throw new AppError('Habit not found', 404);
     }
 
-    habit.isEnabled = !habit.isEnabled;
-    habit.updatedAt = new Date().toISOString();
-
-    try {
-      await db
-        .update(habits)
-        .set({ isEnabled: habit.isEnabled, updatedAt: new Date() })
-        .where(and(eq(habits.id, id), eq(habits.userId, userId)));
-    } catch (_err) {}
+    const [updatedHabit] = await db
+      .update(habits)
+      .set({ isEnabled: !existing.isEnabled, updatedAt: new Date() })
+      .where(and(eq(habits.id, id), eq(habits.userId, userId)))
+      .returning();
 
     res.status(200).json({
       success: true,
-      message: `Habit ${habit.isEnabled ? 'enabled' : 'disabled'} successfully`,
-      data: { habit },
+      message: `Habit ${updatedHabit.isEnabled ? 'enabled' : 'disabled'} successfully`,
+      data: { habit: updatedHabit },
     });
   } catch (error) {
     next(error);
@@ -262,19 +183,14 @@ export const deleteHabit = async (
     const { id } = req.params;
     if (!userId) throw new AppError('Unauthorized', 401);
 
-    if (!mockHabitsStore[userId]) mockHabitsStore[userId] = [];
+    const deleted = await db
+      .delete(habits)
+      .where(and(eq(habits.id, id), eq(habits.userId, userId)))
+      .returning();
 
-    const initialLength = mockHabitsStore[userId].length;
-    mockHabitsStore[userId] = mockHabitsStore[userId].filter((h) => h.id !== id);
-
-    if (mockHabitsStore[userId].length === initialLength) {
+    if (deleted.length === 0) {
       throw new AppError('Habit not found', 404);
     }
-
-    // Try DB delete
-    try {
-      await db.delete(habits).where(and(eq(habits.id, id), eq(habits.userId, userId)));
-    } catch (_err) {}
 
     res.status(200).json({
       success: true,
@@ -291,11 +207,25 @@ export const getHabitScore = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const userId = req.user?.userId || 'demo-user-id';
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('Unauthorized', 401);
+
     const { calculateHabitScore } = await import('../services/habitScore.service.js');
     const { getOverviewAnalytics } = await import('../services/behavioralAnalytics.service.js');
 
     const overview = await getOverviewAnalytics(userId);
+    if (!overview.hasSufficientData) {
+      res.status(200).json({
+        success: true,
+        message: 'No data yet',
+        data: {
+          hasSufficientData: false,
+          message: 'Complete more activities to generate insights.',
+        },
+      });
+      return;
+    }
+
     const scoreResult = calculateHabitScore({
       wakeUpConsistency: overview.wakeUpConsistency,
       challengeCompletion: overview.challengeAccuracy,
@@ -306,10 +236,12 @@ export const getHabitScore = async (
     res.status(200).json({
       success: true,
       message: 'Habit Score telemetry calculated',
-      data: scoreResult,
+      data: {
+        hasSufficientData: true,
+        ...scoreResult,
+      },
     });
   } catch (error) {
     next(error);
   }
 };
-

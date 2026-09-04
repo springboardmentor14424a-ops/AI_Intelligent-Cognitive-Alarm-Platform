@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
-import { authService } from '../services/authService';
 import { useToast } from '../components/Toast';
 import { CardSkeleton, TableSkeleton } from '../components/ui/SkeletonLoader';
+import axios from 'axios';
 import {
   FiShield,
   FiUsers,
-  FiServer,
-  FiCpu,
   FiUserCheck,
   FiActivity,
   FiBarChart2,
@@ -17,60 +15,72 @@ import {
   FiRefreshCw,
   FiAward,
   FiClock,
-  FiMoon,
-  FiTarget,
+  FiXCircle,
+  FiCheck,
+  FiX,
+  FiUser,
 } from 'react-icons/fi';
 
 export const AdminDashboard: React.FC = () => {
   const { user } = useAuth();
   const toast = useToast();
 
-  const [data, setData] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [coachesList, setCoachesList] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<'users' | 'coaches'>('users');
 
-  // System Logs Console
-  const systemLogs = [
-    { id: '1', level: 'INFO', message: 'Milestone 3 Adaptive Intelligence Engine active', time: '10:14:02' },
-    { id: '2', level: 'SUCCESS', message: 'Habit Scoring Engine verified 35/25/20/20 formula', time: '10:14:30' },
-    { id: '3', level: 'INFO', message: 'PostgreSQL pool synced recommendations & habit_scores tables', time: '10:15:00' },
-    { id: '4', level: 'SUCCESS', message: 'Platform behavioral analytics telemetry calculated', time: '10:15:22' },
-  ];
-
-  // Registered Accounts Directory
-  const recentUsersList = [
-    { id: 'u1', name: 'Demo User', email: 'user@cognitivealarm.com', role: 'user', habitScore: 86, date: '2026-08-01' },
-    { id: 'u2', name: 'Demo Coach', email: 'coach@cognitivealarm.com', role: 'coach', habitScore: 92, date: '2026-08-01' },
-    { id: 'u3', name: 'Demo Admin', email: 'admin@cognitivealarm.com', role: 'admin', habitScore: 95, date: '2026-08-01' },
-    { id: 'u4', name: 'Sarah Jenkins', email: 'sarah.j@example.com', role: 'user', habitScore: 78, date: '2026-08-02' },
-  ];
-
-  useEffect(() => {
-    fetchAdminTelemetry();
-  }, []);
-
-  const fetchAdminTelemetry = async () => {
+  const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const res = await authService.getDashboardData('admin');
-      if (res.success) {
-        setData(res.data);
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const [statsRes, usersRes, coachesRes] = await Promise.allSettled([
+        axios.get('/api/admin/statistics', { headers }),
+        axios.get('/api/admin/users', { headers }),
+        axios.get('/api/admin/coaches', { headers }),
+      ]);
+
+      if (statsRes.status === 'fulfilled' && statsRes.value.data?.success) {
+        setStats(statsRes.value.data.data);
       }
-    } catch (err: any) {
+      if (usersRes.status === 'fulfilled' && usersRes.value.data?.success) {
+        setUsersList(usersRes.value.data.data.users || []);
+      }
+      if (coachesRes.status === 'fulfilled' && coachesRes.value.data?.success) {
+        setCoachesList(coachesRes.value.data.data.coaches || []);
+      }
+    } catch (_err: any) {
       toast.error('Telemetry Error', 'Failed to load administrative statistics');
     } finally {
       setLoading(false);
     }
   };
 
-  const platformMetrics = data?.platformMetrics || {
-    totalUsers: data?.dashboardInfo?.totalUsers || 142,
-    activeUsers: data?.dashboardInfo?.activeUsers || 118,
-    avgHabitScore: data?.dashboardInfo?.avgHabitScore || 82,
-    avgWakeUpConsistency: data?.dashboardInfo?.avgWakeUpConsistency || '88%',
-    avgChallengeAccuracy: data?.dashboardInfo?.avgChallengeAccuracy || '86%',
-    avgSnoozeRate: data?.dashboardInfo?.avgSnoozeRate || '18%',
-    habitAdherence: '92%',
+  useEffect(() => {
+    fetchAdminData();
+  }, []);
+
+  const handleUpdateCoachStatus = async (coachId: string, status: 'active' | 'rejected') => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.put(
+        `/api/admin/coaches/${coachId}/status`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.data?.success) {
+        toast.success('Coach Updated', `Coach status changed to ${status.toUpperCase()}`);
+        fetchAdminData();
+      }
+    } catch (err: any) {
+      toast.error('Action Failed', err.response?.data?.message || 'Could not update coach status');
+    }
   };
+
+  const pendingCoaches = coachesList.filter((c) => c.status === 'pending');
 
   return (
     <DashboardLayout>
@@ -81,21 +91,21 @@ export const AdminDashboard: React.FC = () => {
           <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 mb-2">
-                <FiShield className="w-3.5 h-3.5" /> Platform Administration • Milestone 3
+                <FiShield className="w-3.5 h-3.5" /> Platform Administration
               </div>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">
                 Admin Console - {user?.name}
               </h1>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Platform-level Behavioral Analytics, Aggregate Telemetry & System Health
+                Real-time Aggregate PostgreSQL Telemetry, Coach Approval Workflow & Accounts Supervision
               </p>
             </div>
 
             <div className="flex items-center gap-2">
               <button
                 onClick={() => {
-                  fetchAdminTelemetry();
-                  toast.success('Refreshed', 'Telemetry synced');
+                  fetchAdminData();
+                  toast.success('Refreshed', 'Synced from PostgreSQL');
                 }}
                 className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-all"
               >
@@ -105,7 +115,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 7 Spec-compliant Aggregated Platform Metric Cards */}
+        {/* Aggregated Real Platform Metric Cards */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <CardSkeleton />
@@ -118,16 +128,28 @@ export const AdminDashboard: React.FC = () => {
             {/* 1. Total & Active Users */}
             <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Total & Active Users</span>
+                <span className="text-xs font-semibold text-slate-400">Total Registered Accounts</span>
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center">
                   <FiUsers className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-white">{platformMetrics.totalUsers} Total</p>
-              <p className="text-[11px] text-emerald-400 font-semibold">{platformMetrics.activeUsers} Active Users Currently</p>
+              <p className="text-2xl font-bold text-white">{stats?.totalUsers ?? usersList.length} Users</p>
+              <p className="text-[11px] text-emerald-400 font-semibold">{stats?.activeUsers ?? usersList.length} Active Accounts</p>
             </div>
 
-            {/* 2. Average Habit Score */}
+            {/* 2. Total & Pending Coaches */}
+            <div className="glass-panel p-5 rounded-2xl border border-amber-500/30 bg-amber-950/10 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-amber-400">Coaches & Pending Approvals</span>
+                <div className="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                  <FiUserCheck className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-amber-300">{stats?.totalCoaches ?? coachesList.length} Total Coaches</p>
+              <p className="text-[11px] text-rose-400 font-semibold">{pendingCoaches.length} Pending Approval</p>
+            </div>
+
+            {/* 3. Platform Avg Habit Score */}
             <div className="glass-panel p-5 rounded-2xl border border-cyan-500/30 bg-cyan-950/20 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-cyan-400">Platform Avg Habit Score</span>
@@ -135,146 +157,194 @@ export const AdminDashboard: React.FC = () => {
                   <FiAward className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-cyan-300">{platformMetrics.avgHabitScore} / 100</p>
-              <p className="text-[11px] text-slate-400">Across All Registered Accounts</p>
+              <p className="text-2xl font-bold text-cyan-300">
+                {stats?.avgHabitScore !== null && stats?.avgHabitScore !== undefined ? `${stats.avgHabitScore} / 100` : 'No data yet'}
+              </p>
+              <p className="text-[11px] text-slate-400">Calculated from PostgreSQL</p>
             </div>
 
-            {/* 3. Average Wake-Up Consistency */}
+            {/* 4. Active Alarms & Attempts */}
             <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Avg Wake-Up Consistency</span>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <span className="text-xs font-semibold text-slate-400">Active Alarms & Activity</span>
+                <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
                   <FiClock className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-emerald-400">{platformMetrics.avgWakeUpConsistency}</p>
-              <p className="text-[11px] text-slate-500">Verified Challenge Dismissals</p>
-            </div>
-
-            {/* 4. Average Challenge Accuracy & Snooze Rate */}
-            <div className="glass-panel p-5 rounded-2xl border border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400">Accuracy & Snooze Rate</span>
-                <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center">
-                  <FiBarChart2 className="w-4 h-4" />
-                </div>
-              </div>
-              <p className="text-2xl font-bold text-purple-300">{platformMetrics.avgChallengeAccuracy} Accuracy</p>
-              <p className="text-[11px] text-rose-300 font-semibold">{platformMetrics.avgSnoozeRate} Avg Snooze Rate</p>
+              <p className="text-2xl font-bold text-purple-300">{stats?.activeAlarms ?? 0} Active Alarms</p>
+              <p className="text-[11px] text-slate-400">{stats?.totalChallengeAttempts ?? 0} Total Challenge Attempts</p>
             </div>
           </div>
         )}
 
-        {/* Analytics Charts & System Health */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* User Growth & Platform Statistics Chart */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <FiBarChart2 className="text-blue-400" /> Platform Growth & Behavioral Activity
-              </h3>
-              <span className="text-[10px] text-slate-500 font-mono">Real-time Telemetry</span>
-            </div>
-
-            <div className="h-48 w-full bg-slate-900/60 rounded-xl p-4 border border-slate-800/80 flex flex-col justify-between">
-              <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-                <span>Active Users (30 Days)</span>
-                <span className="text-emerald-400">+18% MoM Engagement</span>
-              </div>
-              <svg className="w-full h-32 text-blue-500" viewBox="0 0 300 100" fill="none">
-                <path
-                  d="M0 80 Q 50 60, 100 70 T 200 30 T 300 10 L 300 100 L 0 100 Z"
-                  fill="rgba(59, 130, 246, 0.15)"
-                />
-                <path
-                  d="M0 80 Q 50 60, 100 70 T 200 30 T 300 10"
-                  stroke="#3b82f6"
-                  strokeWidth="3"
-                  fill="none"
-                />
-              </svg>
-              <div className="flex justify-between text-[10px] text-slate-400 font-mono pt-1">
-                <span>Week 1</span>
-                <span>Week 2</span>
-                <span>Week 3</span>
-                <span>Week 4</span>
-              </div>
-            </div>
-          </div>
-
-          {/* System Logs Console Viewer */}
-          <div className="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <FiTerminal className="text-rose-400" /> System Logs Console
-              </h3>
-              <span className="text-[10px] text-slate-500 font-mono">Live Engine Logs</span>
-            </div>
-
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 font-mono text-xs space-y-2 h-48 overflow-y-auto">
-              {systemLogs.map((log) => (
-                <div key={log.id} className="flex items-start gap-2">
-                  <span className="text-slate-500 text-[10px]">{log.time}</span>
-                  <span
-                    className={`px-1.5 py-0.2 rounded text-[9px] font-bold ${
-                      log.level === 'SUCCESS' ? 'bg-emerald-950 text-emerald-400' : 'bg-blue-950 text-blue-400'
-                    }`}
-                  >
-                    {log.level}
-                  </span>
-                  <span className="text-slate-300 text-[11px] truncate">{log.message}</span>
+        {/* Pending Coach Approvals Section */}
+        {pendingCoaches.length > 0 && (
+          <div className="glass-panel p-6 rounded-2xl border border-rose-500/40 bg-rose-950/20 space-y-4">
+            <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <FiUserCheck className="text-amber-400" /> Pending Coach Approvals ({pendingCoaches.length})
+            </h2>
+            <div className="space-y-3">
+              {pendingCoaches.map((c) => (
+                <div key={c.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <h3 className="font-bold text-white text-sm">{c.name}</h3>
+                    <p className="text-xs text-slate-400">{c.email} • Registered: {new Date(c.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleUpdateCoachStatus(c.id, 'active')}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1 transition-all"
+                    >
+                      <FiCheck className="w-3.5 h-3.5" /> Approve
+                    </button>
+                    <button
+                      onClick={() => handleUpdateCoachStatus(c.id, 'rejected')}
+                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1 transition-all"
+                    >
+                      <FiX className="w-3.5 h-3.5" /> Reject
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Registered Accounts Directory Table */}
+        {/* Accounts Directory Tabs & Table */}
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <FiUsers className="text-rose-400" /> Registered Accounts Directory
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <FiUsers className="text-rose-400" /> Registered Accounts Directory
+            </h2>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveTab('users')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'users' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+              >
+                All Users ({usersList.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('coaches')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'coaches' ? 'bg-amber-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  }`}
+              >
+                Coaches ({coachesList.length})
+              </button>
+            </div>
+          </div>
 
           {loading ? (
-            <TableSkeleton rows={4} />
+            <TableSkeleton rows={5} />
+          ) : activeTab === 'users' ? (
+            usersList.length === 0 ? (
+              <div className="text-center py-8 text-slate-400 text-xs glass-panel rounded-2xl">No data yet</div>
+            ) : (
+              <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                      <tr>
+                        <th className="py-3.5 px-4">User Name</th>
+                        <th className="py-3.5 px-4">Email</th>
+                        <th className="py-3.5 px-4">Role</th>
+                        <th className="py-3.5 px-4">Registration Date</th>
+                        <th className="py-3.5 px-4 text-right">Account Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60">
+                      {usersList.map((u) => (
+                        <tr key={u.id} className="hover:bg-slate-900/40 transition-colors">
+                          <td className="py-3.5 px-4 font-bold text-white">{u.name}</td>
+                          <td className="py-3.5 px-4 text-slate-300">{u.email}</td>
+                          <td className="py-3.5 px-4 capitalize">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${u.role === 'admin'
+                                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  : u.role === 'coach'
+                                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                                }`}
+                            >
+                              {u.role}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 font-mono text-slate-400">
+                            {new Date(u.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${u.status === 'active'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : u.status === 'pending'
+                                    ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                }`}
+                            >
+                              {u.status || 'active'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )
+          ) : coachesList.length === 0 ? (
+            <div className="text-center py-8 text-slate-400 text-xs glass-panel rounded-2xl">No data yet</div>
           ) : (
             <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-900/80 border-b border-slate-800 text-slate-400 uppercase font-semibold">
                     <tr>
-                      <th className="py-3.5 px-4">User Name</th>
+                      <th className="py-3.5 px-4">Coach Name</th>
                       <th className="py-3.5 px-4">Email</th>
                       <th className="py-3.5 px-4">Role</th>
-                      <th className="py-3.5 px-4">Habit Score</th>
-                      <th className="py-3.5 px-4">Joined Date</th>
-                      <th className="py-3.5 px-4 text-right">Status</th>
+                      <th className="py-3.5 px-4">Registration Date</th>
+                      <th className="py-3.5 px-4 text-right">Account Status & Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
-                    {recentUsersList.map((u) => (
-                      <tr key={u.id} className="hover:bg-slate-900/40 transition-colors">
-                        <td className="py-3.5 px-4 font-bold text-white">{u.name}</td>
-                        <td className="py-3.5 px-4 text-slate-300">{u.email}</td>
+                    {coachesList.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-900/40 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-white">{c.name}</td>
+                        <td className="py-3.5 px-4 text-slate-300">{c.email}</td>
                         <td className="py-3.5 px-4 capitalize">
-                          <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                              u.role === 'admin'
-                                ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                : u.role === 'coach'
-                                ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                                : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                            }`}
-                          >
-                            {u.role}
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            {c.role}
                           </span>
                         </td>
-                        <td className="py-3.5 px-4 font-bold text-cyan-400">{u.habitScore} / 100</td>
-                        <td className="py-3.5 px-4 font-mono text-slate-400">{u.date}</td>
+                        <td className="py-3.5 px-4 font-mono text-slate-400">
+                          {new Date(c.createdAt).toLocaleDateString()}
+                        </td>
                         <td className="py-3.5 px-4 text-right">
-                          <span className="text-emerald-400 font-semibold flex items-center justify-end gap-1 text-[11px]">
-                            <FiCheckCircle className="w-3.5 h-3.5" /> Active
-                          </span>
+                          {c.status === 'pending' ? (
+                            <div className="flex justify-end gap-1.5">
+                              <button
+                                onClick={() => handleUpdateCoachStatus(c.id, 'active')}
+                                className="px-2 py-1 rounded bg-emerald-600 text-white font-bold text-[10px]"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateCoachStatus(c.id, 'rejected')}
+                                className="px-2 py-1 rounded bg-rose-600 text-white font-bold text-[10px]"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold capitalize ${c.status === 'active'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                }`}
+                            >
+                              {c.status}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}

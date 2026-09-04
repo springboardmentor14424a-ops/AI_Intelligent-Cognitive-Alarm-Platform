@@ -14,6 +14,9 @@ import * as sleepLogsSchema from './schema/sleepLogs.js';
 import * as notificationsSchema from './schema/notifications.js';
 import * as recommendationsSchema from './schema/recommendations.js';
 import * as habitScoresSchema from './schema/habitScores.js';
+import * as habitCompletionsSchema from './schema/habitCompletions.js';
+import * as alarmEventsSchema from './schema/alarmEvents.js';
+import * as coachUserAssignmentsSchema from './schema/coachUserAssignments.js';
 
 const createPoolConfig = (connectionString: string): pg.PoolConfig => {
   try {
@@ -54,6 +57,9 @@ export const db = drizzle(pool, {
     ...notificationsSchema,
     ...recommendationsSchema,
     ...habitScoresSchema,
+    ...habitCompletionsSchema,
+    ...alarmEventsSchema,
+    ...coachUserAssignmentsSchema,
   },
 });
 

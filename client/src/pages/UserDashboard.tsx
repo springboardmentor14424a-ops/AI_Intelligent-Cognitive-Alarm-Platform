@@ -258,10 +258,10 @@ export const UserDashboard: React.FC = () => {
                 <FiAward className="w-5 h-5 text-cyan-400" />
               </div>
               <p className="text-2xl font-extrabold text-white">
-                {overview?.habitScore?.overall_score ?? 86} <span className="text-xs text-slate-400 font-normal">/ 100</span>
+                {overview?.hasSufficientData ? `${overview?.habitScore?.overall_score} / 100` : 'No data yet'}
               </p>
               <p className="text-[11px] text-cyan-300 font-medium truncate">
-                Grade: {overview?.habitScore?.score_category || 'Good'}
+                Grade: {overview?.hasSufficientData ? overview?.habitScore?.score_category : 'No data yet'}
               </p>
             </div>
 
@@ -272,7 +272,7 @@ export const UserDashboard: React.FC = () => {
                 <FiClock className="w-5 h-5 text-blue-400" />
               </div>
               <p className="text-2xl font-bold text-white">
-                {overview?.wakeUpConsistency ?? 88}%
+                {overview?.hasSufficientData ? `${overview?.wakeUpConsistency}%` : 'No data yet'}
               </p>
               <p className="text-[11px] text-blue-300/80 truncate">
                 35% Weighted Component
@@ -286,7 +286,7 @@ export const UserDashboard: React.FC = () => {
                 <FiZap className="w-5 h-5 text-indigo-400" />
               </div>
               <p className="text-2xl font-bold text-emerald-400">
-                {overview?.challengeAccuracy ?? 85}%
+                {overview?.hasSufficientData ? `${overview?.challengeAccuracy}%` : 'No data yet'}
               </p>
               <p className="text-[11px] text-slate-500">25% Weighted Component</p>
             </div>
@@ -298,7 +298,7 @@ export const UserDashboard: React.FC = () => {
                 <FiMoon className="w-5 h-5 text-purple-400" />
               </div>
               <p className="text-2xl font-bold text-purple-300">
-                {overview?.snoozeReductionRate ?? 82}%
+                {overview?.hasSufficientData ? `${overview?.snoozeReductionRate}%` : 'No data yet'}
               </p>
               <p className="text-[11px] text-slate-500">20% Weighted Component</p>
             </div>
@@ -309,7 +309,7 @@ export const UserDashboard: React.FC = () => {
                 <span className="text-xs font-semibold text-slate-400">Current Streak</span>
                 <FiCheckSquare className="w-5 h-5 text-amber-400" />
               </div>
-              <p className="text-2xl font-bold text-amber-300">{highestStreak} Days</p>
+              <p className="text-2xl font-bold text-amber-300">{habits.length > 0 ? `${highestStreak} Days` : 'No data yet'}</p>
               <p className="text-[11px] text-slate-500">{habits.length} Habits Tracked</p>
             </div>
           </div>
@@ -324,7 +324,7 @@ export const UserDashboard: React.FC = () => {
             </h2>
 
             {recommendations.length === 0 ? (
-              <div className="text-xs text-slate-400 py-4">No active recommendations generated yet.</div>
+              <div className="text-xs text-slate-400 py-4">No active recommendations. Complete more activities to generate insights.</div>
             ) : (
               <div className="space-y-3">
                 {recommendations.slice(0, 3).map((rec) => (
@@ -358,9 +358,9 @@ export const UserDashboard: React.FC = () => {
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
                 <div>
                   <span className="font-bold text-white block">Scheduled Awakening</span>
-                  <span className="text-[10px] text-slate-400">{nextAlarm ? nextAlarm.alarmTitle : 'Morning Executive'}</span>
+                  <span className="text-[10px] text-slate-400">{nextAlarm ? nextAlarm.alarmTitle : 'No Alarm Set'}</span>
                 </div>
-                <span className="font-mono text-sm font-bold text-blue-300">{nextAlarm ? nextAlarm.alarmTime : '07:00 AM'}</span>
+                <span className="font-mono text-sm font-bold text-blue-300">{nextAlarm ? nextAlarm.alarmTime : '--:--'}</span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
@@ -368,7 +368,9 @@ export const UserDashboard: React.FC = () => {
                   <span className="font-bold text-white block">Sleep Schedule Adherence</span>
                   <span className="text-[10px] text-slate-400">Target Bedtime: 11:00 PM</span>
                 </div>
-                <span className="font-bold text-emerald-400">{overview?.sleepAdherenceRate || 85}% Rate</span>
+                <span className="font-bold text-emerald-400">
+                  {overview?.hasSufficientData ? `${overview?.sleepAdherenceRate}% Rate` : 'No data yet'}
+                </span>
               </div>
 
               <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex justify-between items-center">
@@ -376,7 +378,9 @@ export const UserDashboard: React.FC = () => {
                   <span className="font-bold text-white block">Cognitive Puzzle Accuracy</span>
                   <span className="text-[10px] text-slate-400">Math & Logic Challenges</span>
                 </div>
-                <span className="font-bold text-indigo-300">{overview?.challengeAccuracy || 85}%</span>
+                <span className="font-bold text-indigo-300">
+                  {overview?.hasSufficientData ? `${overview?.challengeAccuracy}%` : 'No data yet'}
+                </span>
               </div>
             </div>
           </div>
