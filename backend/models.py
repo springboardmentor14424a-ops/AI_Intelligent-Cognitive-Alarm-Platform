@@ -45,6 +45,7 @@ class Alarm(Base):
     snooze_duration  = Column(Integer, nullable=False, default=5)
     max_snooze_count = Column(Integer, nullable=False, default=3)
     current_snooze_count = Column(Integer, nullable=False, default=0)
+    question_count   = Column(Integer, nullable=False, default=2)
     created_at       = Column(DateTime(timezone=True), server_default=func.now())
     updated_at       = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
@@ -62,6 +63,7 @@ class ChallengeLog(Base):
     success            = Column(Boolean, nullable=False)
     score              = Column(Integer, nullable=False, default=0)
     time_taken_seconds = Column(Float, nullable=False, default=0.0)
+    wakefulness_score  = Column(Integer, nullable=True)  # 1 to 5 assessment scale
     created_at         = Column(DateTime(timezone=True), server_default=func.now())
 
     user = relationship("User", back_populates="challenge_logs")

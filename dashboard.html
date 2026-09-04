@@ -306,26 +306,30 @@
               </div>
 
               <!-- Card: Wake-up Statistics -->
-              <div class="dashboard-card">
+              <div class="dashboard-card" id="wakeup-stats-card">
                 <h3>Wake-up Statistics</h3>
                 <div class="stat-radial-container">
-                  <div class="radial-progress" style="--percent: 88;">
-                    <div class="radial-value">88%</div>
+                  <div class="radial-progress" id="stat-radial-progress" style="--percent: 88;">
+                    <div class="radial-value" id="stat-sleep-score-val">88%</div>
                     <div class="radial-label">Sleep Score</div>
                   </div>
                 </div>
                 <ul class="stats-list">
                   <li>
                     <span class="label">Avg Wakeup Time</span>
-                    <span class="value font-semibold">06:45 AM</span>
+                    <span class="value font-semibold" id="stat-avg-wakeup-time">06:45 AM</span>
                   </li>
                   <li>
                     <span class="label">Wakeup Consistency</span>
-                    <span class="value font-semibold text-success">Excellent</span>
+                    <span class="value font-semibold text-success" id="stat-wakeup-consistency">Excellent</span>
                   </li>
                   <li>
                     <span class="label">Avg Sleep Duration</span>
-                    <span class="value font-semibold">7h 42m</span>
+                    <span class="value font-semibold" id="stat-avg-sleep-duration">7h 42m</span>
+                  </li>
+                  <li>
+                    <span class="label">Avg Wakefulness Scale</span>
+                    <span class="value font-semibold" id="stat-avg-wakefulness" style="color:#2563eb;">4.0 / 5 — Mostly Alert 🙂</span>
                   </li>
                 </ul>
               </div>
@@ -605,6 +609,7 @@
                         <th>Dismiss Time</th>
                         <th>Delay</th>
                         <th>Puzzle Solved</th>
+                        <th>Wakefulness</th>
                         <th>Status</th>
                         <th></th>
                       </tr>
@@ -792,6 +797,188 @@
                 <!-- Recommendation box -->
                 <div style="background:#eff6ff;border-left:4px solid #2563eb;padding:12px 14px;border-radius:0 10px 10px 0;font-size:0.83rem;color:#1e3a8a;line-height:1.4;">
                   <strong>AI Recommendation:</strong> <span id="lt-recommendation-text">Practice Memory challenges to equalize your cognitive index across all 5 difficulty levels.</span>
+                </div>
+              </div>
+
+              <!-- Card: Behavioral Analytics Engine -->
+              <div class="dashboard-card grid-col-span-3 ba-card-container" data-role="user" id="behavioral-analytics-card">
+                <div class="ba-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+                  <div>
+                    <h3 style="margin:0;font-size:1.25rem;display:flex;align-items:center;gap:10px;">
+                      <span>🧬 Behavioral Analytics Engine</span>
+                    </h3>
+                    <p style="margin:4px 0 0 0;font-size:0.83rem;color:var(--text-muted);">
+                      Deep circadian rhythm stability, snooze addiction profiling, sleep inertia curves & predictive forecast
+                    </p>
+                  </div>
+                  <span class="pi-ai-badge" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-size:0.78rem;padding:6px 14px;border-radius:999px;font-weight:700;display:flex;align-items:center;gap:6px;">
+                    <span class="pi-live-pulse" style="background:#22c55e;"></span>
+                    Behavioral Engine Active
+                  </span>
+                </div>
+
+                <!-- 4 KPI Metrics Grid -->
+                <div class="ba-kpi-grid" style="display:grid;grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));gap:14px;margin-bottom:20px;">
+                  <!-- KPI 1: Circadian Consistency -->
+                  <div class="ba-kpi-card" style="background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Circadian Consistency</span>
+                      <span style="font-size:1.3rem;">🌅</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                      <span id="ba-consistency-score" style="font-size:1.75rem;font-weight:800;color:#0f172a;">88%</span>
+                      <span id="ba-rhythm-stability" style="font-size:0.75rem;font-weight:600;color:#10b981;background:#ecfdf5;padding:2px 8px;border-radius:6px;">High Stability</span>
+                    </div>
+                    <span id="ba-wake-variance" style="font-size:0.75rem;color:#64748b;">Variance: ±12.5 mins wake time</span>
+                  </div>
+
+                  <!-- KPI 2: Snooze Risk Index -->
+                  <div class="ba-kpi-card" style="background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Snooze Risk Profile</span>
+                      <span style="font-size:1.3rem;">⏰</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                      <span id="ba-snooze-risk-badge" style="font-size:0.88rem;font-weight:800;color:#ffffff;background:#10b981;padding:4px 12px;border-radius:999px;">LOW RISK</span>
+                      <span id="ba-snooze-freq" style="font-size:1.1rem;font-weight:700;color:#334155;">15.0%</span>
+                    </div>
+                    <span id="ba-avg-snoozes" style="font-size:0.75rem;color:#64748b;">Avg 0.4 snoozes per alarm</span>
+                  </div>
+
+                  <!-- KPI 3: Sleep Inertia Latency -->
+                  <div class="ba-kpi-card" style="background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Sleep Inertia Latency</span>
+                      <span style="font-size:1.3rem;">🧠</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                      <span id="ba-inertia-seconds" style="font-size:1.75rem;font-weight:800;color:#0f172a;">18.2s</span>
+                      <span id="ba-warmup-rate" style="font-size:0.75rem;font-weight:600;color:#2563eb;background:#eff6ff;padding:2px 8px;border-radius:6px;">78.5% Warmup</span>
+                    </div>
+                    <span id="ba-peak-window" style="font-size:0.75rem;color:#64748b;">Peak Window: 07:15 AM - 07:45 AM</span>
+                  </div>
+
+                  <!-- KPI 4: Next-Day Forecast -->
+                  <div class="ba-kpi-card" style="background:#f8fafc;padding:16px;border-radius:14px;border:1px solid #e2e8f0;display:flex;flex-direction:column;justify-content:space-between;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:0.75rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Tomorrow's Forecast</span>
+                      <span style="font-size:1.3rem;">🔮</span>
+                    </div>
+                    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">
+                      <span id="ba-forecast-score" style="font-size:1.75rem;font-weight:800;color:#2563eb;">4.2 / 5</span>
+                      <span id="ba-forecast-label" style="font-size:0.72rem;font-weight:700;color:#059669;background:#ecfdf5;padding:2px 8px;border-radius:6px;">High Alertness</span>
+                    </div>
+                    <span id="ba-confidence" style="font-size:0.75rem;color:#64748b;">Confidence Level: 88%</span>
+                  </div>
+                </div>
+
+
+
+                <!-- Snooze Pattern Analysis Section -->
+                <div style="background:#fff7ed;border:1px solid #ffedd5;border-radius:14px;padding:16px 18px;margin-bottom:14px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span style="font-size:1.2rem;">📊</span>
+                      <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:#9a3412;">Detailed Snooze Pattern Analysis</h4>
+                    </div>
+                    <span id="ba-snooze-relapse-pill" style="font-size:0.75rem;font-weight:700;background:#fde8e8;color:#9b1c1c;padding:3px 10px;border-radius:999px;">18% Relapse Risk</span>
+                  </div>
+                  
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:12px;">
+                    <div style="background:#ffffff;padding:10px 14px;border-radius:10px;border:1px solid #fed7aa;">
+                      <span style="display:block;font-size:0.72rem;color:#7c2d12;font-weight:600;text-transform:uppercase;">Peak Snooze Day</span>
+                      <strong id="ba-peak-day" style="font-size:1.05rem;color:#c2410c;">Monday</strong>
+                    </div>
+                    <div style="background:#ffffff;padding:10px 14px;border-radius:10px;border:1px solid #fed7aa;">
+                      <span style="display:block;font-size:0.72rem;color:#7c2d12;font-weight:600;text-transform:uppercase;">Primary Trigger</span>
+                      <strong id="ba-snooze-trigger" style="font-size:1.05rem;color:#c2410c;">Habitual Micro-Delay</strong>
+                    </div>
+                    <div style="background:#ffffff;padding:10px 14px;border-radius:10px;border:1px solid #fed7aa;">
+                      <span style="display:block;font-size:0.72rem;color:#7c2d12;font-weight:600;text-transform:uppercase;">Avg Snooze Delay</span>
+                      <strong id="ba-snooze-delay-mins" style="font-size:1.05rem;color:#c2410c;">5.0 Mins</strong>
+                    </div>
+                  </div>
+
+                  <!-- 📈 Weekly Snooze Pattern Line Graph Visualizer -->
+                  <div style="background:#ffffff;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                      <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="font-size:0.8rem;font-weight:700;color:#9a3412;text-transform:uppercase;letter-spacing:0.5px;">Weekly Snooze Frequency & Delay Line Graph</span>
+                      </div>
+                      <span id="snooze-trend-peak-tag" style="font-size:0.72rem;font-weight:700;color:#c2410c;background:#fff7ed;padding:2px 10px;border-radius:999px;border:1px solid #ffedd5;">
+                        Peak: Monday (2.5 Snoozes)
+                      </span>
+                    </div>
+
+                    <div style="position:relative;width:100%;height:135px;background:#fffbf7;border-radius:10px;border:1px solid #ffedd5;padding:10px;">
+                      <svg id="snooze-pattern-svg" viewBox="0 0 300 100" style="width:100%;height:100%;overflow:visible;">
+                        <defs>
+                          <linearGradient id="snoozeAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#ea580c" stop-opacity="0.35"/>
+                            <stop offset="100%" stop-color="#ea580c" stop-opacity="0.0"/>
+                          </linearGradient>
+                          <linearGradient id="snoozeLineGrad" x1="0" y1="0" x2="1" y2="0">
+                            <stop offset="0%" stop-color="#dc2626"/>
+                            <stop offset="25%" stop-color="#ea580c"/>
+                            <stop offset="50%" stop-color="#f59e0b"/>
+                            <stop offset="75%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#3b82f6"/>
+                          </linearGradient>
+                        </defs>
+
+                        <!-- Horizontal Grid Lines -->
+                        <line x1="20" y1="20" x2="280" y2="20" stroke="#fed7aa" stroke-width="1" stroke-dasharray="3 3"/>
+                        <line x1="20" y1="50" x2="280" y2="50" stroke="#fed7aa" stroke-width="1" stroke-dasharray="3 3"/>
+                        <line x1="20" y1="80" x2="280" y2="80" stroke="#fed7aa" stroke-width="1"/>
+
+                        <!-- Smooth Area Fill Under Line Curve -->
+                        <path id="snooze-area-path" d="M 20 40 C 41.6 40, 41.6 20, 63.3 20 C 85 20, 85 55, 106.7 55 C 128.3 55, 128.3 70, 150 70 C 171.7 70, 171.7 75, 193.3 75 C 215 75, 215 50, 236.7 50 C 258.3 50, 258.3 45, 280 45 L 280 80 L 20 80 Z" fill="url(#snoozeAreaGrad)"/>
+                        
+                        <!-- Smooth Snooze Line Curve -->
+                        <path id="snooze-line-path" d="M 20 40 C 41.6 40, 41.6 20, 63.3 20 C 85 20, 85 55, 106.7 55 C 128.3 55, 128.3 70, 150 70 C 171.7 70, 171.7 75, 193.3 75 C 215 75, 215 50, 236.7 50 C 258.3 50, 258.3 45, 280 45" fill="none" stroke="url(#snoozeLineGrad)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+
+                        <!-- Nodes for 7 Days (Mon to Sun) -->
+                        <g id="snooze-trend-nodes">
+                          <circle cx="20" cy="40" r="4" fill="#dc2626" stroke="#ffffff" stroke-width="2"><title>Mon: 2.5 snoozes</title></circle>
+                          <circle cx="63.3" cy="20" r="4.5" fill="#ea580c" stroke="#ffffff" stroke-width="2"><title>Tue: 3.2 snoozes</title></circle>
+                          <circle cx="106.7" cy="55" r="4" fill="#f59e0b" stroke="#ffffff" stroke-width="2"><title>Wed: 1.4 snoozes</title></circle>
+                          <circle cx="150" cy="70" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2"><title>Thu: 0.6 snoozes</title></circle>
+                          <circle cx="193.3" cy="75" r="4" fill="#10b981" stroke="#ffffff" stroke-width="2"><title>Fri: 0.4 snoozes</title></circle>
+                          <circle cx="236.7" cy="50" r="4" fill="#3b82f6" stroke="#ffffff" stroke-width="2"><title>Sat: 1.8 snoozes</title></circle>
+                          <circle cx="280" cy="45" r="4" fill="#8b5cf6" stroke="#ffffff" stroke-width="2"><title>Sun: 2.0 snoozes</title></circle>
+                        </g>
+
+                        <!-- Active Peak Indicator Node -->
+                        <circle id="snooze-peak-dot" cx="20" cy="40" r="7.5" fill="#ea580c" stroke="#ffffff" stroke-width="2.5"/>
+                      </svg>
+                    </div>
+
+                    <!-- 7-Day Axis Labels -->
+                    <div id="snooze-trend-day-labels" style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.72rem;color:#7c2d12;font-weight:600;padding:0 4px;">
+                      <span>Mon</span>
+                      <span>Tue</span>
+                      <span>Wed</span>
+                      <span>Thu</span>
+                      <span>Fri</span>
+                      <span>Sat</span>
+                      <span>Sun</span>
+                    </div>
+                  </div>
+
+                  <p id="ba-snooze-summary" style="margin:0;font-size:0.82rem;color:#7c2d12;line-height:1.4;">
+                    Minimal Snooze Dependency (15.0% rate, peak on Monday)
+                  </p>
+                </div>
+
+                <!-- AI Behavioral Nudges Section -->
+                <div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border:1px solid #bae6fd;border-radius:14px;padding:16px 18px;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                    <span style="font-size:1.2rem;">💡</span>
+                    <h4 style="margin:0;font-size:0.95rem;font-weight:700;color:#0369a1;">Targeted AI Behavioral Nudges & Action Items</h4>
+                  </div>
+                  <div id="ba-nudges-list" style="display:flex;flex-direction:column;gap:8px;">
+                    <!-- Dynamically rendered -->
+                  </div>
                 </div>
               </div>
             </div>
@@ -1167,6 +1354,17 @@
             </select>
           </div>
 
+          <!-- Questions to Solve -->
+          <div class="ac-section">
+            <label class="ac-label" for="alarm-question-count">Questions to Solve</label>
+            <select id="alarm-question-count" class="ac-input">
+              <option value="1">1 Question</option>
+              <option value="2" selected>2 Questions</option>
+              <option value="3">3 Questions</option>
+              <option value="5">5 Questions</option>
+            </select>
+          </div>
+
           <!-- Sound -->
           <div class="ac-section">
             <label class="ac-label" for="alarm-sound">Alarm Sound</label>
@@ -1231,19 +1429,29 @@
         <button type="button" class="alarm-modal-close" onclick="closeChallengeModal()">&times;</button>
       </div>
 
-      <!-- Badge row -->
+      <!-- Badge row & Question Count Selector -->
       <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
         <span id="cm-badge-type" class="badge-pill badge-challenge">Math Problems</span>
         <span id="cm-badge-diff" class="badge-pill badge-sound">Medium</span>
+        <div style="display:flex;align-items:center;gap:4px;background:#f1f5f9;padding:3px 10px;border-radius:8px;font-size:0.75rem;font-weight:700;color:#334155;border:1px solid #cbd5e1;">
+          <span style="color:#64748b;">Target:</span>
+          <select id="cm-qcount-select" onchange="changeCMPracticeQuestions(this.value)" style="background:transparent;border:none;font-weight:700;color:#2563eb;cursor:pointer;outline:none;font-size:0.75rem;">
+            <option value="1">1 Question</option>
+            <option value="2" selected>2 Questions</option>
+            <option value="3">3 Questions</option>
+            <option value="5">5 Questions</option>
+          </select>
+        </div>
         <span style="margin-left:auto;font-size:0.82rem;font-weight:700;color:#2563eb;" id="cm-timer-display">⏳ 45s
           remaining</span>
       </div>
 
       <!-- Challenge Content Body -->
       <div id="cm-challenge-body">
-        <div
-          style="font-size:0.75rem;font-weight:700;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:8px;">
-          Question (1 Correct Solve to Dismiss)
+        <div id="cm-step-header"
+          style="font-size:0.75rem;font-weight:700;color:#2563eb;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:10px;background:#eff6ff;padding:8px 12px;border-radius:8px;border:1px solid #bfdbfe;display:flex;justify-content:space-between;align-items:center;">
+          <span id="cm-progress-text">QUESTION 1 OF 2</span>
+          <span id="cm-progress-pct" style="font-size:0.7rem;color:#1e40af;font-weight:800;">0% SOLVED</span>
         </div>
 
         <div id="cm-question-text"
@@ -1269,7 +1477,7 @@
 
         <button type="button" id="cm-submit-btn" class="ac-set-alarm-btn"
           style="width:100%;justify-content:center;padding:12px;" onclick="submitChallengeModalAnswer()">
-          Submit Answer
+          🔓 SOLVE QUESTION 1 OF 2
         </button>
       </div>
 
@@ -1277,11 +1485,44 @@
       <div id="cm-success-body"
         style="display:none;flex-direction:column;align-items:center;text-align:center;padding:20px 10px;">
         <div
-          style="width:64px;height:64px;background:#dcfce7;color:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:16px;">
+          style="width:64px;height:64px;background:#dcfce7;color:#16a34a;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;margin-bottom:12px;">
           ✓</div>
-        <h2 style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:6px;">Alarm Dismissed!</h2>
-        <p style="font-size:0.9rem;color:#64748b;margin-bottom:20px;">Great job! You solved the cognitive challenge in 1
-          attempt.</p>
+        <h2 style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:4px;">Alarm Dismissed!</h2>
+        <p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">Great job! Challenge verified successfully.</p>
+
+        <!-- Wakefulness Assessment 1-5 Scale -->
+        <div class="wakefulness-container" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:14px 10px;margin:8px 0 16px;text-align:center;">
+          <div style="font-family:'Poppins',sans-serif;font-size:0.85rem;font-weight:700;color:#0f172a;margin-bottom:10px;">🧠 Wakefulness Assessment (Scale 1 to 5)</div>
+          <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;margin-bottom:8px;">
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(1, this, 'cm-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">😴</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">1</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Drowsy</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(2, this, 'cm-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">🥱</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">2</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Sleepy</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(3, this, 'cm-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">😐</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">3</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Moderate</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(4, this, 'cm-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">🙂</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">4</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Alert</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(5, this, 'cm-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">⚡</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">5</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Energized</span>
+            </button>
+          </div>
+          <div id="cm-wake-status" style="font-size:0.75rem;font-weight:600;color:#64748b;min-height:16px;">Select rating to record morning wakefulness</div>
+        </div>
+
         <button type="button" class="btn-add-alarm-main" style="width:100%;justify-content:center;"
           onclick="closeChallengeModal()">
           Back to Dashboard
@@ -1313,16 +1554,57 @@
       <div class="at-badge-row">
         <span id="at-badge-type" class="badge-pill badge-challenge">Math Problems</span>
         <span id="at-badge-diff" class="badge-pill badge-sound">Medium</span>
+        <div style="display:inline-flex;align-items:center;gap:4px;background:#dbeafe;padding:4px 12px;border-radius:999px;font-size:0.75rem;font-weight:700;color:#1e40af;">
+          <span id="at-badge-qprogress">Question 1 of 2</span>
+          <select id="at-qcount-select" onchange="changeAtActiveQuestions(this.value)" style="background:transparent;border:none;font-weight:700;color:#1e40af;cursor:pointer;outline:none;font-size:0.75rem;margin-left:4px;">
+            <option value="1">1 Q</option>
+            <option value="2" selected>2 Qs</option>
+            <option value="3">3 Qs</option>
+            <option value="5">5 Qs</option>
+          </select>
+        </div>
         <span id="at-badge-snooze" class="badge-pill badge-snooze" style="background:#fef3c7;color:#d97706;font-weight:700;">
           Snooze 0 / 3
         </span>
       </div>
 
+      <!-- PRE-CHALLENGE QUESTION COUNT PROMPT SCREEN -->
+      <div id="at-start-setup-section" class="at-card-box" style="display:none;text-align:center;">
+        <div style="font-size:2.8rem;margin-bottom:6px;">🧠</div>
+        <h3 style="font-size:1.3rem;font-weight:800;color:#0f172a;margin-bottom:6px;">Prepare for Cognitive Challenge</h3>
+        <p style="font-size:0.85rem;color:#64748b;margin-bottom:16px;">
+          Select how many questions you want to attempt to dismiss this alarm:
+        </p>
+
+        <!-- Question Count Options -->
+        <div style="display:flex;justify-content:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+          <button type="button" class="at-qcount-btn" data-qcount="1" onclick="setAtQuestionCount(1, this)">
+            1 Question
+          </button>
+          <button type="button" class="at-qcount-btn active" data-qcount="2" onclick="setAtQuestionCount(2, this)">
+            2 Questions
+          </button>
+          <button type="button" class="at-qcount-btn" data-qcount="3" onclick="setAtQuestionCount(3, this)">
+            3 Questions
+          </button>
+          <button type="button" class="at-qcount-btn" data-qcount="5" onclick="setAtQuestionCount(5, this)">
+            5 Questions
+          </button>
+        </div>
+
+        <button type="button" class="at-btn-dismiss" id="at-start-challenge-btn" onclick="startActiveAlarmChallengeSequence()" style="width:100%;justify-content:center;padding:14px;font-size:1.05rem;">
+          🚀 START CHALLENGE (2 QUESTIONS)
+        </button>
+      </div>
+
       <!-- ACTIVE ALARM CHALLENGE BODY -->
       <div id="at-challenge-section" class="at-card-box">
         <div class="at-card-header">
-          <span>COGNITIVE DISMISSAL REQUIRED</span>
+          <span id="at-card-header-title">COGNITIVE DISMISSAL REQUIRED (0/2 SOLVED)</span>
           <span id="at-timer-display" style="color:#ef4444;font-weight:700;">⏳ 45s</span>
+        </div>
+        <div id="at-progress-banner" style="background:#eff6ff;color:#1d4ed8;padding:8px 12px;border-radius:8px;font-size:0.82rem;font-weight:700;margin-bottom:12px;text-align:center;border:1px solid #bfdbfe;">
+          🔒 Snooze is locked! Solve all required questions correctly to unlock Snooze.
         </div>
 
         <div id="at-question-text" class="at-question-box">
@@ -1339,7 +1621,7 @@
         <div id="at-feedback" class="at-feedback-box" style="display:none;"></div>
 
         <button type="button" id="at-submit-btn" class="at-btn-dismiss" onclick="submitActiveAlarmAnswer()">
-          🔓 SOLVE TO DISMISS ALARM
+          🔓 SOLVE QUESTION
         </button>
       </div>
 
@@ -1348,7 +1630,7 @@
         <div style="font-size:3rem;margin-bottom:8px;">💤</div>
         <h3 style="font-size:1.4rem;font-weight:800;color:#1e293b;margin-bottom:6px;">Alarm Snoozed</h3>
         <p style="font-size:0.9rem;color:#64748b;margin-bottom:16px;" id="at-snooze-msg">
-          Challenge failed. Alarm will re-trigger automatically when snooze countdown ends.
+          Alarm will re-trigger automatically when snooze countdown ends.
         </p>
         <div id="at-snooze-timer" style="font-size:2.4rem;font-weight:800;color:#d97706;margin-bottom:20px;">
           05:00
@@ -1361,11 +1643,55 @@
 
       <!-- SUCCESS DISMISSED SCREEN -->
       <div id="at-success-section" class="at-card-box" style="display:none;text-align:center;">
-        <div style="font-size:3.5rem;color:#16a34a;margin-bottom:10px;">🎉</div>
-        <h2 style="font-size:1.8rem;font-weight:800;color:#16a34a;margin-bottom:8px;">Alarm Successfully Dismissed!</h2>
-        <p style="font-size:0.95rem;color:#475569;margin-bottom:20px;" id="at-success-msg">
-          Attempt logged to challenge logs. Have a great day!
+        <div style="font-size:3.5rem;color:#16a34a;margin-bottom:8px;">🎉</div>
+        <h2 style="font-size:1.6rem;font-weight:800;color:#16a34a;margin-bottom:4px;">Task Completed! Snooze Unlocked</h2>
+        <p style="font-size:0.88rem;color:#475569;margin-bottom:12px;" id="at-success-msg">
+          All required questions answered correctly! You can now choose to Snooze or Dismiss your alarm.
         </p>
+
+        <!-- Action Row: Snooze or Dismiss -->
+        <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px;">
+          <button type="button" class="btn-test-challenge" style="flex:1;justify-content:center;padding:12px;font-size:0.95rem;background:#fef3c7;color:#b45309;border-color:#fde68a;" onclick="userSnoozeAfterTask()">
+            💤 Snooze Alarm
+          </button>
+          <button type="button" class="btn-add-alarm-main" style="flex:1;justify-content:center;padding:12px;font-size:0.95rem;" onclick="closeActiveAlarmModal()">
+            ✅ Complete & Exit
+          </button>
+        </div>
+
+        <!-- Wakefulness Assessment 1-5 Scale -->
+        <div class="wakefulness-container" style="width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:14px 10px;margin:8px 0 16px;text-align:center;">
+          <div style="font-family:'Poppins',sans-serif;font-size:0.85rem;font-weight:700;color:#0f172a;margin-bottom:10px;">🧠 Wakefulness Assessment (Scale 1 to 5)</div>
+          <div style="display:grid;grid-template-columns:repeat(5, 1fr);gap:6px;margin-bottom:8px;">
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(1, this, 'at-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">😴</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">1</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Drowsy</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(2, this, 'at-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">🥱</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">2</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Sleepy</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(3, this, 'at-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">😐</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">3</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Moderate</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(4, this, 'at-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">🙂</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">4</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Alert</span>
+            </button>
+            <button type="button" class="wake-btn-modal" onclick="submitModalWakefulness(5, this, 'at-wake-status')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 2px;border:2px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;transition:all 0.2s;">
+              <span style="font-size:1.3rem;line-height:1;margin-bottom:3px;">⚡</span>
+              <span style="font-size:0.75rem;font-weight:700;color:#2563eb;">5</span>
+              <span style="font-size:0.6rem;font-weight:600;color:#64748b;line-height:1.1;">Energized</span>
+            </button>
+          </div>
+          <div id="at-wake-status" style="font-size:0.75rem;font-weight:600;color:#64748b;min-height:16px;">Select rating to record morning wakefulness</div>
+        </div>
+
         <button type="button" class="btn-add-alarm-main" style="width:100%;justify-content:center;padding:14px;font-size:1rem;"
           onclick="closeActiveAlarmModal()">
           Return to Dashboard

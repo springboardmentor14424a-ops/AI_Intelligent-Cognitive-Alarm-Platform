@@ -256,6 +256,74 @@
       font-weight: 700;
       font-size: 0.9rem;
       cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-dashboard:hover {
+      background: #1565C0;
+      transform: translateY(-1px);
+    }
+
+    /* ── Wakefulness Scale Assessment (1 to 5) ── */
+    .wakefulness-container {
+      width: 100%;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 12px;
+      margin: 10px 0 14px;
+      text-align: center;
+    }
+
+    .wakefulness-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 12px;
+    }
+
+    .wakefulness-buttons {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .wake-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 4px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .wake-btn:hover {
+      border-color: var(--primary);
+      background: #edf6ff;
+      transform: translateY(-2px);
+    }
+
+    .wake-btn.selected {
+      border-color: var(--primary);
+      background: #edf6ff;
+      box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.3);
+    }
+
+    .wake-emoji { font-size: 1.4rem; line-height: 1; margin-bottom: 4px; }
+    .wake-num { font-size: 0.75rem; font-weight: 700; color: var(--primary); }
+    .wake-label { font-size: 0.62rem; font-weight: 600; color: var(--muted); line-height: 1.1; margin-top: 2px; }
+
+    .wakefulness-status {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      min-height: 18px;
     }
 
     /* Loading */
@@ -303,7 +371,41 @@
     <div class="dismissed-screen" id="dismissedScreen">
       <div class="check">✅</div>
       <h2>Alarm Dismissed!</h2>
-      <p>Great job! You solved 3 challenges in a row.<br>Have a productive day.</p>
+      <p>Challenge verified! Rate your alertness level below:</p>
+
+      <!-- Wakefulness Assessment 1-5 Scale -->
+      <div class="wakefulness-container" id="wakefulnessContainer">
+        <div class="wakefulness-title">🧠 Wakefulness Assessment (Scale 1 to 5)</div>
+        <div class="wakefulness-buttons">
+          <button class="wake-btn" onclick="submitWakefulness(1, this)">
+            <span class="wake-emoji">😴</span>
+            <span class="wake-num">1</span>
+            <span class="wake-label">Very Drowsy</span>
+          </button>
+          <button class="wake-btn" onclick="submitWakefulness(2, this)">
+            <span class="wake-emoji">🥱</span>
+            <span class="wake-num">2</span>
+            <span class="wake-label">Sleepy</span>
+          </button>
+          <button class="wake-btn" onclick="submitWakefulness(3, this)">
+            <span class="wake-emoji">😐</span>
+            <span class="wake-num">3</span>
+            <span class="wake-label">Moderate</span>
+          </button>
+          <button class="wake-btn" onclick="submitWakefulness(4, this)">
+            <span class="wake-emoji">🙂</span>
+            <span class="wake-num">4</span>
+            <span class="wake-label">Alert</span>
+          </button>
+          <button class="wake-btn" onclick="submitWakefulness(5, this)">
+            <span class="wake-emoji">⚡</span>
+            <span class="wake-num">5</span>
+            <span class="wake-label">Energized</span>
+          </button>
+        </div>
+        <div class="wakefulness-status" id="wakefulnessStatus">Select your rating to record morning wakefulness</div>
+      </div>
+
       <button class="btn-dashboard" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
     </div>
 
@@ -318,11 +420,12 @@
 const API = 'http://localhost:8000';
 
 // ── URL params ────────────────────────────────────────────────
-const params      = new URLSearchParams(window.location.search);
-const challengeType = params.get('type') || 'math';
-const difficulty  = params.get('difficulty') || 'medium';
-const alarmTime   = params.get('time') || '';
-const alarmLabel  = params.get('label') || 'Morning Alarm';
+const params          = new URLSearchParams(window.location.search);
+const challengeType   = params.get('type') || 'math';
+const difficulty      = params.get('difficulty') || 'medium';
+const alarmTime       = params.get('time') || '';
+const alarmLabel      = params.get('label') || 'Morning Alarm';
+const targetQuestions = parseInt(params.get('count') || params.get('questions') || '3');
 
 // ── Set alarm time & date ─────────────────────────────────────
 if (alarmTime) document.getElementById('alarmTimeDisplay').textContent = alarmTime;
@@ -345,7 +448,7 @@ document.getElementById('badgeDiff').textContent =
   difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 
 // ── State ─────────────────────────────────────────────────────
-let correctStreak = 0;   // need 3
+let correctStreak    = 0;   // need targetQuestions
 let currentChallenge = null;
 let selectedOption   = null;
 let timerInterval    = null;
@@ -355,14 +458,17 @@ let startTime        = Date.now();
 
 // ── Progress bar ──────────────────────────────────────────────
 function updateProgress() {
-  for (let i = 0; i < 3; i++) {
-    const seg = document.getElementById(`seg${i}`);
-    seg.className = 'progress-seg';
-    if (i < correctStreak)     seg.classList.add('done');
-    else if (i === correctStreak) seg.classList.add('active');
+  const bar = document.getElementById('progressBar');
+  if (bar) {
+    bar.innerHTML = '';
+    for (let i = 0; i < targetQuestions; i++) {
+      const seg = document.createElement('div');
+      seg.className = 'progress-seg' + (i < correctStreak ? ' done' : i === correctStreak ? ' active' : '');
+      bar.appendChild(seg);
+    }
   }
   document.getElementById('stepLabel').textContent =
-    `STEP ${correctStreak + 1} OF 3 · CONSECUTIVE CORRECT REQUIRED`;
+    `STEP ${Math.min(correctStreak + 1, targetQuestions)} OF ${targetQuestions} · CONSECUTIVE CORRECT REQUIRED`;
 }
 
 // ── Load challenge ────────────────────────────────────────────
@@ -405,8 +511,8 @@ function renderChallenge(c) {
     <div class="timer-row ok" id="timerRow">⏳ ${c.time_limit || 45}s remaining</div>
     ${answerHtml}
     <div class="result-feedback" id="resultFeedback"></div>
-    <button class="btn-submit" id="submitBtn" onclick="submitAnswer()">Submit</button>
-    <div class="footer-text">Solve 3 in a row correctly to dismiss the alarm</div>
+    <button class="btn-submit" id="submitBtn" onclick="submitAnswer()">Submit Answer</button>
+    <div class="footer-text">Solve ${targetQuestions} in a row correctly to dismiss the alarm</div>
   `;
 
   startTime = Date.now();
@@ -460,6 +566,9 @@ async function submitAnswer() {
       })
     });
     const data = await res.json();
+    if (data.log_id) {
+      lastLogId = data.log_id;
+    }
 
     // Mark options
     document.querySelectorAll('.opt-btn').forEach(b => {
@@ -476,7 +585,7 @@ async function submitAnswer() {
       correctStreak++;
       updateProgress();
 
-      if (correctStreak >= 1) {
+      if (correctStreak >= targetQuestions) {
         // Alarm dismissed
         setTimeout(() => {
           document.getElementById('challengeContent').style.display = 'none';
@@ -498,6 +607,55 @@ async function submitAnswer() {
     feedback.className = 'result-feedback fail';
     feedback.textContent = 'Cannot connect to server.';
     submitBtn.disabled = false;
+  }
+}
+
+// ── Submit Wakefulness Scale (1 to 5) ─────────────────────────
+let lastLogId = null;
+
+async function submitWakefulness(score, btnElement) {
+  document.querySelectorAll('.wake-btn').forEach(b => b.classList.remove('selected'));
+  if (btnElement) btnElement.classList.add('selected');
+
+  const statusEl = document.getElementById('wakefulnessStatus');
+  if (statusEl) {
+    statusEl.style.color = 'var(--primary)';
+    statusEl.textContent = 'Recording your wakefulness rating...';
+  }
+
+  const userId = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user'));
+      if (u && u.id) return parseInt(u.id);
+    } catch(e) {}
+    return 1;
+  })();
+
+  try {
+    const res = await fetch(`${API}/challenges/wakefulness`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        log_id: lastLogId,
+        user_id: userId,
+        score: score
+      })
+    });
+    const data = await res.json();
+    if (statusEl) {
+      if (data.success) {
+        statusEl.style.color = 'var(--success)';
+        statusEl.textContent = `✅ Saved! Rated ${score}/5 — ${data.label}`;
+      } else {
+        statusEl.style.color = 'var(--danger)';
+        statusEl.textContent = 'Could not record rating.';
+      }
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.style.color = 'var(--danger)';
+      statusEl.textContent = 'Server connection error.';
+    }
   }
 }
 

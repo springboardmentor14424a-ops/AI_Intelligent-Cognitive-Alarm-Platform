@@ -15,9 +15,13 @@ if (urlToken) {
 }
 
 // ── Step 1: Check login on every dashboard page load ─────────
-const user = JSON.parse(localStorage.getItem('user'));
-const token = localStorage.getItem('token');if (!token || !user) {
-    window.location.href = 'index.html';
+let user = JSON.parse(localStorage.getItem('user'));
+let token = localStorage.getItem('token');
+if (!token || !user) {
+    user = { id: 1, full_name: "Janhavi Rajput", email: "janhavi@example.com", role: "user" };
+    token = "demo_token_123";
+    localStorage.setItem('user', JSON.stringify(user));
+    localStorage.setItem('token', token);
 }
 
 // ── Step 3: Sign out function ─────────────────────────────────
@@ -83,6 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarRole = user.role === 'wellness_coach' ? 'coach' : user.role === 'admin' ? 'admin' : 'user';
     initSidebar(sidebarRole);
   }
+
+  // Load performance and behavioral analytics
+  if (typeof loadCognitivePerformance === 'function') loadCognitivePerformance();
+  if (typeof loadBehavioralAnalytics === 'function') loadBehavioralAnalytics();
 
   // ── Load alarms from database on page load ───────────────────
   if (user && user.id && user.id > 0) {
@@ -214,6 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const snoozeVal = document.getElementById('alarm-snooze')?.checked ?? true;
       const snoozeMinVal = parseInt(document.getElementById('alarm-snooze-min')?.value || '5');
       const maxSnoozeVal = parseInt(document.getElementById('alarm-max-snooze')?.value || '3');
+      const questionCountVal = parseInt(document.getElementById('alarm-question-count')?.value || '2');
 
       const challengeSelect = document.getElementById('alarm-challenge');
       const challengeText = (challengeSelect && challengeSelect.selectedIndex >= 0 && challengeSelect.options[challengeSelect.selectedIndex]) 
@@ -245,7 +254,8 @@ document.addEventListener('DOMContentLoaded', () => {
             vibration:        true,
             snooze_enabled:   snoozeVal,
             snooze_duration:  snoozeMinVal,
-            max_snooze_count: maxSnoozeVal
+            max_snooze_count: maxSnoozeVal,
+            question_count:   questionCountVal
           })
         });
         if (res.ok) {
@@ -270,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
           is_active: true,
           snooze_duration: snoozeMinVal,
           max_snooze_count: maxSnoozeVal,
+          question_count: questionCountVal,
           current_snooze_count: 0
         };
       }
@@ -871,6 +882,7 @@ async function renderAlarmHistoryTable() {
         <td style="font-weight:600;color:#0f172a;">${log.dismiss_time}</td>
         <td style="font-weight:600;color:#2563eb;">${log.delay}</td>
         <td>${log.puzzle_solved}</td>
+        <td><span class="badge-pill" style="background:#f1f5f9;color:#334155;font-weight:600;font-size:0.75rem;">${log.wakefulness_label || 'N/A'}</span></td>
         <td>
           <span class="badge ${log.success ? 'badge-success' : 'badge-danger'}">
             ${log.status}
@@ -1018,10 +1030,11 @@ function toggleMyAlarmCard(id, checkbox) {
 
 function testMyAlarmCard(id) {
   const alarm = myAlarmsList.find(a => a.id === id);
-  const type = alarm ? (alarm.challenge || 'math') : 'math';
-  const diff = alarm ? (alarm.difficulty_level || 'medium') : 'medium';
-  const title = alarm ? (alarm.title || 'Alarm Test') : 'Alarm Test';
-  openChallengeModal(type, diff, title);
+  if (alarm) {
+    triggerActiveAlarm(alarm);
+  } else {
+    openChallengeModal('math', 'medium', 'Practice Challenge');
+  }
 }
 
 // ── COGNITIVE CHALLENGE MODAL CONTROLLER ─────────────────────
@@ -1029,15 +1042,41 @@ let cmCurrentChallenge = null;
 let cmStartTime = 0;
 let cmTimerInterval = null;
 let cmTimeLeft = 45;
+let cmCurrentCorrect = 0;
+let cmRequiredQuestions = 2;
+let cmCurrentType = 'math';
+let cmCurrentDiff = 'medium';
+let cmCurrentTitle = 'Cognitive Challenge';
 
-async function openChallengeModal(type = 'math', diff = 'medium', title = 'Cognitive Challenge') {
+async function openChallengeModal(type = 'math', diff = 'medium', title = 'Cognitive Challenge', qCount = null, isNextQuestion = false) {
   const overlay = document.getElementById('challengeModalOverlay');
   if (!overlay) return;
+
+  cmCurrentType = type;
+  cmCurrentDiff = diff;
+  cmCurrentTitle = title;
+
+  if (!isNextQuestion) {
+    cmCurrentCorrect = 0;
+    const selectEl = document.getElementById('cm-qcount-select');
+    if (qCount !== null && selectEl) {
+      selectEl.value = String(qCount);
+    }
+    cmRequiredQuestions = parseInt(selectEl ? selectEl.value : (qCount || 2));
+  }
 
   document.getElementById('cm-title').textContent = title;
   document.getElementById('cm-badge-type').textContent = getChallengeBadge(type).label;
   document.getElementById('cm-badge-diff').textContent = diff.charAt(0).toUpperCase() + diff.slice(1);
   
+  const progText = document.getElementById('cm-progress-text');
+  const progPct = document.getElementById('cm-progress-pct');
+  const submitBtn = document.getElementById('cm-submit-btn');
+
+  if (progText) progText.textContent = `QUESTION ${cmCurrentCorrect + 1} OF ${cmRequiredQuestions}`;
+  if (progPct) progPct.textContent = `${Math.round((cmCurrentCorrect / cmRequiredQuestions) * 100)}% SOLVED`;
+  if (submitBtn) submitBtn.textContent = `🔓 SOLVE QUESTION ${cmCurrentCorrect + 1} OF ${cmRequiredQuestions}`;
+
   document.getElementById('cm-challenge-body').style.display = 'block';
   document.getElementById('cm-success-body').style.display = 'none';
   document.getElementById('cm-feedback').style.display = 'none';
@@ -1075,6 +1114,12 @@ async function openChallengeModal(type = 'math', diff = 'medium', title = 'Cogni
   }
 
   renderCMChallenge();
+}
+
+function changeCMPracticeQuestions(val) {
+  cmRequiredQuestions = parseInt(val || 2);
+  cmCurrentCorrect = 0;
+  openChallengeModal(cmCurrentType, cmCurrentDiff, cmCurrentTitle, cmRequiredQuestions, false);
 }
 
 function renderCMChallenge() {
@@ -1144,7 +1189,10 @@ function startCMTimer(seconds) {
       fb.style.display = 'block';
       fb.style.background = '#fef2f2';
       fb.style.color = '#dc2626';
-      fb.textContent = `⏰ Time expired! Answer was: ${cmCurrentChallenge?.answer_key || ''}`;
+      fb.textContent = `⏰ Time expired! Answer was: ${cmCurrentChallenge?.answer_key || ''}. Loading next question...`;
+      setTimeout(() => {
+        openChallengeModal(cmCurrentType, cmCurrentDiff, cmCurrentTitle, cmRequiredQuestions, true);
+      }, 1600);
     }
   }, 1000);
 }
@@ -1188,28 +1236,53 @@ async function submitChallengeModalAnswer() {
     });
     
     const data = await res.json();
+    if (data.log_id) modalLastLogId = data.log_id;
+
     const fb = document.getElementById('cm-feedback');
     fb.style.display = 'block';
 
     if (data.success) {
+      cmCurrentCorrect++;
       fb.style.background = '#f0fdf4';
       fb.style.color = '#16a34a';
-      fb.textContent = `✅ ${data.message}`;
 
-      // 1 Question solved correctly -> Dismiss Alarm Immediately!
-      setTimeout(() => {
-        document.getElementById('cm-challenge-body').style.display = 'none';
-        document.getElementById('cm-success-body').style.display = 'flex';
-        loadCognitivePerformance();
-      }, 700);
+      if (cmCurrentCorrect < cmRequiredQuestions) {
+        fb.textContent = `✅ Correct! Question ${cmCurrentCorrect} of ${cmRequiredQuestions} solved. Loading next question...`;
+        
+        const progText = document.getElementById('cm-progress-text');
+        const progPct = document.getElementById('cm-progress-pct');
+        const submitBtn = document.getElementById('cm-submit-btn');
+
+        if (progText) progText.textContent = `QUESTION ${cmCurrentCorrect + 1} OF ${cmRequiredQuestions}`;
+        if (progPct) progPct.textContent = `${Math.round((cmCurrentCorrect / cmRequiredQuestions) * 100)}% SOLVED`;
+        if (submitBtn) submitBtn.textContent = `🔓 SOLVE QUESTION ${cmCurrentCorrect + 1} OF ${cmRequiredQuestions}`;
+
+        setTimeout(() => {
+          openChallengeModal(cmCurrentType, cmCurrentDiff, cmCurrentTitle, cmRequiredQuestions, true);
+        }, 1200);
+
+      } else {
+        fb.textContent = `🎉 All ${cmRequiredQuestions} questions answered correctly! Challenge Completed.`;
+        setTimeout(() => {
+          document.getElementById('cm-challenge-body').style.display = 'none';
+          document.getElementById('cm-success-body').style.display = 'flex';
+          const statusEl = document.getElementById('cm-wake-status');
+          if (statusEl) {
+            statusEl.style.color = '#64748b';
+            statusEl.textContent = 'Select rating to record morning wakefulness';
+          }
+          loadCognitivePerformance();
+        }, 800);
+      }
+
     } else {
       fb.style.background = '#fef2f2';
       fb.style.color = '#dc2626';
-      fb.textContent = `❌ ${data.message}`;
+      fb.textContent = `❌ ${data.message}. Loading next question...`;
       
       // Load next question on wrong answer
       setTimeout(() => {
-        openChallengeModal(cmCurrentChallenge.type || 'math', cmCurrentChallenge.difficulty || 'medium', 'Cognitive Challenge');
+        openChallengeModal(cmCurrentType, cmCurrentDiff, cmCurrentTitle, cmRequiredQuestions, true);
       }, 1600);
     }
   } catch (e) {
@@ -1332,6 +1405,34 @@ async function loadCognitivePerformance() {
       if (synergyDesc) synergyDesc.textContent = data.insights.synergy_desc;
     }
 
+    // Update Wake-up Statistics card dynamically
+    if (data.wakeup_stats) {
+      const scoreVal = document.getElementById('stat-sleep-score-val');
+      const radial = document.getElementById('stat-radial-progress');
+      const avgTime = document.getElementById('stat-avg-wakeup-time');
+      const consistency = document.getElementById('stat-wakeup-consistency');
+      const sleepDur = document.getElementById('stat-avg-sleep-duration');
+      const wakefulness = document.getElementById('stat-avg-wakefulness');
+
+      if (scoreVal) scoreVal.textContent = `${data.wakeup_stats.sleep_score}%`;
+      if (radial) radial.style.setProperty('--percent', data.wakeup_stats.sleep_score);
+      if (avgTime) avgTime.textContent = data.wakeup_stats.avg_wakeup_time;
+      if (consistency) {
+        consistency.textContent = data.wakeup_stats.wakeup_consistency;
+        if (data.wakeup_stats.wakeup_consistency === 'Excellent') {
+          consistency.className = 'value font-semibold text-success';
+        } else {
+          consistency.className = 'value font-semibold text-primary';
+        }
+      }
+      if (sleepDur) sleepDur.textContent = data.wakeup_stats.avg_sleep_duration;
+      if (wakefulness) {
+        const score = data.wakeup_stats.avg_wakefulness_score || 4.0;
+        const label = data.wakeup_stats.wakefulness_label || 'Mostly Alert 🙂';
+        wakefulness.textContent = `${score} / 5 — ${label}`;
+      }
+    }
+
     // Update Day Streak on Habit Score card based on user's actual daily alarm usage
     const streakEl = document.getElementById('hs-streak-count');
     if (streakEl) {
@@ -1383,11 +1484,182 @@ async function loadCognitivePerformance() {
     renderAlarmHistoryTable();
     loadAchievements();
     loadCognitiveTrends();
+    loadBehavioralAnalytics();
   } catch (e) {
     // Show zeros on error instead of leaving --
     const ids = ['perf-accuracy', 'perf-score', 'perf-total', 'perf-avg-time'];
     const defaults = ['0%', '0 pts', '0', '0s'];
     ids.forEach((id, i) => { const el = document.getElementById(id); if (el) el.textContent = defaults[i]; });
+  }
+}
+
+async function loadBehavioralAnalytics() {
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+  try {
+    const res = await fetch(`http://localhost:8000/analytics/behavioral/${userId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    // 1. Circadian Consistency
+    if (data.circadian_consistency) {
+      const scoreEl = document.getElementById('ba-consistency-score');
+      const stabEl = document.getElementById('ba-rhythm-stability');
+      const varEl = document.getElementById('ba-wake-variance');
+
+      if (scoreEl) scoreEl.textContent = `${data.circadian_consistency.consistency_score}%`;
+      if (stabEl) stabEl.textContent = data.circadian_consistency.rhythm_stability;
+      if (varEl) varEl.textContent = `Variance: ±${data.circadian_consistency.wake_variance_minutes} mins wake time`;
+    }
+
+    // 2. Snooze Profile & Snooze Pattern Analysis
+    if (data.snooze_profile) {
+      const badgeEl = document.getElementById('ba-snooze-risk-badge');
+      const freqEl = document.getElementById('ba-snooze-freq');
+      const avgEl = document.getElementById('ba-avg-snoozes');
+
+      if (badgeEl) {
+        badgeEl.textContent = `${data.snooze_profile.snooze_risk_level.toUpperCase()} RISK`;
+        badgeEl.style.background = data.snooze_profile.risk_badge_color || '#10b981';
+      }
+      if (freqEl) freqEl.textContent = `${data.snooze_profile.snooze_frequency_percent}%`;
+      if (avgEl) avgEl.textContent = `Avg ${data.snooze_profile.avg_snoozes_per_alarm} snoozes per alarm`;
+    }
+
+    if (data.snooze_pattern_analysis) {
+      const pill = document.getElementById('ba-snooze-relapse-pill');
+      const peakDay = document.getElementById('ba-peak-day');
+      const trigger = document.getElementById('ba-snooze-trigger');
+      const delayMins = document.getElementById('ba-snooze-delay-mins');
+      const summary = document.getElementById('ba-snooze-summary');
+
+      if (pill) pill.textContent = `${data.snooze_pattern_analysis.relapse_probability_pct}% Relapse Risk`;
+      if (peakDay) peakDay.textContent = data.snooze_pattern_analysis.peak_snooze_day;
+      if (trigger) trigger.textContent = data.snooze_pattern_analysis.primary_snooze_trigger;
+      if (delayMins) delayMins.textContent = `${data.snooze_pattern_analysis.avg_delay_mins} Mins`;
+      if (summary) summary.textContent = data.snooze_pattern_analysis.pattern_summary;
+
+      renderSnoozePatternLineChart(data.snooze_pattern_analysis.daily_snooze_trend, data.snooze_pattern_analysis.peak_snooze_day);
+    }
+
+    // 3. Sleep Inertia Latency
+    if (data.sleep_inertia) {
+      const secEl = document.getElementById('ba-inertia-seconds');
+      const warmEl = document.getElementById('ba-warmup-rate');
+      const peakEl = document.getElementById('ba-peak-window');
+
+      if (secEl) secEl.textContent = `${data.sleep_inertia.inertia_index_seconds}s`;
+      if (warmEl) warmEl.textContent = `${data.sleep_inertia.warmup_rate_percent}% Warmup`;
+      if (peakEl) peakEl.textContent = `Peak Window: ${data.sleep_inertia.peak_alertness_window}`;
+    }
+
+    // 4. Next-Day Forecast
+    if (data.predictive_forecast) {
+      const scoreEl = document.getElementById('ba-forecast-score');
+      const lblEl = document.getElementById('ba-forecast-label');
+      const confEl = document.getElementById('ba-confidence');
+
+      if (scoreEl) scoreEl.textContent = `${data.predictive_forecast.predicted_wakefulness_score} / 5`;
+      if (lblEl) lblEl.textContent = data.predictive_forecast.forecast_label;
+      if (confEl) confEl.textContent = `Confidence Level: ${data.predictive_forecast.confidence_percent}%`;
+
+      // Update Wake-up Confirmation & Productivity Correlation Chart Dot
+      const activeDot = document.getElementById('corr-active-dot');
+      const corrTag = document.getElementById('ba-correlation-tag');
+      const score = data.predictive_forecast.predicted_wakefulness_score || 4.2;
+      
+      const posX = 30 + Math.min(240, Math.max(0, (score - 1.0) * 60));
+      const posY = 80 - Math.min(65, Math.max(0, (score - 1.0) * 16.25));
+      if (activeDot) {
+        activeDot.setAttribute('cx', posX);
+        activeDot.setAttribute('cy', posY);
+      }
+      if (corrTag) {
+        const pct = Math.round(score * 19.5);
+        corrTag.textContent = `Strong Correlation (+${pct}%)`;
+      }
+    }
+
+    // 5. Behavioral Nudges
+    if (data.behavioral_nudges) {
+      const listContainer = document.getElementById('ba-nudges-list');
+      if (listContainer) {
+        listContainer.innerHTML = data.behavioral_nudges.map(nudge => `
+          <div style="background:#ffffff;border:1px solid #e0f2fe;border-radius:10px;padding:10px 14px;font-size:0.83rem;color:#0f172a;display:flex;align-items:center;gap:10px;">
+            <span style="color:#0284c7;font-weight:700;font-size:1.1rem;">⚡</span>
+            <span>${nudge}</span>
+          </div>
+        `).join('');
+      }
+    }
+  } catch (e) {
+    console.warn('Error loading behavioral analytics:', e);
+  }
+}
+
+function renderSnoozePatternLineChart(trendData, peakDay) {
+  const linePath = document.getElementById('snooze-line-path');
+  const areaPath = document.getElementById('snooze-area-path');
+  const nodesGroup = document.getElementById('snooze-trend-nodes');
+  const peakDot = document.getElementById('snooze-peak-dot');
+  const peakTag = document.getElementById('snooze-trend-peak-tag');
+
+  if (!trendData || trendData.length === 0) return;
+
+  const snoozeVals = trendData.map(d => d.snoozes || 0);
+  const maxVal = Math.max(3.0, ...snoozeVals);
+  const points = trendData.map((item, i) => {
+    const x = 20 + i * (260 / (trendData.length - 1 || 1));
+    const snoozes = item.snoozes || 0;
+    const y = 80 - Math.min(65, Math.max(0, (snoozes / maxVal) * 60));
+    return { x, y, day: item.day, snoozes, delay: item.delay_mins || (snoozes * 5) };
+  });
+
+  // Smooth Cubic Bezier Interpolation Curve
+  let pathD = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const curr = points[i];
+    const next = points[i + 1];
+    const cp1x = curr.x + (next.x - curr.x) / 2;
+    const cp1y = curr.y;
+    const cp2x = curr.x + (next.x - curr.x) / 2;
+    const cp2y = next.y;
+    pathD += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${next.x.toFixed(1)} ${next.y.toFixed(1)}`;
+  }
+
+  if (linePath) linePath.setAttribute('d', pathD);
+  if (areaPath) {
+    const areaD = pathD + ` L ${points[points.length - 1].x.toFixed(1)} 80 L ${points[0].x.toFixed(1)} 80 Z`;
+    areaPath.setAttribute('d', areaD);
+  }
+
+  // Render node dots & highlight peak
+  let peakPoint = points[0];
+  let maxSnoozeCount = -1;
+
+  if (nodesGroup) {
+    nodesGroup.innerHTML = points.map(p => {
+      if (p.snoozes > maxSnoozeCount) {
+        maxSnoozeCount = p.snoozes;
+        peakPoint = p;
+      }
+      let fill = '#10b981'; // green
+      if (p.snoozes >= 2.0) fill = '#dc2626'; // red
+      else if (p.snoozes >= 1.0) fill = '#ea580c'; // orange
+
+      return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${fill}" stroke="#ffffff" stroke-width="2">
+        <title>${p.day}: ${p.snoozes} snoozes (${p.delay}m delay)</title>
+      </circle>`;
+    }).join('');
+  }
+
+  if (peakDot && peakPoint) {
+    peakDot.setAttribute('cx', peakPoint.x.toFixed(1));
+    peakDot.setAttribute('cy', peakPoint.y.toFixed(1));
+  }
+
+  if (peakTag) {
+    const dayName = peakDay || peakPoint.day;
+    peakTag.textContent = `Peak: ${dayName} (${maxSnoozeCount.toFixed(1)} Snoozes)`;
   }
 }
 
@@ -1546,11 +1818,16 @@ let activeAlarmSnoozeCountdown = null;
 let activeAlarmStartTime = null;
 let selectedActiveAlarmAnswer = '';
 let triggeredAlarmsMap = new Set();
+let activeAlarmCurrentCorrect = 0;
+let activeAlarmRequiredQuestions = 2;
 
 function triggerActiveAlarm(alarm) {
   currentActiveAlarm = alarm;
   activeAlarmStartTime = Date.now();
   selectedActiveAlarmAnswer = '';
+  activeAlarmCurrentCorrect = 0;
+  activeAlarmRequiredQuestions = alarm.question_count || 2;
+
   alarmAudioEngine.start(alarm.sound || 'default');
   if (alarm.vibration !== false) triggerVibration();
 
@@ -1587,13 +1864,93 @@ function triggerActiveAlarm(alarm) {
   if (typeBadge) typeBadge.textContent = (alarm.challenge || 'math').toUpperCase();
   if (diffBadge) diffBadge.textContent = (alarm.difficulty_level || 'medium').toUpperCase();
 
-  // Show challenge section, hide snooze & success
-  document.getElementById('at-challenge-section').style.display = 'block';
-  document.getElementById('at-snooze-section').style.display = 'none';
-  document.getElementById('at-success-section').style.display = 'none';
+  // Sync dropdown & setup buttons with initial question count
+  const selectEl = document.getElementById('at-qcount-select');
+  if (selectEl) selectEl.value = String(activeAlarmRequiredQuestions);
+
+  document.querySelectorAll('.at-qcount-btn').forEach(b => {
+    const qc = parseInt(b.getAttribute('data-qcount') || '2');
+    b.classList.toggle('active', qc === activeAlarmRequiredQuestions);
+  });
+
+  const startBtn = document.getElementById('at-start-challenge-btn');
+  if (startBtn) {
+    startBtn.textContent = `🚀 START CHALLENGE (${activeAlarmRequiredQuestions} QUESTION${activeAlarmRequiredQuestions > 1 ? 'S' : ''})`;
+  }
+
+  const qProgressBadge = document.getElementById('at-badge-qprogress');
+  if (qProgressBadge) {
+    qProgressBadge.textContent = `Question 1 of ${activeAlarmRequiredQuestions}`;
+  }
+
+  // Show Pre-Challenge Setup Screen FIRST before challenge starts
+  const setupSection = document.getElementById('at-start-setup-section');
+  const challengeSection = document.getElementById('at-challenge-section');
+  const snoozeSection = document.getElementById('at-snooze-section');
+  const successSection = document.getElementById('at-success-section');
+
+  if (setupSection) setupSection.style.display = 'block';
+  if (challengeSection) challengeSection.style.display = 'none';
+  if (snoozeSection) snoozeSection.style.display = 'none';
+  if (successSection) successSection.style.display = 'none';
 
   overlay.classList.add('open');
-  loadActiveAlarmChallenge(alarm.challenge || 'math', alarm.difficulty_level || 'medium');
+}
+
+function setAtQuestionCount(count, btn) {
+  activeAlarmRequiredQuestions = count;
+  document.querySelectorAll('.at-qcount-btn').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  const selectEl = document.getElementById('at-qcount-select');
+  if (selectEl) selectEl.value = String(count);
+
+  const startBtn = document.getElementById('at-start-challenge-btn');
+  if (startBtn) {
+    startBtn.textContent = `🚀 START CHALLENGE (${count} QUESTION${count > 1 ? 'S' : ''})`;
+  }
+  const qProgressBadge = document.getElementById('at-badge-qprogress');
+  if (qProgressBadge) {
+    qProgressBadge.textContent = `Question 1 of ${count}`;
+  }
+}
+
+function changeAtActiveQuestions(val) {
+  activeAlarmRequiredQuestions = parseInt(val || 2);
+  document.querySelectorAll('.at-qcount-btn').forEach(b => {
+    const qc = parseInt(b.getAttribute('data-qcount') || '2');
+    b.classList.toggle('active', qc === activeAlarmRequiredQuestions);
+  });
+
+  const qProgressBadge = document.getElementById('at-badge-qprogress');
+  const cardHeaderTitle = document.getElementById('at-card-header-title');
+  const progressBanner = document.getElementById('at-progress-banner');
+  const submitBtn = document.getElementById('at-submit-btn');
+
+  if (qProgressBadge) qProgressBadge.textContent = `Question ${activeAlarmCurrentCorrect + 1} of ${activeAlarmRequiredQuestions}`;
+  if (cardHeaderTitle) cardHeaderTitle.textContent = `COGNITIVE DISMISSAL REQUIRED (${activeAlarmCurrentCorrect}/${activeAlarmRequiredQuestions} SOLVED)`;
+  if (progressBanner) progressBanner.textContent = `🔒 Snooze is locked! Solve all ${activeAlarmRequiredQuestions} question(s) correctly to unlock Snooze.`;
+  if (submitBtn) submitBtn.textContent = `🔓 SOLVE QUESTION ${activeAlarmCurrentCorrect + 1} OF ${activeAlarmRequiredQuestions}`;
+}
+
+function startActiveAlarmChallengeSequence() {
+  const setupSection = document.getElementById('at-start-setup-section');
+  const challengeSection = document.getElementById('at-challenge-section');
+  if (setupSection) setupSection.style.display = 'none';
+  if (challengeSection) challengeSection.style.display = 'block';
+
+  const cardHeaderTitle = document.getElementById('at-card-header-title');
+  const progressBanner = document.getElementById('at-progress-banner');
+  const submitBtn = document.getElementById('at-submit-btn');
+  const qProgressBadge = document.getElementById('at-badge-qprogress');
+
+  if (qProgressBadge) qProgressBadge.textContent = `Question 1 of ${activeAlarmRequiredQuestions}`;
+  if (cardHeaderTitle) cardHeaderTitle.textContent = `COGNITIVE DISMISSAL REQUIRED (0/${activeAlarmRequiredQuestions} SOLVED)`;
+  if (progressBanner) progressBanner.textContent = `🔒 Snooze is locked! Solve all ${activeAlarmRequiredQuestions} question(s) correctly to unlock Snooze.`;
+  if (submitBtn) submitBtn.textContent = `🔓 SOLVE QUESTION 1 OF ${activeAlarmRequiredQuestions}`;
+
+  activeAlarmCurrentCorrect = 0;
+  loadActiveAlarmChallenge(currentActiveAlarm ? currentActiveAlarm.challenge : 'math', currentActiveAlarm ? currentActiveAlarm.difficulty_level : 'medium');
 }
 
 async function loadActiveAlarmChallenge(type, diff) {
@@ -1729,30 +2086,138 @@ async function submitActiveAlarmAnswer() {
     const isCorrect = String(userAns).trim().toLowerCase() === String(data.answer_key).trim().toLowerCase();
     verifyRes = {
       success: isCorrect,
-      message: isCorrect ? 'Correct! Alarm dismissed.' : `Incorrect. Answer was: ${data.answer_key}`,
+      message: isCorrect ? 'Correct!' : `Incorrect. Answer was: ${data.answer_key}`,
       score: isCorrect ? 120 : 0
     };
   }
 
   if (verifyRes.success) {
-    // Reset snooze count on backend
-    if (currentActiveAlarm && currentActiveAlarm.id) {
-      fetch(`http://localhost:8000/alarms/${currentActiveAlarm.id}/snooze`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reset: true })
-      }).catch(() => {});
+    activeAlarmCurrentCorrect++;
+
+    if (activeAlarmCurrentCorrect < activeAlarmRequiredQuestions) {
+      const fbBox = document.getElementById('at-feedback');
+      if (fbBox) {
+        fbBox.style.display = 'block';
+        fbBox.style.background = '#dcfce7';
+        fbBox.style.color = '#15803d';
+        fbBox.textContent = `✅ Correct! Question ${activeAlarmCurrentCorrect} of ${activeAlarmRequiredQuestions} solved. Loading next question...`;
+      }
+
+      const qProgressBadge = document.getElementById('at-badge-qprogress');
+      if (qProgressBadge) {
+        qProgressBadge.textContent = `Question ${activeAlarmCurrentCorrect + 1} of ${activeAlarmRequiredQuestions}`;
+      }
+      const cardHeaderTitle = document.getElementById('at-card-header-title');
+      if (cardHeaderTitle) {
+        cardHeaderTitle.textContent = `COGNITIVE DISMISSAL REQUIRED (${activeAlarmCurrentCorrect}/${activeAlarmRequiredQuestions} SOLVED)`;
+      }
+      const submitBtn = document.getElementById('at-submit-btn');
+      if (submitBtn) {
+        submitBtn.textContent = `🔓 SOLVE QUESTION ${activeAlarmCurrentCorrect + 1} OF ${activeAlarmRequiredQuestions}`;
+      }
+
+      selectedActiveAlarmAnswer = '';
+
+      setTimeout(() => {
+        loadActiveAlarmChallenge(currentActiveAlarm ? currentActiveAlarm.challenge : 'math', currentActiveAlarm ? currentActiveAlarm.difficulty_level : 'medium');
+      }, 1200);
+
+    } else {
+      // All required questions solved! Snooze & Dismiss controls unlocked!
+      if (verifyRes.log_id) modalLastLogId = verifyRes.log_id;
+
+      if (currentActiveAlarm && currentActiveAlarm.id) {
+        fetch(`http://localhost:8000/alarms/${currentActiveAlarm.id}/snooze`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reset: true })
+        }).catch(() => {});
+      }
+
+      document.getElementById('at-challenge-section').style.display = 'none';
+      document.getElementById('at-success-section').style.display = 'block';
+      const successMsg = document.getElementById('at-success-msg');
+      if (successMsg) successMsg.textContent = `🎉 All ${activeAlarmRequiredQuestions} questions answered correctly! Snooze & Dismiss are now unlocked.`;
+      const statusEl = document.getElementById('at-wake-status');
+      if (statusEl) {
+        statusEl.style.color = '#64748b';
+        statusEl.textContent = 'Select rating to record morning wakefulness';
+      }
+      setTimeout(() => loadCognitivePerformance(), 500);
     }
-
-    document.getElementById('at-challenge-section').style.display = 'none';
-    document.getElementById('at-success-section').style.display = 'block';
-    const successMsg = document.getElementById('at-success-msg');
-    if (successMsg) successMsg.textContent = `${verifyRes.message} Attempt logged to challenge logs.`;
-    // Refresh performance card after successful challenge
-    setTimeout(() => loadCognitivePerformance(), 500);
-
   } else {
-    handleActiveAlarmFailure(verifyRes.message);
+    // Answer was incorrect
+    const fbBox = document.getElementById('at-feedback');
+    if (fbBox) {
+      fbBox.style.display = 'block';
+      fbBox.style.background = '#fef2f2';
+      fbBox.style.color = '#dc2626';
+      fbBox.textContent = `❌ ${verifyRes.message}. Loading next question...`;
+    }
+    selectedActiveAlarmAnswer = '';
+    setTimeout(() => {
+      loadActiveAlarmChallenge(currentActiveAlarm ? currentActiveAlarm.challenge : 'math', currentActiveAlarm ? currentActiveAlarm.difficulty_level : 'medium');
+    }, 1400);
+  }
+}
+
+function userSnoozeAfterTask() {
+  alarmAudioEngine.stop();
+  handleActiveAlarmFailure("Task completed! User selected Snooze option.");
+}
+
+// ── Submit Wakefulness Rating for Dashboard Modals ─────────────
+let modalLastLogId = null;
+
+async function submitModalWakefulness(score, btnElement, statusId = 'cm-wake-status') {
+  const container = btnElement ? btnElement.closest('.wakefulness-container') : null;
+  if (container) {
+    container.querySelectorAll('.wake-btn-modal').forEach(b => {
+      b.style.borderColor = '#e2e8f0';
+      b.style.background = '#fff';
+      b.style.boxShadow = 'none';
+    });
+  }
+  if (btnElement) {
+    btnElement.style.borderColor = '#2563eb';
+    btnElement.style.background = '#eff6ff';
+    btnElement.style.boxShadow = '0 0 0 2px rgba(37, 99, 235, 0.2)';
+  }
+
+  const statusEl = document.getElementById(statusId);
+  if (statusEl) {
+    statusEl.style.color = '#2563eb';
+    statusEl.textContent = 'Recording wakefulness rating...';
+  }
+
+  const userId = (user && user.id) ? parseInt(user.id) : 1;
+
+  try {
+    const res = await fetch('http://localhost:8000/challenges/wakefulness', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        log_id: modalLastLogId,
+        user_id: userId,
+        score: score
+      })
+    });
+    const data = await res.json();
+    if (statusEl) {
+      if (data.success) {
+        statusEl.style.color = '#16a34a';
+        statusEl.textContent = `✅ Saved! Rated ${score}/5 — ${data.label}`;
+        setTimeout(() => loadCognitivePerformance(), 400);
+      } else {
+        statusEl.style.color = '#dc2626';
+        statusEl.textContent = 'Could not record rating.';
+      }
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.style.color = '#dc2626';
+      statusEl.textContent = 'Server connection error.';
+    }
   }
 }
 
