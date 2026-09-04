@@ -1500,6 +1500,853 @@ async function saveWakeUpVerification(req, res) {
     }
 
 }
+
+// =====================================================
+// SAVE BEHAVIORAL EVENT
+// =====================================================
+// =====================================================
+// BEHAVIORAL ANALYTICS ENGINE
+// =====================================================
+
+async function getBehaviorAnalytics(req, res) {
+
+    try {
+
+        const userId = Number(req.params.userId);
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID."
+            });
+        }
+
+
+        // =================================================
+        // 1. SNOOZE PATTERNS
+        // =================================================
+
+        const snoozeResult = await pool.query(
+            `
+            SELECT
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'snooze'
+                ) AS total_snoozes,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'snooze_attempt_blocked'
+                ) AS blocked_snoozes
+
+            FROM behavioral_events
+
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+
+        // =================================================
+        // 2. WAKE-UP BEHAVIOR
+        // =================================================
+
+        const wakeResult = await pool.query(`
+    SELECT
+        COUNT(*) FILTER (
+            WHERE event_type = 'alarm_ring'
+        ) AS total_alarms,
+
+        COUNT(*) FILTER (
+            WHERE event_type = 'wake_verified'
+        ) AS successful_wakeups,
+
+        COUNT(*) FILTER (
+            WHERE event_type = 'alarm_dismiss'
+        ) AS dismissed_alarms,
+
+        COUNT(*) FILTER (
+            WHERE event_type = 'verification_failed'
+        ) AS failed_verifications,
+
+        ROUND(
+            AVG(
+                CASE
+                    WHEN event_type = 'wake_verified'
+                    THEN (metadata->>'wakefulnessRating')::numeric
+                END
+            ), 2
+        ) AS average_wakefulness,
+
+        ROUND(
+            AVG(
+                CASE
+                    WHEN event_type = 'wake_verified'
+                    THEN (metadata->>'verificationTime')::numeric
+                END
+            ), 2
+        ) AS average_verification_time
+
+    FROM behavioral_events
+    WHERE user_id = $1
+`, [userId]);
+
+
+const challengeResult = await pool.query(`
+    SELECT
+        COUNT(*) AS total_challenges,
+
+        COUNT(*) FILTER (
+            WHERE correct = true
+        ) AS correct_challenges,
+
+        ROUND(
+            AVG(score)::numeric,
+            2
+        ) AS average_score
+
+    FROM challenge_performance
+    WHERE user_id = $1
+`, [userId]);
+
+        // =================================================
+        // 3. HABIT CONSISTENCY
+        // =================================================
+
+        const consistencyResult = await pool.query(
+            `
+            SELECT
+
+                COUNT(
+                    DISTINCT DATE(event_time)
+                ) FILTER (
+                    WHERE event_type = 'alarm_ring'
+                ) AS alarm_days,
+
+                COUNT(
+                    DISTINCT DATE(event_time)
+                ) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS successful_days
+
+            FROM behavioral_events
+
+            WHERE user_id = $1
+            `,
+            [userId]
+        );
+
+
+        // =================================================
+        // 4. WAKE / SLEEP PATTERN
+        // =================================================
+
+        const sleepResult = await pool.query(
+            `
+            SELECT
+
+                COUNT(*) AS recorded_days,
+
+                ROUND(
+                    AVG(
+                        (
+                            split_part(
+                                metadata->>'alarmTime',
+                                ':',
+                                1
+                            )::numeric * 60
+                            +
+                            split_part(
+                                metadata->>'alarmTime',
+                                ':',
+                                2
+                            )::numeric
+                        )
+                    ),
+                    2
+                ) AS average_alarm_minutes,
+
+                ROUND(
+                    STDDEV(
+                        (
+                            split_part(
+                                metadata->>'alarmTime',
+                                ':',
+                                1
+                            )::numeric * 60
+                            +
+                            split_part(
+                                metadata->>'alarmTime',
+                                ':',
+                                2
+                            )::numeric
+                        )
+                    ),
+                    2
+                ) AS alarm_time_variation
+
+            FROM behavioral_events
+
+            WHERE user_id = $1
+
+            AND event_type = 'alarm_ring'
+
+            AND metadata->>'alarmTime' IS NOT NULL
+            `,
+            [userId]
+        );
+
+
+        // =================================================
+        // 5. PRODUCTIVITY CORRELATION
+        // =================================================
+
+        const productivityResult = await pool.query(
+            `
+            WITH daily_snoozes AS (
+
+                SELECT
+                    DATE(event_time) AS day,
+                    COUNT(*) AS snooze_count
+
+                FROM behavioral_events
+
+                WHERE user_id = $1
+
+                AND event_type = 'snooze'
+
+                GROUP BY DATE(event_time)
+            ),
+
+            daily_performance AS (
+
+                SELECT
+                    DATE(created_at) AS day,
+
+                    AVG(score) AS average_score,
+
+                    AVG(
+                        CASE
+                            WHEN correct = true
+                            THEN 100
+                            ELSE 0
+                        END
+                    ) AS accuracy
+
+                FROM challenge_performance
+
+                WHERE user_id = $1
+
+                GROUP BY DATE(created_at)
+            )
+
+            SELECT
+
+                COUNT(*) AS comparable_days,
+
+                ROUND(
+                    CORR(
+                        ds.snooze_count,
+                        dp.average_score
+                    )::numeric,
+                    2
+                ) AS snooze_score_correlation,
+
+                ROUND(
+                    AVG(dp.average_score)::numeric,
+                    2
+                ) AS average_cognitive_score,
+
+                ROUND(
+                    AVG(dp.accuracy)::numeric,
+                    2
+                ) AS average_cognitive_accuracy
+
+            FROM daily_snoozes ds
+
+            INNER JOIN daily_performance dp
+                ON ds.day = dp.day
+            `,
+            [userId]
+        );
+
+
+        // =================================================
+        // EXTRACT RESULTS
+        // =================================================
+
+        const snooze = snoozeResult.rows[0],
+      wake = wakeResult.rows[0],
+      challenge = challengeResult.rows[0],
+      consistency = consistencyResult.rows[0],
+      sleep = sleepResult.rows[0],
+      productivity = productivityResult.rows[0];
+
+        // =================================================
+        // HABIT CONSISTENCY %
+        // =================================================
+
+        const alarmDays =
+            Number(consistency.alarm_days) || 0;
+
+        const successfulDays =
+            Number(consistency.successful_days) || 0;
+
+        const habitConsistency =
+            alarmDays > 0
+                ? Math.round(
+                    (successfulDays / alarmDays) * 100
+                )
+                : 0;
+
+
+        // =================================================
+        // FORMAT AVERAGE ALARM TIME
+        // =================================================
+
+        let averageAlarmTime = null;
+
+        if (
+            sleep.average_alarm_minutes !== null
+        ) {
+
+            const totalMinutes =
+                Math.round(
+                    Number(
+                        sleep.average_alarm_minutes
+                    )
+                );
+
+            const hours =
+                Math.floor(totalMinutes / 60) % 24;
+
+            const minutes =
+                totalMinutes % 60;
+
+            averageAlarmTime =
+                `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+        }
+
+
+        // =================================================
+        // PRODUCTIVITY CORRELATION
+        // =================================================
+
+        const correlation =
+            productivity.snooze_score_correlation !== null
+                ? Number(
+                    productivity.snooze_score_correlation
+                )
+                : null;
+
+
+        // =================================================
+        // FINAL RESPONSE
+        // =================================================
+
+        return res.json({
+
+            success: true,
+
+            userId: userId,
+
+
+            // ---------------------------------------------
+            // SNOOZE PATTERNS
+            // ---------------------------------------------
+
+            snoozePatterns: {
+
+                totalSnoozes:
+                    Number(
+                        snooze.total_snoozes
+                    ) || 0,
+
+                blockedSnoozeAttempts:
+                    Number(
+                        snooze.blocked_snoozes
+                    ) || 0
+            },
+
+
+            // ---------------------------------------------
+            // WAKE-UP BEHAVIOR
+            // ---------------------------------------------
+
+        wakeUpBehavior: {
+    totalAlarms: Number(wake.total_alarms) || 0,
+    successfulWakeups: Number(wake.successful_wakeups) || 0,
+    dismissedAlarms: Number(wake.dismissed_alarms) || 0,
+    failedVerifications: Number(wake.failed_verifications) || 0,
+    averageWakefulness: Number(wake.average_wakefulness) || 0,
+    averageVerificationTime: Number(wake.average_verification_time) || 0
+},
+
+challengePerformance: {
+    totalChallenges: Number(challenge.total_challenges) || 0,
+
+    accuracy:
+        Number(challenge.total_challenges) > 0
+            ? Math.round(
+                Number(challenge.correct_challenges) /
+                Number(challenge.total_challenges) *
+                100
+            )
+            : 0,
+
+    averageScore:
+        Number(challenge.average_score) || 0
+},
+
+
+            // ---------------------------------------------
+            // HABIT CONSISTENCY
+            // ---------------------------------------------
+
+            habitConsistency: {
+
+                alarmDays:
+                    alarmDays,
+
+                successfulDays:
+                    successfulDays,
+
+                consistency:
+                    habitConsistency
+            },
+
+
+            // ---------------------------------------------
+            // SLEEP / WAKE PATTERNS
+            // ---------------------------------------------
+
+            sleepPatterns: {
+
+                recordedDays:
+                    Number(
+                        sleep.recorded_days
+                    ) || 0,
+
+                averageAlarmTime:
+                    averageAlarmTime,
+
+                alarmTimeVariationMinutes:
+                    Number(
+                        sleep.alarm_time_variation
+                    ) || 0
+            },
+
+
+            // ---------------------------------------------
+            // PRODUCTIVITY CORRELATION
+            // ---------------------------------------------
+
+            productivityCorrelation: {
+
+                comparableDays:
+                    Number(
+                        productivity.comparable_days
+                    ) || 0,
+
+                snoozeScoreCorrelation:
+                    correlation,
+
+                averageCognitiveScore:
+                    Number(
+                        productivity.average_cognitive_score
+                    ) || 0,
+
+                averageCognitiveAccuracy:
+                    Number(
+                        productivity.average_cognitive_accuracy
+                    ) || 0,
+
+                interpretation:
+                    correlation === null
+                        ? "Not enough snooze and performance data yet."
+                        : correlation < -0.3
+                            ? "Higher snoozing is associated with lower cognitive performance."
+                            : correlation > 0.3
+                                ? "Higher snoozing is associated with higher cognitive performance."
+                                : "No strong relationship detected between snoozing and cognitive performance."
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Behavior Analytics Error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message:
+                "Failed to calculate behavioral analytics."
+        });
+    }
+}
+// =====================================================
+// SAVE BEHAVIORAL EVENT
+// =====================================================
+
+async function saveBehaviorEvent(req, res) {
+
+    try {
+
+        const {
+            userId,
+            alarmId,
+            eventType,
+            metadata
+        } = req.body;
+
+
+        // Validate required fields
+        if (!userId || !eventType) {
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "userId and eventType are required."
+            });
+        }
+
+
+        const result = await pool.query(
+            `
+            INSERT INTO behavioral_events
+                (
+                    user_id,
+                    alarm_id,
+                    event_type,
+                    metadata
+                )
+            VALUES
+                ($1, $2, $3, $4)
+            RETURNING *
+            `,
+            [
+                Number(userId),
+                alarmId
+                    ? String(alarmId)
+                    : null,
+                eventType,
+                metadata || null
+            ]
+        );
+
+
+        return res.status(201).json({
+
+            success: true,
+
+            event:
+                result.rows[0]
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Save Behavior Event Error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                "Failed to save behavioral event."
+
+        });
+
+    }
+}
+
+// =====================================================
+// BEHAVIORAL ANALYTICS HISTORY
+// =====================================================
+
+async function getBehaviorHistory(req, res) {
+
+    try {
+
+        const userId = Number(req.params.userId);
+
+        if (!userId) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid user ID."
+            });
+        }
+
+        // =================================================
+        // DAILY BEHAVIOR DATA
+        // =================================================
+
+        const behaviorResult = await pool.query(`
+            SELECT
+                TO_CHAR(event_time, 'YYYY-MM-DD') AS day,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'alarm_ring'
+                ) AS total_alarms,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'snooze'
+                ) AS snoozes,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS successful_wakeups,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'alarm_dismiss'
+                ) AS dismissed_alarms,
+
+                ROUND(
+                    AVG(
+                        CASE
+                            WHEN event_type = 'wake_verified'
+                            THEN (metadata->>'wakefulnessRating')::numeric
+                        END
+                    ),
+                    2
+                ) AS average_wakefulness,
+
+                ROUND(
+                    AVG(
+                        CASE
+                            WHEN event_type = 'alarm_ring'
+                            AND metadata->>'alarmTime' IS NOT NULL
+                            THEN
+                                split_part(
+                                    metadata->>'alarmTime',
+                                    ':',
+                                    1
+                                )::numeric * 60
+                                +
+                                split_part(
+                                    metadata->>'alarmTime',
+                                    ':',
+                                    2
+                                )::numeric
+                        END
+                    ),
+                    2
+                ) AS average_alarm_minutes
+
+            FROM behavioral_events
+
+            WHERE user_id = $1
+
+            GROUP BY TO_CHAR(event_time, 'YYYY-MM-DD')
+
+            ORDER BY TO_CHAR(event_time, 'YYYY-MM-DD')
+        `, [userId]);
+
+
+        // =================================================
+        // DAILY CHALLENGE PERFORMANCE
+        // =================================================
+
+        const challengeResult = await pool.query(`
+            SELECT
+                TO_CHAR(created_at, 'YYYY-MM-DD') AS day,
+
+                COUNT(*) AS total_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct_challenges,
+
+                ROUND(
+                    AVG(score)::numeric,
+                    2
+                ) AS average_score
+
+            FROM challenge_performance
+
+            WHERE user_id = $1
+
+            GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD')
+
+            ORDER BY TO_CHAR(created_at, 'YYYY-MM-DD')
+        `, [userId]);
+
+
+        // =================================================
+        // CREATE MAPS
+        // =================================================
+
+        const behaviorMap = new Map();
+
+        behaviorResult.rows.forEach(row => {
+            behaviorMap.set(String(row.day), row);
+        });
+
+
+        const challengeMap = new Map();
+
+        challengeResult.rows.forEach(row => {
+            challengeMap.set(String(row.day), row);
+        });
+
+
+        // =================================================
+        // COMBINE ALL DAYS
+        // =================================================
+
+        const allDays = new Set([
+            ...behaviorMap.keys(),
+            ...challengeMap.keys()
+        ]);
+
+
+        const history = Array.from(allDays)
+            .sort()
+            .map(day => {
+
+                const behavior =
+                    behaviorMap.get(day) || {};
+
+                const challenge =
+                    challengeMap.get(day) || {};
+
+
+                const totalAlarms =
+                    Number(behavior.total_alarms) || 0;
+
+                const successfulWakeups =
+                    Number(behavior.successful_wakeups) || 0;
+
+                const dismissedAlarms =
+                    Number(behavior.dismissed_alarms) || 0;
+
+                const totalChallenges =
+                    Number(challenge.total_challenges) || 0;
+
+                const correctChallenges =
+                    Number(challenge.correct_challenges) || 0;
+
+
+                const wakeUpSuccess =
+                    totalAlarms > 0
+                        ? Math.round(
+                            successfulWakeups /
+                            totalAlarms *
+                            100
+                        )
+                        : null;
+
+
+                const alarmSuccess =
+                    totalAlarms > 0
+                        ? Math.round(
+                            dismissedAlarms /
+                            totalAlarms *
+                            100
+                        )
+                        : null;
+
+
+                const challengeAccuracy =
+                    totalChallenges > 0
+                        ? Math.round(
+                            correctChallenges /
+                            totalChallenges *
+                            100
+                        )
+                        : null;
+
+
+                return {
+
+                    date: day,
+
+                    snoozes:
+                        Number(behavior.snoozes) || 0,
+
+                    totalAlarms,
+
+                    successfulWakeups,
+
+                    dismissedAlarms,
+
+                    wakeUpSuccess,
+
+                    alarmSuccess,
+
+                    averageWakefulness:
+                        Number(
+                            behavior.average_wakefulness
+                        ) || 0,
+
+                    averageAlarmMinutes:
+                        behavior.average_alarm_minutes !== null &&
+                        behavior.average_alarm_minutes !== undefined
+                            ? Number(
+                                behavior.average_alarm_minutes
+                            )
+                            : null,
+
+                    totalChallenges,
+
+                    correctChallenges,
+
+                    challengeAccuracy,
+
+                    averageScore:
+                        challenge.average_score !== undefined
+                            ? Number(
+                                challenge.average_score
+                            )
+                            : null
+
+                };
+
+            });
+
+
+        // =================================================
+        // SEND HISTORY
+        // =================================================
+
+        return res.json({
+
+            success: true,
+
+            userId,
+
+            history
+
+        });
+
+
+    } catch (error) {
+
+        console.error(
+            "Behavior History Error:",
+            error
+        );
+
+        return res.status(500).json({
+
+            success: false,
+
+            message:
+                "Failed to load behavioral analytics history."
+
+        });
+
+    }
+
+}
+
 // =====================================================
 // Export
 // =====================================================
@@ -1509,5 +2356,8 @@ module.exports = {
     analyzePerformance,
     getPersonalizedChallenge,
     getAnalytics,
-    saveWakeUpVerification
+    saveWakeUpVerification,
+    saveBehaviorEvent,
+    getBehaviorAnalytics,
+    getBehaviorHistory
 };

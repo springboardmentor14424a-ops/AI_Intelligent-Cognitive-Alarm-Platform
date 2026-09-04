@@ -91,14 +91,10 @@ SIDEBAR
 
         </li>
 
-        <li>
-
-            <i class="fa-solid fa-right-from-bracket"></i>
-
-            Logout
-
-        </li>
-
+        <li onclick="logout()" style="cursor: pointer;">
+    <i class="fa-solid fa-right-from-bracket"></i>
+    Logout
+</li>
     </ul>
 
 </div>
@@ -825,6 +821,62 @@ WEEKLY SLEEP ANALYSIS
 </div>
 
 <!-- ======================================
+     MODULE 7 - SNOOZE PATTERN ANALYSIS
+====================================== -->
+
+<div class="box">
+    <h3>💤 Snooze Pattern Analysis</h3>
+
+    <div style="height: 400px;">
+        <canvas id="snoozePatternChart"></canvas>
+    </div>
+</div>
+
+<!-- ======================================
+     MODULE 7 - WAKE-UP BEHAVIOR ANALYSIS
+====================================== -->
+<div class="box">
+    <h3>🌅 Wake-up Behavior Analysis</h3>
+
+    <div style="height: 800px;">
+        <canvas id="wakeUpBehaviorChart"></canvas>
+    </div>
+</div>
+
+<!-- ======================================
+     MODULE 7 - CHALLENGE PERFORMANCE
+====================================== -->
+<div class="box">
+    <h3>🧠 Challenge Performance</h3>
+
+    <div style="height: 800px;">
+        <canvas id="challengePerformanceChart"></canvas>
+    </div>
+</div>
+
+<!-- ======================================
+     MODULE 7 - SLEEP SCHEDULE ANALYSIS
+====================================== -->
+<div class="box">
+    <h3>😴 Sleep Schedule Consistency</h3>
+
+    <div style="height: 800px;">
+        <canvas id="sleepScheduleChart"></canvas>
+    </div>
+</div>
+
+<!-- ======================================
+     MODULE 7 - PRODUCTIVITY CORRELATION
+====================================== -->
+<div class="box">
+    <h3>📊 Productivity / Cognitive Correlation</h3>
+
+    <div style="height: 800px;">
+        <canvas id="productivityCorrelationChart"></canvas>
+    </div>
+</div>
+
+<!-- ======================================
 WELLNESS SCORE
 ====================================== -->
 
@@ -841,63 +893,40 @@ AI ANALYTICS
 ====================================== -->
 
 <div class="box">
-
     <h3>🤖 AI Analytics</h3>
 
     <table>
-
         <tr>
-
             <th>Metric</th>
-
             <th>Result</th>
-
         </tr>
 
         <tr>
-
-            <td>AI Wake Accuracy</td>
-
-            <td>78%</td>
-
+            <td>Wake-up Success</td>
+            <td id="aiWakeAccuracy">--</td>
         </tr>
 
         <tr>
-
             <td>Challenge Accuracy</td>
-
-            <td>74%</td>
-
+            <td id="challengeAccuracy">--</td>
         </tr>
 
         <tr>
-
             <td>Alarm Success</td>
-
-            <td>81%</td>
-
+            <td id="behaviorAlarmSuccess">--</td>
         </tr>
 
         <tr>
-
-            <td>Sleep Prediction</td>
-
-            <td>83%</td>
-
+            <td>Sleep Schedule Consistency</td>
+            <td id="sleepPrediction">--</td>
         </tr>
 
         <tr>
-
-            <td>Productivity Score</td>
-
-            <td>82%</td>
-
+            <td>Cognitive Performance</td>
+            <td id="productivityScore">--</td>
         </tr>
-
     </table>
-
 </div>
-
 <!-- ======================================
 RECENT NOTIFICATIONS
 ====================================== -->
@@ -1417,6 +1446,18 @@ if (analyticsMenu && analyticsSection) {
 
 }
 
+</script>
+
+<script>
+    document.getElementById("logoutBtn").addEventListener("click", function () {
+
+        // Remove login information
+        localStorage.removeItem("token");
+        localStorage.removeItem("role");
+
+        // Redirect to login page
+        window.location.href = "login.html";
+    });
 </script>
 
 </body>

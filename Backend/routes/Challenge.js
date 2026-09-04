@@ -8,7 +8,10 @@ const {
     analyzePerformance,
     getPersonalizedChallenge,
     getAnalytics,
-    saveWakeUpVerification
+    saveWakeUpVerification,
+    saveBehaviorEvent,
+    getBehaviorAnalytics,
+    getBehaviorHistory
 } = require("../controllers/challengeController");
 
 router.post(
@@ -45,4 +48,18 @@ router.post(
     saveWakeUpVerification
 );
 
+router.post(
+    "/behavior/event",
+    saveBehaviorEvent
+);
+
+router.get(
+    "/behavior/analytics/:userId",
+    getBehaviorAnalytics
+);
+
+router.get(
+    "/behavior/history/:userId",
+    getBehaviorHistory
+);
 module.exports = router;

@@ -437,10 +437,18 @@ function showNextAlarm() {
     }
 
     activeAlarm =
-        alarmQueue.shift();
+    alarmQueue.shift();
 
-    // Count the alarm ring
-    stats.totalRings++;
+// Count the alarm ring
+stats.totalRings++;
+
+// Record behavioral event
+logBehaviorEvent("alarm_ring", {
+    label: activeAlarm.label,
+    alarmTime: activeAlarm.time,
+    challengeType: activeAlarm.challengeType,
+    difficulty: activeAlarm.difficulty
+});
 
     localStorage.setItem(
         "alarmStats",
@@ -589,7 +597,10 @@ function dismissAlarm() {
         "✅ Alarm dismissal authorized"
     );
 
-
+logBehaviorEvent("alarm_dismiss", {
+    alarmLabel: activeAlarm?.label || null,
+    totalSnoozes: stats.totalSnoozes
+});
 
     alarmSound.pause();
 
@@ -644,13 +655,22 @@ if (
     alert(
         "🧠 Snooze is disabled until wake-up verification is completed."
     );
-
+logBehaviorEvent("snooze_attempt_blocked", {
+    reason: "wake_up_verification_required",
+    alarmLabel: activeAlarm?.label || null
+});
     return;
 }
 
     snoozeCount++;
 
     stats.totalSnoozes++;
+
+    logBehaviorEvent("snooze", {
+    snoozeNumber: stats.totalSnoozes,
+    alarmLabel: activeAlarm?.label || null,
+    snoozeMinutes: activeAlarm?.snooze || 5
+});
 
 localStorage.setItem(
     "alarmStats",
@@ -1598,6 +1618,936 @@ async function savePerformanceToDatabase(performanceRecord) {
     }
 }
 
+// =====================================================
+// LOAD BEHAVIORAL ANALYTICS
+// =====================================================
+
+async function loadBehaviorAnalytics() {
+
+    try {
+
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/analytics/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to load behavioral analytics."
+            );
+        }
+
+        console.log("📊 Behavioral Analytics:", data);
+
+
+        // ==========================================
+        // 1. WAKE-UP SUCCESS
+        // ==========================================
+
+        const totalAlarms =
+            Number(data.wakeUpBehavior.totalAlarms) || 0;
+
+        const successfulWakeups =
+            Number(data.wakeUpBehavior.successfulWakeups) || 0;
+
+        const wakeUpSuccess =
+            totalAlarms > 0
+                ? Math.round(
+                    successfulWakeups /
+                    totalAlarms *
+                    100
+                )
+                : 0;
+
+        document.getElementById(
+            "aiWakeAccuracy"
+        ).innerText = `${wakeUpSuccess}%`;
+
+
+        // ==========================================
+        // 2. CHALLENGE ACCURACY
+        // ==========================================
+
+        const challengeAccuracy =
+            Number(
+                data.challengePerformance.accuracy
+            ) || 0;
+
+        document.getElementById(
+            "challengeAccuracy"
+        ).innerText = `${challengeAccuracy}%`;
+
+
+        // ==========================================
+        // 3. ALARM SUCCESS
+        // ==========================================
+const dismissedAlarms =
+    Number(data.wakeUpBehavior.dismissedAlarms);
+
+const alarmSuccess =
+    totalAlarms > 0
+        ? Math.round(
+            (dismissedAlarms / totalAlarms) * 100
+        )
+        : 0;
+
+const alarmSuccessElement =
+    document.getElementById("behaviorAlarmSuccess");
+
+if (alarmSuccessElement) {
+    alarmSuccessElement.innerText =
+        `${alarmSuccess}%`;
+}
+
+        // ==========================================
+        // 4. SLEEP SCHEDULE CONSISTENCY
+        // ==========================================
+
+        const sleepVariation =
+            Number(
+                data.sleepPatterns.alarmTimeVariationMinutes
+            ) || 0;
+
+        let sleepConsistency = 0;
+
+        if (
+            data.sleepPatterns.recordedDays > 0
+        ) {
+
+            /*
+             * Lower variation = better consistency.
+             * 0 minutes variation = 100%.
+             */
+
+            sleepConsistency = Math.max(
+                0,
+                Math.min(
+                    100,
+                    100 - sleepVariation
+                )
+            );
+        }
+
+        document.getElementById(
+            "sleepPrediction"
+        ).innerText =
+            `${Math.round(sleepConsistency)}%`;
+
+
+        // ==========================================
+        // 5. COGNITIVE PERFORMANCE
+        // ==========================================
+
+        const cognitivePerformance =
+            Number(
+                data.challengePerformance.averageScore
+            ) || 0;
+
+        document.getElementById(
+            "productivityScore"
+        ).innerText =
+            `${Math.round(cognitivePerformance)}%`;
+
+
+        console.log("✅ AI Analytics updated successfully.");
+
+    }
+    catch (error) {
+
+        console.error(
+            "❌ Behavioral Analytics Load Error:",
+            error
+        );
+    }
+}
+
+// =====================================================
+// MODULE 7 - SNOOZE PATTERN CHART
+// =====================================================
+
+async function loadSnoozePatternChart() {
+
+    try {
+
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/history/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to load snooze history."
+            );
+        }
+
+
+        const history = data.history || [];
+
+
+        // ---------------------------------------------
+        // Prepare chart data
+        // ---------------------------------------------
+
+        const labels = history.map(
+            item => item.date
+        );
+
+        const snoozeData = history.map(
+            item => Number(item.snoozes) || 0
+        );
+
+
+        // ---------------------------------------------
+        // Find chart canvas
+        // ---------------------------------------------
+
+        const canvas =
+            document.getElementById(
+                "snoozePatternChart"
+            );
+
+        if (!canvas) {
+            console.error(
+                "❌ snoozePatternChart canvas not found."
+            );
+            return;
+        }
+
+
+        // ---------------------------------------------
+        // Create chart
+        // ---------------------------------------------
+
+        new Chart(canvas, {
+
+            type: "line",
+
+            data: {
+
+                labels: labels,
+
+                datasets: [
+
+                    {
+                        label: "Snoozes",
+
+                        data: snoozeData,
+
+                        tension: 0.3,
+
+                        fill: false,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+
+                    }
+
+                ]
+
+            },
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+                scales: {
+
+                    y: {
+
+                        beginAtZero: true,
+
+                        ticks: {
+
+                            stepSize: 1
+
+                        },
+
+                        title: {
+
+                            display: true,
+
+                            text: "Number of Snoozes"
+
+                        }
+
+                    },
+
+                    x: {
+
+                        title: {
+
+                            display: true,
+
+                            text: "Date"
+
+                        }
+
+                    }
+
+                },
+
+                plugins: {
+
+                    legend: {
+
+                        display: true
+
+                    },
+
+                    tooltip: {
+
+                        callbacks: {
+
+                            label: function(context) {
+
+                                return (
+                                    " Snoozes: " +
+                                    context.parsed.y
+                                );
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+
+        console.log(
+            "✅ Snooze Pattern Chart loaded."
+        );
+
+    }
+    catch (error) {
+
+        console.error(
+            "❌ Snooze Pattern Chart Error:",
+            error
+        );
+
+    }
+
+}
+async function loadWakeUpBehaviorChart() {
+    try {
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/history/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to load wake-up history."
+            );
+        }
+
+        // Only use dates where wake-up data actually exists
+        const validHistory = (data.history || []).filter(
+            item =>
+                item.wakeUpSuccess !== null &&
+                item.wakeUpSuccess !== undefined
+        );
+
+        const labels = validHistory.map(
+            item => item.date
+        );
+
+        const wakeUpData = validHistory.map(
+            item => Number(item.wakeUpSuccess)
+        );
+
+        const canvas =
+            document.getElementById(
+                "wakeUpBehaviorChart"
+            );
+
+        if (!canvas) {
+            console.error(
+                "❌ wakeUpBehaviorChart canvas not found."
+            );
+            return;
+        }
+
+        // Destroy previous chart if it already exists
+        if (window.wakeUpBehaviorChartInstance) {
+            window.wakeUpBehaviorChartInstance.destroy();
+        }
+
+        window.wakeUpBehaviorChartInstance =
+            new Chart(canvas, {
+                type: "line",
+
+                data: {
+                    labels: labels,
+
+                    datasets: [
+                        {
+                            
+    label: "Wake-up Success %",
+    data: wakeUpData,
+    tension: 0.3,
+    fill: false,
+    borderWidth: 3,
+    pointRadius: 5,
+    pointHoverRadius: 7
+
+                        }
+                    ]
+                },
+
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+
+                    layout: {
+                        padding: {
+                            top: 20,
+                            right: 20,
+                            bottom: 10,
+                            left: 10
+                        }
+                    },
+
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            min: 0,
+                            max: 100,
+
+                            ticks: {
+                                stepSize: 10,
+
+                                callback: function(value) {
+                                    return value + "%";
+                                }
+                            },
+
+                            title: {
+                                display: true,
+                                text: "Wake-up Success"
+                            }
+                        },
+
+                        x: {
+                            title: {
+                                display: true,
+                                text: "Date"
+                            }
+                        }
+                    },
+
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return (
+                                        " Wake-up Success: " +
+                                        context.parsed.y +
+                                        "%"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+        console.log(
+            "✅ Wake-up Behavior Chart loaded:",
+            validHistory
+        );
+
+    } catch (error) {
+        console.error(
+            "❌ Wake-up Behavior Chart Error:",
+            error
+        );
+    }
+}
+
+async function loadChallengePerformanceChart() {
+    try {
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/history/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to load challenge history."
+            );
+        }
+
+        const history = data.history || [];
+
+        const labels = history.map(
+            item => item.date
+        );
+
+        const accuracyData = history.map(
+            item => item.challengeAccuracy
+        );
+
+        const scoreData = history.map(
+            item => item.averageScore
+        );
+
+        const canvas =
+            document.getElementById(
+                "challengePerformanceChart"
+            );
+
+        if (!canvas) {
+            console.error(
+                "❌ challengePerformanceChart canvas not found."
+            );
+            return;
+        }
+
+        new Chart(canvas, {
+            type: "line",
+
+            data: {
+                labels: labels,
+
+                datasets: [
+                    {
+                        label: "Challenge Accuracy %",
+                        data: accuracyData,
+                        tension: 0.3,
+                        fill: false,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    },
+                    {
+                        label: "Average Score",
+                        data: scoreData,
+                        tension: 0.3,
+                        fill: false,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+
+                        title: {
+                            display: true,
+                            text: "Performance (%)"
+                        }
+                    },
+
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Date"
+                        }
+                    }
+                },
+
+                plugins: {
+                    legend: {
+                        display: true
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return (
+                                    " " +
+                                    context.dataset.label +
+                                    ": " +
+                                    context.parsed.y +
+                                    "%"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log(
+            "✅ Challenge Performance Chart loaded."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Challenge Performance Chart Error:",
+            error
+        );
+    }
+}
+
+async function loadSleepScheduleChart() {
+    try {
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/history/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to load sleep schedule history."
+            );
+        }
+
+        const history = data.history || [];
+
+        const labels = history.map(
+            item => item.date
+        );
+
+        const alarmTimeData = history.map(
+            item => {
+                if (
+                    item.averageAlarmMinutes === null ||
+                    item.averageAlarmMinutes === undefined
+                ) {
+                    return null;
+                }
+
+                return Number(
+                    item.averageAlarmMinutes
+                );
+            }
+        );
+
+        const canvas =
+            document.getElementById(
+                "sleepScheduleChart"
+            );
+
+        if (!canvas) {
+            console.error(
+                "❌ sleepScheduleChart canvas not found."
+            );
+            return;
+        }
+
+        new Chart(canvas, {
+            type: "line",
+
+            data: {
+                labels: labels,
+
+                datasets: [
+                    {
+                        label: "Average Alarm Time",
+                        data: alarmTimeData,
+                        tension: 0.3,
+                        fill: false,
+                        borderWidth: 3,
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                scales: {
+                    y: {
+                        beginAtZero: false,
+
+                        title: {
+                            display: true,
+                            text: "Alarm Time (Minutes)"
+                        }
+                    },
+
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Date"
+                        }
+                    }
+                },
+
+                plugins: {
+                    legend: {
+                        display: true
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+
+                                const totalMinutes =
+                                    Math.round(
+                                        context.parsed.y
+                                    );
+
+                                const hours =
+                                    Math.floor(
+                                        totalMinutes / 60
+                                    ) % 24;
+
+                                const minutes =
+                                    totalMinutes % 60;
+
+                                const formattedTime =
+                                    String(hours).padStart(2, "0") +
+                                    ":" +
+                                    String(minutes).padStart(2, "0");
+
+                                return (
+                                    " Alarm Time: " +
+                                    formattedTime
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log(
+            "✅ Sleep Schedule Chart loaded."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Sleep Schedule Chart Error:",
+            error
+        );
+    }
+}
+
+async function loadProductivityCorrelationChart() {
+    try {
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/history/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to load productivity history."
+            );
+        }
+
+        const history = data.history || [];
+
+        const correlationData = history
+            .filter(item =>
+                Number(item.snoozes) >= 0 &&
+                item.averageScore !== null &&
+                item.averageScore !== undefined
+            )
+            .map(item => ({
+                x: Number(item.snoozes) || 0,
+                y: Number(item.averageScore) || 0,
+                date: item.date
+            }));
+
+        const canvas =
+            document.getElementById(
+                "productivityCorrelationChart"
+            );
+
+        if (!canvas) {
+            console.error(
+                "❌ productivityCorrelationChart canvas not found."
+            );
+            return;
+        }
+
+        new Chart(canvas, {
+            type: "scatter",
+
+            data: {
+                datasets: [
+                    {
+                        label: "Cognitive Performance",
+                        data: correlationData,
+                        pointRadius: 7,
+                        pointHoverRadius: 9
+                    }
+                ]
+            },
+
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+
+                scales: {
+                    x: {
+                        beginAtZero: true,
+
+                        title: {
+                            display: true,
+                            text: "Number of Snoozes"
+                        },
+
+                        ticks: {
+                            stepSize: 1
+                        }
+                    },
+
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+
+                        title: {
+                            display: true,
+                            text: "Average Cognitive Score"
+                        }
+                    }
+                },
+
+                plugins: {
+                    legend: {
+                        display: true
+                    },
+
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+
+                                const point =
+                                    context.raw;
+
+                                return [
+                                    " Snoozes: " +
+                                    point.x,
+
+                                    " Cognitive Score: " +
+                                    point.y,
+
+                                    " Date: " +
+                                    point.date
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        console.log(
+            "✅ Productivity Correlation Chart loaded."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Productivity Correlation Chart Error:",
+            error
+        );
+    }
+}
+
+// =====================================================
+// BEHAVIORAL ANALYTICS EVENT LOGGER
+// =====================================================
+
+async function logBehaviorEvent(eventType, metadata = {}) {
+
+    try {
+
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const alarmId =
+            activeAlarm?.id ?? null;
+
+        const response = await fetch(
+            "http://localhost:5000/api/challenges/behavior/event",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    userId: userId,
+                    alarmId: alarmId,
+                    eventType: eventType,
+                    metadata: metadata
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to save behavioral event."
+            );
+        }
+
+        console.log(
+            "📊 Behavioral event saved:",
+            eventType,
+            data.event
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Behavioral event save failed:",
+            error
+        );
+    }
+}
 
 
 function checkAnswer() {
@@ -2079,7 +3029,25 @@ async function completeWakeUpVerification() {
             )
             : 0;
 
+logBehaviorEvent("wake_verified", {
+    wakefulnessRating:
+        wakeUpVerification.wakefulnessRating,
 
+    totalQuestions:
+        wakeUpVerification.totalQuestions,
+
+    correctAnswers:
+        wakeUpVerification.correctAnswers,
+
+    wrongAnswers:
+        wakeUpVerification.wrongAnswers,
+
+    accuracy:
+        accuracy,
+
+    verificationTime:
+        verificationTime
+});
     // ------------------------------------------
     // Final verification information
     // ------------------------------------------
@@ -3112,6 +4080,12 @@ function startWakeUpVerification() {
     );
 
     showWakefulnessAssessment();
+
+logBehaviorEvent("verification_started", {
+    challengeType: activeAlarm?.challengeType || null,
+    difficulty: activeAlarm?.difficulty || null
+});
+
 }
 // ==========================================
 // WAKEFULNESS ASSESSMENT
@@ -3423,3 +4397,15 @@ function getVerificationAccuracy() {
         ) * 100
     );
 }
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+        loadBehaviorAnalytics();
+        loadSnoozePatternChart();
+        loadWakeUpBehaviorChart();
+        loadChallengePerformanceChart();
+        loadSleepScheduleChart();
+        loadProductivityCorrelationChart();
+    }
+);
