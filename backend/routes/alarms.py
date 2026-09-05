@@ -5,7 +5,7 @@ from typing import List, Optional
 from fastapi.security import OAuth2PasswordBearer
 
 from database import get_db
-from models import Alarm, User, ChallengeAttempt
+from models import Alarm, User, ChallengeAttempt, AlarmSnoozeEvent
 from schemas import AlarmCreate, AlarmUpdate, AlarmResponse, CheckNextRequest, CheckNextResponse
 from routes.auth import get_current_user
 from scheduler import triggered_alarms
@@ -218,16 +218,22 @@ def snooze_alarm(
     if snooze_count >= (alarm.max_snoozes or 3):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Maximum snooze count reached")
     session_id = payload.get("session_id")
-    verification_session = get_verification_session(session_id) if session_id else None
-    if not verification_session or verification_session.get("status") != "passed":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Wake-up verification is not complete")
     if session_id:
+        verification_session = get_verification_session(session_id)
         if verification_session and verification_session.get("current_challenge", {}).get("id"):
             remove_challenge_session(verification_session["current_challenge"]["id"])
         remove_verification_session(session_id)
+    new_snooze_count = snooze_count + 1
     due_at = datetime.datetime.now() + datetime.timedelta(minutes=alarm.snooze_duration or 5)
-    scheduler.schedule_snooze(alarm, due_at, snooze_count + 1)
-    return {"status": "snoozed", "alarm_id": id, "snooze_count": snooze_count + 1, "snooze_duration": alarm.snooze_duration, "due_at": due_at}
+    db.add(AlarmSnoozeEvent(
+        user_id=current_user.id,
+        alarm_id=id,
+        snooze_count=new_snooze_count,
+        scheduled_for=due_at,
+    ))
+    db.commit()
+    scheduler.schedule_snooze(alarm, due_at, new_snooze_count)
+    return {"status": "snoozed", "alarm_id": id, "snooze_count": new_snooze_count, "snooze_duration": alarm.snooze_duration, "due_at": due_at}
 
 
 @router.post("/{id}/dismiss")

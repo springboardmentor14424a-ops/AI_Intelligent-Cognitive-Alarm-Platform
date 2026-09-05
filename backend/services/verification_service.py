@@ -48,6 +48,17 @@ _session_lock = threading.RLock()
 ACTIVE_VERIFICATION_SESSIONS: Dict[str, dict] = {}
 
 
+def _generate_distinct_challenge(challenge_type: str, difficulty: str, previous_questions: set) -> dict:
+    """Generate a challenge that has not already appeared in this session when possible."""
+    challenge = None
+    for _ in range(5):
+        candidate = generate_cognitive_challenge(challenge_type, difficulty)
+        if candidate.get("question") not in previous_questions:
+            return candidate
+        challenge = candidate
+    return challenge
+
+
 def get_verification_session_by_alarm(alarm_id: int, user_id: int) -> Optional[dict]:
     with _session_lock:
         for session in ACTIVE_VERIFICATION_SESSIONS.values():
@@ -477,7 +488,13 @@ def _process_verification_step(
         next_diff = step_difficulty(diff, -1) if not is_step_correct else diff
         norm_type = map_challenge_type(ch_type)
         try:
-            next_data = generate_cognitive_challenge(norm_type, next_diff)
+            previous_questions = {
+                item.get("question")
+                for item in session.get("history", [])
+                if item.get("question")
+            }
+            previous_questions.add(question_text)
+            next_data = _generate_distinct_challenge(norm_type, next_diff, previous_questions)
             next_chal_id = f"chal_{uuid.uuid4().hex[:12]}"
             next_data["id"] = next_chal_id
             next_data["user_id"] = user_id
@@ -499,7 +516,7 @@ def _process_verification_step(
     else:
         # Keep the verification session so duplicate final requests are replayed.
         if current_chal.get("id"):
-            remove_session(current_chal["id"])
+            remove_session(current_chal["id"]) 
 
     return {
         "session_id": session_id,

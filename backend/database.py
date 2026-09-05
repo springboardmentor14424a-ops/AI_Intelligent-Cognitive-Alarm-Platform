@@ -38,6 +38,7 @@ def run_db_migrations():
         "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS session_id VARCHAR(100);",
         "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS wakefulness_rating INTEGER;",
         "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS completed_at TIMESTAMP WITH TIME ZONE;",
+        "CREATE TABLE IF NOT EXISTS alarm_snooze_events (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, alarm_id INTEGER NOT NULL, snooze_count INTEGER NOT NULL DEFAULT 1, scheduled_for TIMESTAMP WITH TIME ZONE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);",
         "UPDATE alarms SET verification_method = 'multi_step', verification_steps = 3, required_accuracy = 67.0 WHERE verification_method IS NULL OR verification_method = '' OR verification_method = 'puzzle_completion' OR verification_steps <= 1;"
     ]
     try:

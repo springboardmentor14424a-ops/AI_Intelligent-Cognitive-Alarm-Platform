@@ -29,6 +29,7 @@ class User(Base):
     # Relationship to Alarms
     alarms = relationship("Alarm", back_populates="user", cascade="all, delete-orphan")
     challenge_attempts = relationship("ChallengeAttempt", back_populates="user", cascade="all, delete-orphan")
+    snooze_events = relationship("AlarmSnoozeEvent", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User(id={self.id}, name='{self.name}', email='{self.email}', role='{self.role}')>"
@@ -77,6 +78,7 @@ class Alarm(Base):
     # Relationships
     user = relationship("User", back_populates="alarms")
     challenge_attempts = relationship("ChallengeAttempt", back_populates="alarm", cascade="all, delete-orphan")
+    snooze_events = relationship("AlarmSnoozeEvent", back_populates="alarm", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Alarm(id={self.id}, title='{self.title}', user_id={self.user_id}, time='{self.alarm_time}', method='{self.verification_method}', active={self.is_active})>"
@@ -127,6 +129,24 @@ class ChallengeAttempt(Base):
 
     def __repr__(self):
         return f"<ChallengeAttempt(id={self.id}, user_id={self.user_id}, type='{self.challenge_type}', difficulty='{self.difficulty}', status='{self.verification_status}', correct={self.is_correct})>"
+
+
+class AlarmSnoozeEvent(Base):
+    """Stores each snooze action as a persisted event so analytics stays accurate across restarts."""
+    __tablename__ = "alarm_snooze_events"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    alarm_id = Column(Integer, ForeignKey("alarms.id", ondelete="CASCADE"), nullable=False, index=True)
+    snooze_count = Column(Integer, nullable=False, default=1)
+    scheduled_for = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User", back_populates="snooze_events")
+    alarm = relationship("Alarm", back_populates="snooze_events")
+
+    def __repr__(self):
+        return f"<AlarmSnoozeEvent(id={self.id}, user_id={self.user_id}, alarm_id={self.alarm_id}, snooze_count={self.snooze_count})>"
 
 
 

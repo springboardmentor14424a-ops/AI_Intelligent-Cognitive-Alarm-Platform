@@ -49,3 +49,15 @@ CREATE TABLE IF NOT EXISTS alarms (
 -- Index on user_id for rapid querying
 CREATE INDEX IF NOT EXISTS idx_alarms_user_id ON alarms(user_id);
 
+CREATE TABLE IF NOT EXISTS alarm_snooze_events (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    alarm_id INTEGER NOT NULL REFERENCES alarms(id) ON DELETE CASCADE,
+    snooze_count INTEGER NOT NULL DEFAULT 1,
+    scheduled_for TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_alarm_snooze_events_user ON alarm_snooze_events(user_id);
+CREATE INDEX IF NOT EXISTS idx_alarm_snooze_events_alarm ON alarm_snooze_events(alarm_id);
+

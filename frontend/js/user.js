@@ -173,6 +173,8 @@ function renderVerificationHUD(state) {
 function triggerAlarmSound(alarm) {
     if (!alarm) return;
 
+    resetChallengeModalDisplay();
+
     // Prevent duplicate triggers if an alarm is already actively ringing
     if (currentRingingAlarm) {
         console.log("⚠️ Alarm already ringing. Ignoring duplicate trigger for:", alarm.title || alarm.id);
@@ -337,6 +339,25 @@ let challengeStartTime = 0;
 let challengeTimerInterval = null;
 let verificationRequestInFlight = false;
 
+function resetChallengeModalDisplay() {
+    const challengeQuestion = document.getElementById('challenge-question');
+    const challengeOptions = document.getElementById('challenge-options-container');
+    const challengeInput = document.getElementById('challenge-input-group');
+    const submitButton = document.getElementById('submit-challenge-btn');
+    const challengeFeedback = document.getElementById('challenge-feedback');
+    const wakefulnessPanel = document.getElementById('wakefulness-panel');
+
+    if (wakefulnessPanel) wakefulnessPanel.remove();
+    if (challengeQuestion) challengeQuestion.style.display = 'block';
+    if (challengeOptions) challengeOptions.style.display = 'flex';
+    if (challengeInput) challengeInput.style.display = 'block';
+    if (submitButton) submitButton.style.display = 'inline-block';
+    if (challengeFeedback) {
+        challengeFeedback.textContent = '';
+        challengeFeedback.style.color = '';
+    }
+}
+
 function showWakefulnessScreen() {
     stopChallengeTimer();
     const modal = document.querySelector('#challenge-modal .modal-container');
@@ -345,10 +366,15 @@ function showWakefulnessScreen() {
     const challengeOptions = document.getElementById('challenge-options-container');
     const challengeInput = document.getElementById('challenge-input-group');
     const submitButton = document.getElementById('submit-challenge-btn');
+    const challengeFeedback = document.getElementById('challenge-feedback');
     if (challengeQuestion) challengeQuestion.style.display = 'none';
     if (challengeOptions) challengeOptions.style.display = 'none';
     if (challengeInput) challengeInput.style.display = 'none';
     if (submitButton) submitButton.style.display = 'none';
+    if (challengeFeedback) {
+        challengeFeedback.textContent = '';
+        challengeFeedback.style.color = '';
+    }
 
     let panel = document.getElementById('wakefulness-panel');
     if (!panel) {
@@ -392,6 +418,15 @@ function showWakefulnessScreen() {
 }
 
 function showAlarmActionScreen() {
+    const challengeQuestion = document.getElementById('challenge-question');
+    const challengeOptions = document.getElementById('challenge-options-container');
+    const challengeInput = document.getElementById('challenge-input-group');
+    const submitButton = document.getElementById('submit-challenge-btn');
+    if (challengeQuestion) challengeQuestion.style.display = 'none';
+    if (challengeOptions) challengeOptions.style.display = 'none';
+    if (challengeInput) challengeInput.style.display = 'none';
+    if (submitButton) submitButton.style.display = 'none';
+
     const panel = document.getElementById('wakefulness-panel');
     if (!panel || !currentRingingAlarm) return;
     const alarm = currentRingingAlarm;
@@ -565,13 +600,6 @@ function displayCognitiveChallenge(challenge, attemptNum = 1) {
     const inputGroup = document.getElementById('challenge-input-group');
     const answerInput = document.getElementById('challenge-answer');
     const feedbackElem = document.getElementById('challenge-feedback');
-    const submitButton = document.getElementById('submit-challenge-btn');
-    const wakefulnessPanel = document.getElementById('wakefulness-panel');
-
-    // A snoozed alarm reuses the same modal, so restore challenge controls from the previous session.
-    if (questionElem) questionElem.style.display = 'block';
-    if (submitButton) submitButton.style.display = 'block';
-    if (wakefulnessPanel) wakefulnessPanel.style.display = 'none';
 
     if (typeBadge) typeBadge.textContent = challenge.type || 'Math Problems';
     if (diffBadge) {
@@ -1749,6 +1777,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof updateHeaderUserInfo === 'function') updateHeaderUserInfo();
     fetchAlarmsFromServer();
     fetchAnalyticsData();
+    fetchBehavioralAnalyticsData();
     renderHabits();
     renderHistoryLog();
     renderNotifications();
@@ -1770,6 +1799,83 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================================================
 let analyticsChartInstance = null;
 let dbAnalyticsChartInstance = null;
+
+async function fetchBehavioralAnalyticsData() {
+    try {
+        const headers = getAuthHeaders();
+        const response = await fetch(`${window.API_BASE_URL}/api/analytics/behavioral`, { headers });
+        if (!response.ok) {
+            const msg = 'Insufficient data';
+            const ids = ['behavior-consistency', 'behavior-snoozes', 'behavior-wakefulness', 'behavior-wake-time', 'behavior-streak', 'db-behavior-consistency', 'db-behavior-snoozes', 'db-behavior-wakefulness', 'db-behavior-wake-time', 'db-behavior-streak'];
+            ids.forEach(id => { const el = document.getElementById(id); if (el) el.textContent = msg; });
+            ['behavior-patterns-list', 'behavior-insights-list', 'db-behavior-patterns-list', 'db-behavior-insights-list'].forEach(id => {
+                const el = document.getElementById(id); if (el) el.innerHTML = '<li>Insufficient data.</li>';
+            });
+            return;
+        }
+
+        const data = await response.json();
+        const snoozePattern = data.snooze_pattern || {};
+        const habit = data.habit_consistency || {};
+        const wakeUp = data.wake_up_behavior || {};
+        const insights = data.insights || [];
+
+        const labels = [
+            ['behavior-consistency', 'db-behavior-consistency'],
+            ['behavior-snoozes', 'db-behavior-snoozes'],
+            ['behavior-wakefulness', 'db-behavior-wakefulness'],
+            ['behavior-wake-time', 'db-behavior-wake-time'],
+            ['behavior-streak', 'db-behavior-streak']
+        ];
+
+        const consistency = Number(habit.wake_up_consistency_percentage || 0);
+        const avgSnoozes = Number(snoozePattern.average_snoozes_per_alarm || 0);
+        const avgWakefulness = Number(wakeUp.average_wakefulness_rating || 0);
+        const avgWakeTime = habit.average_wake_up_time || '--:--';
+        const streak = Number(habit.wake_up_streak || 0);
+
+        const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+        setText('behavior-consistency', `${consistency.toFixed(0)}%`);
+        setText('behavior-snoozes', avgSnoozes.toFixed(1));
+        setText('behavior-wakefulness', `${avgWakefulness.toFixed(1)}/5`);
+        setText('behavior-wake-time', avgWakeTime);
+        setText('behavior-streak', `${streak} day${streak === 1 ? '' : 's'}`);
+
+        ['db-behavior-consistency', 'db-behavior-snoozes', 'db-behavior-wakefulness', 'db-behavior-wake-time', 'db-behavior-streak'].forEach((id, index) => {
+            const target = labels[index];
+            if (target && target[1] === id) {
+                const val = [
+                    `${consistency.toFixed(0)}%`,
+                    avgSnoozes.toFixed(1),
+                    `${avgWakefulness.toFixed(1)}/5`,
+                    avgWakeTime,
+                    `${streak} day${streak === 1 ? '' : 's'}`
+                ][index];
+                setText(id, val);
+            }
+        });
+
+        const patterns = [
+            `Total snoozes: ${snoozePattern.total_snoozes ?? 0}`,
+            `Most snoozed day: ${snoozePattern.most_frequently_snoozed_days?.[0] || 'Insufficient data'}`,
+            `Successful verification days: ${habit.successful_wake_up_days ?? 0}`,
+            `Failed/missed days: ${habit.missed_or_failed_verification_days ?? 0}`
+        ];
+
+        const listRenderer = (listId, items) => {
+            const el = document.getElementById(listId);
+            if (!el) return;
+            el.innerHTML = items.length ? items.map(item => `<li>${item}</li>`).join('') : '<li>Insufficient data.</li>';
+        };
+
+        listRenderer('behavior-patterns-list', patterns);
+        listRenderer('db-behavior-patterns-list', patterns);
+        listRenderer('behavior-insights-list', insights.length ? insights : ['Insufficient data to generate a behavioral trend insight yet.']);
+        listRenderer('db-behavior-insights-list', insights.length ? insights : ['Insufficient data to generate a behavioral trend insight yet.']);
+    } catch (e) {
+        console.error('Error fetching behavioral analytics:', e);
+    }
+}
 
 async function fetchAnalyticsData() {
     try {

@@ -271,16 +271,7 @@ def generate_challenge(
     add_session(session_id, challenge_data)
 
     return ChallengeResponse(**challenge_data)
-
-def normalize_answer(ans: str) -> str:
-    """Helper to clean and normalize answer strings for validation."""
-    if not ans:
-        return ""
-    clean = ans.strip().lower()
-    for prefix in ["a ", "an ", "the "]:
-        if clean.startswith(prefix):
-            clean = clean[len(prefix):].strip()
-    return clean
+    
 
 @router.post("/validate", response_model=ChallengeValidateResponse)
 def validate_challenge(
