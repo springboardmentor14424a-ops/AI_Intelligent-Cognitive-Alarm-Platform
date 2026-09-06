@@ -1,6 +1,6 @@
 # Intelligent Cognitive Alarm & Behavioral Health Platform
 
-> **Milestone 3 & 4 Release: Adaptive Intelligence, Behavioral Telemetry, Habit Scoring, Recommendation Engine, Reports, Notifications & Dockerization.**
+
 
 ---
 
