@@ -18,6 +18,9 @@ import {
   getRecommendations,
   generateRecommendationsHandler,
   getHabitScoreHandler,
+  getHabitScoreHistoryHandler,
+  getHabitScoreBreakdownHandler,
+  getCategoryRecommendationsHandler,
 } from '../controllers/analytics.controller.js';
 
 const router = Router();
@@ -35,10 +38,23 @@ router.use('/notifications', notificationRoutes);
 router.use('/admin', adminRoutes);
 router.use('/coach', coachRoutes);
 
-// Direct Milestone 3 Spec-compliant Endpoint Aliases
-router.get('/adaptive/difficulty', authenticateToken, getAdaptiveDifficulty);
-router.post('/adaptive/difficulty/calculate', authenticateToken, calculateAdaptiveDifficultyHandler);
+// Direct Spec-compliant Habit Score Endpoints
+router.get('/habit-score', authenticateToken, getHabitScoreHandler);
+router.get('/habit-score/history', authenticateToken, getHabitScoreHistoryHandler);
+router.get('/habit-score/breakdown', authenticateToken, getHabitScoreBreakdownHandler);
+
+// Direct Spec-compliant Recommendation Endpoints
 router.get('/recommendations', authenticateToken, getRecommendations);
+router.get('/recommendations/sleep', authenticateToken, getCategoryRecommendationsHandler('sleep'));
+router.get('/recommendations/wake-up', authenticateToken, getCategoryRecommendationsHandler('wakeup'));
+router.get('/recommendations/habits', authenticateToken, getCategoryRecommendationsHandler('habits'));
+router.get('/recommendations/productivity', authenticateToken, getCategoryRecommendationsHandler('productivity'));
+router.get('/recommendations/challenges', authenticateToken, getCategoryRecommendationsHandler('challenges'));
 router.post('/recommendations/generate', authenticateToken, generateRecommendationsHandler);
 
+// Direct Adaptive Difficulty Spec-compliant Endpoints
+router.get('/adaptive/difficulty', authenticateToken, getAdaptiveDifficulty);
+router.post('/adaptive/difficulty/calculate', authenticateToken, calculateAdaptiveDifficultyHandler);
+
 export default router;
+

@@ -236,10 +236,7 @@ export const getHabitScore = async (
     res.status(200).json({
       success: true,
       message: 'Habit Score telemetry calculated',
-      data: {
-        hasSufficientData: true,
-        ...scoreResult,
-      },
+      data: scoreResult,
     });
   } catch (error) {
     next(error);

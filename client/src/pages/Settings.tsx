@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { useToast } from '../components/Toast';
-import { FiSettings, FiBell, FiMoon, FiVolume2, FiShield, FiCheck } from 'react-icons/fi';
+import { FiSettings, FiBell, FiMoon, FiSun, FiVolume2, FiShield, FiCheck } from 'react-icons/fi';
+import { useTheme } from '../context/ThemeContext';
 
 export const SettingsPage: React.FC = () => {
   const toast = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);
-  const [darkMode, setDarkMode] = useState(true);
 
   const handleSave = () => {
     toast.success('Settings Saved', 'Application preferences have been updated');
@@ -18,44 +19,68 @@ export const SettingsPage: React.FC = () => {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-8">
-        <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-slate-800">
-          <h1 className="text-2xl font-extrabold text-white flex items-center gap-3">
-            <FiSettings className="text-indigo-400" /> Platform Settings
+        <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800">
+          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-3">
+            <FiSettings className="text-indigo-500 dark:text-indigo-400" /> Platform Settings
           </h1>
-          <p className="text-xs text-slate-400 mt-1">Configure alarm preferences, notifications, and theme settings.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Configure alarm preferences, notifications, and theme settings.</p>
         </div>
 
-        <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-slate-800 space-y-6">
+        <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-6">
           {/* Sound & Alarm Preferences */}
           <div className="space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <FiVolume2 className="text-blue-400" /> Alarm & Audio Preferences
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <FiVolume2 className="text-blue-500 dark:text-blue-400" /> Alarm & Audio Preferences
             </h3>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
               <div>
-                <p className="text-sm font-semibold text-white">Default Alarm Sound</p>
-                <p className="text-xs text-slate-400">Play audio chime when alarm triggers</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Default Alarm Sound</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Play audio chime when alarm triggers</p>
               </div>
               <button
                 onClick={() => setSoundEnabled((p) => !p)}
                 className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                  soundEnabled ? 'bg-blue-600 justify-end' : 'bg-slate-700 justify-start'
+                  soundEnabled ? 'bg-blue-600 justify-end' : 'bg-slate-400 dark:bg-slate-700 justify-start'
                 }`}
               >
                 <span className="w-4 h-4 rounded-full bg-white shadow-md" />
               </button>
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
               <div>
-                <p className="text-sm font-semibold text-white">Haptic Vibration</p>
-                <p className="text-xs text-slate-400">Enable device vibration feedback</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Haptic Vibration</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Enable device vibration feedback</p>
               </div>
               <button
                 onClick={() => setVibrationEnabled((p) => !p)}
                 className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                  vibrationEnabled ? 'bg-blue-600 justify-end' : 'bg-slate-700 justify-start'
+                  vibrationEnabled ? 'bg-blue-600 justify-end' : 'bg-slate-400 dark:bg-slate-700 justify-start'
+                }`}
+              >
+                <span className="w-4 h-4 rounded-full bg-white shadow-md" />
+              </button>
+            </div>
+          </div>
+
+          {/* Theme Preference Section */}
+          <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              {theme === 'dark' ? <FiMoon className="text-indigo-400" /> : <FiSun className="text-amber-500" />} Appearance Theme
+            </h3>
+
+            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
+              <div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Application Theme Mode</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Currently using <span className="font-bold capitalize">{theme} Theme</span>
+                </p>
+              </div>
+              <button
+                onClick={toggleTheme}
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
+                  theme === 'dark' ? 'bg-indigo-600 justify-end' : 'bg-amber-500 justify-start'
                 }`}
               >
                 <span className="w-4 h-4 rounded-full bg-white shadow-md" />
@@ -64,20 +89,20 @@ export const SettingsPage: React.FC = () => {
           </div>
 
           {/* Notifications */}
-          <div className="space-y-4 pt-4 border-t border-slate-800">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-              <FiBell className="text-amber-400" /> Notifications & Alerts
+          <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+              <FiBell className="text-amber-500 dark:text-amber-400" /> Notifications & Alerts
             </h3>
 
-            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
               <div>
-                <p className="text-sm font-semibold text-white">Email Digest & Routine Reports</p>
-                <p className="text-xs text-slate-400">Receive weekly cognitive routine reports</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">Email Digest & Routine Reports</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Receive weekly cognitive routine reports</p>
               </div>
               <button
                 onClick={() => setEmailAlerts((p) => !p)}
                 className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${
-                  emailAlerts ? 'bg-amber-600 justify-end' : 'bg-slate-700 justify-start'
+                  emailAlerts ? 'bg-amber-600 justify-end' : 'bg-slate-400 dark:bg-slate-700 justify-start'
                 }`}
               >
                 <span className="w-4 h-4 rounded-full bg-white shadow-md" />

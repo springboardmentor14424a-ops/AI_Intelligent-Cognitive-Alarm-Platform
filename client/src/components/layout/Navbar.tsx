@@ -11,9 +11,10 @@ import {
   FiUserCheck,
   FiMenu,
   FiMoon,
-  FiCheckCircle,
+  FiSun,
 } from 'react-icons/fi';
 import { UserRole } from '../../types';
+import { useTheme } from '../../context/ThemeContext';
 
 interface NavbarProps {
   onToggleMobileSidebar?: () => void;
@@ -21,6 +22,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -56,7 +58,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
   };
 
   return (
-    <header className="sticky top-0 z-20 border-b border-slate-800 glass-panel h-16 flex items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-20 border-b border-slate-200 dark:border-slate-800 glass-panel h-16 flex items-center justify-between px-4 sm:px-6">
       <div className="flex items-center gap-3">
         {onToggleMobileSidebar && (
           <button
@@ -83,11 +85,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileSidebar }) => {
 
       {user && (
         <div className="flex items-center gap-3 sm:gap-4">
-          {/* Dark Mode Status Indicator */}
-          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-400">
-            <FiMoon className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Dark Theme Active</span>
-          </div>
+          {/* Interactive Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-200/80 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-800 transition-all shadow-sm"
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Theme`}
+          >
+            {theme === 'dark' ? (
+              <>
+                <FiMoon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Dark Theme</span>
+              </>
+            ) : (
+              <>
+                <FiSun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Light Theme</span>
+              </>
+            )}
+          </button>
 
           {/* Notifications Dropdown */}
           <div className="relative">

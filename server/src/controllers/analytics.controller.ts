@@ -134,6 +134,9 @@ export const calculateAdaptiveDifficultyHandler = async (req: Request, res: Resp
   }
 };
 
+import { getHabitScoreHistory } from '../services/behavioralAnalytics.service.js';
+import { getRecommendationsByCategory } from '../services/recommendation.service.js';
+
 export const getHabitScoreHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const userId = req.user?.userId;
@@ -144,18 +147,67 @@ export const getHabitScoreHandler = async (req: Request, res: Response, next: Ne
 
     res.status(200).json({
       success: true,
+      data: scoreResult,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getHabitScoreHistoryHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('Unauthorized', 401);
+
+    const period = (req.query.period as 'today' | '7d' | '30d') || '7d';
+    const historyData = await getHabitScoreHistory(userId, period);
+
+    res.status(200).json({
+      success: true,
+      data: historyData,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getHabitScoreBreakdownHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) throw new AppError('Unauthorized', 401);
+
+    const overview = await getOverviewAnalytics(userId);
+    const scoreResult = overview.habitScore;
+
+    res.status(200).json({
+      success: true,
       data: {
-        overall_score: scoreResult.overall_score,
-        wake_up_consistency: scoreResult.wake_up_consistency,
-        challenge_completion: scoreResult.challenge_completion,
-        snooze_reduction: scoreResult.snooze_reduction,
-        sleep_adherence: scoreResult.sleep_adherence,
-        score_breakdown: scoreResult.score_breakdown,
+        habit_score: scoreResult.habit_score,
+        components: scoreResult.components,
+        weights: scoreResult.weights,
         score_category: scoreResult.score_category,
-        summary_message: scoreResult.summaryMessage,
+        summaryMessage: scoreResult.summaryMessage,
       },
     });
   } catch (error) {
     next(error);
   }
 };
+
+export const getCategoryRecommendationsHandler = (category: string) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userId = req.user?.userId;
+      if (!userId) throw new AppError('Unauthorized', 401);
+
+      const recs = await getRecommendationsByCategory(userId, category);
+      res.status(200).json({
+        success: true,
+        data: { recommendations: recs },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
