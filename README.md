@@ -16,17 +16,17 @@ Unlike traditional passive alarm clocks, this platform enforces **Prefrontal Cor
 
 ```mermaid
 graph TD
-    A["User Authentication / Demo Login"] --> B["Role Routing (User / Coach / Admin)"]
-    B --> C["User Dashboard & Habit Manager"]
-    C --> D["Smart Adaptive Alarm Creation"]
-    D --> E["Alarm Trigger & Scheduler"]
-    E --> F["Cognitive Challenge Engine"]
-    F --> G["Wake-up Verification"]
-    G --> H["Behavioral Telemetry Log"]
-    H --> I["Weighted Habit Score (0-100)"]
-    I --> J["Adaptive Difficulty Engine"]
-    J --> K["Recommendation Engine"]
-    K --> L["Analytics Dashboard & Reports"]
+    A["User Authentication / Demo Login"] -> B["Role Routing (User / Coach / Admin)"]
+    B -> C["User Dashboard & Habit Manager"]
+    C -> D["Smart Adaptive Alarm Creation"]
+    D -> E["Alarm Trigger & Scheduler"]
+    E -> F["Cognitive Challenge Engine"]
+    F -> G["Wake-up Verification"]
+    G -> H["Behavioral Telemetry Log"]
+    H -> I["Weighted Habit Score (0-100)"]
+    I -> J["Adaptive Difficulty Engine"]
+    J -> K["Recommendation Engine"]
+    K -> L["Analytics Dashboard & Reports"]
 ```
 
 ### Complete End-to-End Workflow:
