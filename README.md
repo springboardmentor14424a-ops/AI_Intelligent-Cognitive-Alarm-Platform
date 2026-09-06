@@ -11,7 +11,7 @@ The **Intelligent Cognitive Alarm Platform** is a full-stack, enterprise-grade b
 Unlike traditional passive alarm clocks, this platform enforces **Prefrontal Cortex Activation** via dynamic cognitive challenges (Math, Logic, Memory, Word, Pattern, Riddle, Quiz) before an alarm can be dismissed. It continuously analyzes user wake-up latency, snooze frequency, sleep schedule adherence, and challenge accuracy to dynamically adjust difficulty levels and deliver explainable behavioral recommendations.
 
 ---
-
+<!--
 ## 🏗️ System Architecture & Workflow
 
 ```mermaid
