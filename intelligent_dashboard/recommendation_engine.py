@@ -11,7 +11,7 @@ Provides:
 import datetime
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from database import User, UserProfile, Alarm, ChallengePerformance, WakeLog, HabitScoreLog
+from database import User, UserProfile, Alarm, ChallengePerformance, WakeLog, HabitScoreLog, SleepAdherenceLog
 from ml_engine import MLEngine
 
 
@@ -46,10 +46,26 @@ class RecommendationEngine:
             "Eliminate blue light exposure at least 30 minutes prior to planned bedtime to boost natural melatonin secretion."
         ]
 
+        # Incorporate recent sleep adherence check-in feedback
+        latest_adh = (
+            db.query(SleepAdherenceLog)
+            .filter(SleepAdherenceLog.user_id == user_id)
+            .order_by(SleepAdherenceLog.created_at.desc())
+            .first()
+        )
+        sleep_adherence_status = "Not checked in yet"
+        if latest_adh is not None:
+            sleep_adherence_status = "Adhered (Yes)" if latest_adh.adhered else "Disrupted (No)"
+            if latest_adh.adhered:
+                tips.insert(0, f"✅ Sleep schedule adherence verified: Target bedtime ({latest_adh.target_bedtime}) met. Circadian alignment optimal.")
+            else:
+                tips.insert(0, f"⚠️ Sleep schedule disruption logged: Wind down at {wind_down_time} tonight to re-anchor your circadian rhythm.")
+
         return {
             "optimal_bedtime": optimal_bedtime,
             "wind_down_reminder_time": wind_down_time,
             "target_sleep_duration_hours": duration,
+            "sleep_adherence_status": sleep_adherence_status,
             "category": "Sleep Improvement",
             "recommendations": tips
         }
@@ -171,4 +187,63 @@ class RecommendationEngine:
             "habit_improvement": cls.get_habit_improvement_guidance(user_id, db),
             "productivity": cls.get_productivity_recommendations(user_id, db),
             "personalized_challenges": cls.get_personalized_challenge_recommendations(user_id, db)
+        }
+
+    @classmethod
+    def get_platform_recommendations_summary(cls, db: Session) -> Dict[str, Any]:
+        """
+        Aggregates platform-wide recommendation monitoring metrics & sleep adherence logs
+        for Admin Dashboard monitoring.
+        """
+        total_users = db.query(User).count()
+        all_checks = db.query(SleepAdherenceLog).order_by(SleepAdherenceLog.created_at.desc()).all()
+        total_checks = len(all_checks)
+        yes_count = sum(1 for c in all_checks if c.adhered)
+        no_count = total_checks - yes_count
+        adherence_rate = round((yes_count / total_checks * 100), 1) if total_checks > 0 else 100.0
+        avg_score = round(sum(c.score for c in all_checks) / total_checks, 1) if total_checks > 0 else 90.0
+
+        recent_entries = []
+        for c in all_checks[:15]:
+            u = db.query(User).filter(User.id == c.user_id).first()
+            recent_entries.append({
+                "id": c.id,
+                "user_id": c.user_id,
+                "user_name": u.full_name or u.name or u.username if u else f"User {c.user_id}",
+                "user_email": u.email if u else "N/A",
+                "adhered": c.adhered,
+                "adhered_label": "YES" if c.adhered else "NO",
+                "target_bedtime": c.target_bedtime,
+                "target_wake_time": c.target_wake_time,
+                "score": c.score,
+                "notes": c.notes or "",
+                "created_at": c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else "N/A"
+            })
+
+        return {
+            "success": True,
+            "total_users": total_users,
+            "monitoring_metrics": {
+                "total_adherence_checkins": total_checks,
+                "adhered_yes_count": yes_count,
+                "disrupted_no_count": no_count,
+                "adherence_rate_pct": adherence_rate,
+                "average_adherence_score": avg_score
+            },
+            "recent_sleep_adherence_logs": recent_entries,
+            "sleep_adherence_monitoring": {
+                "total_check_ins": total_checks,
+                "yes_adhered_count": yes_count,
+                "no_disrupted_count": no_count,
+                "platform_adherence_rate_pct": adherence_rate,
+                "average_adherence_score": avg_score,
+                "recent_logs": recent_entries
+            },
+            "recommendation_domains": {
+                "sleep_improvement": "Bedtime wind-down schedules & circadian alignment",
+                "wake_up_optimization": "Sunlight exposure & hydration protocols",
+                "habit_improvement": "Streak protection & 7-day trophy tracking",
+                "productivity": "Prime cognitive focus windows & Pomodoro pacing",
+                "personalized_challenges": "Cognitive inertia clearance & adaptive difficulty"
+            }
         }

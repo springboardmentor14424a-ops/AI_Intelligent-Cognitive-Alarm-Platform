@@ -210,19 +210,38 @@ def get_admin_dashboard(request: Request, db: Session = Depends(get_db), current
             growth_data.append(val)
         growth_data[-1] = total_users
 
-    # Calculate real Daily Active Users (DAU) / Activity Events from ActivityLog & WakeLog
-    dau_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-    day_activity_counts = {d: 0 for d in dau_labels}
-    for l in logs:
+    # Calculate real Daily Active Engagements (DAU) for the last 7 calendar days
+    import datetime as _dt
+    today = _dt.date.today()
+    dau_dates = [today - _dt.timedelta(days=i) for i in range(6, -1, -1)]  # oldest → newest
+    dau_labels = [d.strftime("%b %d") for d in dau_dates]
+    day_activity_counts = {d.isoformat(): 0 for d in dau_dates}
+
+    # Pull ALL activity logs from the last 7 days (not just latest 30)
+    week_ago = _dt.datetime.combine(dau_dates[0], _dt.time.min)
+    all_recent_logs = db.query(ActivityLog).filter(ActivityLog.created_at >= week_ago).all()
+    for l in all_recent_logs:
         if l.created_at:
-            d_name = dau_labels[l.created_at.weekday()]
-            day_activity_counts[d_name] += 1
-            
-    # Include wake log events
-    for w in db.query(WakeLog).all():
+            key = l.created_at.date().isoformat()
+            if key in day_activity_counts:
+                day_activity_counts[key] += 1
+
+    # Include WakeLog events in DAU
+    for w in db.query(WakeLog).filter(WakeLog.created_at >= week_ago).all():
         if w.created_at:
-            d_name = dau_labels[w.created_at.weekday()]
-    dau_data = [day_activity_counts[d] for d in dau_labels]
+            key = w.created_at.date().isoformat()
+            if key in day_activity_counts:
+                day_activity_counts[key] += 1
+
+    # Include SleepAdherenceLog events in DAU
+    from database import SleepAdherenceLog as _SAL
+    for s in db.query(_SAL).filter(_SAL.created_at >= week_ago).all():
+        if s.created_at:
+            key = s.created_at.date().isoformat()
+            if key in day_activity_counts:
+                day_activity_counts[key] += 1
+
+    dau_data = [day_activity_counts[d.isoformat()] for d in dau_dates]
 
     # Calculate average habit score from user profiles
     profiles = db.query(UserProfile).all()

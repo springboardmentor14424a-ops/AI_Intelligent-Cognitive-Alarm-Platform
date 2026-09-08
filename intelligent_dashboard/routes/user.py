@@ -186,7 +186,7 @@ def mark_all_read(
 
 @router.get("/export")
 def user_export_data(
-    format: str = Query("csv", regex="^(csv|excel|pdf)$"),
+    format: str = Query("csv", pattern="^(csv|excel|pdf)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):

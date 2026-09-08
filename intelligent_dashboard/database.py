@@ -78,6 +78,7 @@ class User(Base):
     confirmations = relationship("WakeUpConfirmation", back_populates="user", cascade="all, delete-orphan")
     habit_score_logs = relationship("HabitScoreLog", back_populates="user", cascade="all, delete-orphan")
     wake_logs = relationship("WakeLog", back_populates="user", cascade="all, delete-orphan")
+    sleep_adherence_logs = relationship("SleepAdherenceLog", back_populates="user", cascade="all, delete-orphan")
     
     # Coach assignment
     coach_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -292,6 +293,20 @@ class Feedback(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     user = relationship("User", backref="feedbacks")
+
+class SleepAdherenceLog(Base):
+    __tablename__ = "sleep_adherence_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    adhered = Column(Boolean, default=True)  # True = Yes, False = No
+    target_bedtime = Column(String(5), default="22:30")
+    target_wake_time = Column(String(5), default="07:00")
+    score = Column(Float, default=95.0)  # e.g. 95.0 for Yes, 45.0 for No
+    notes = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="sleep_adherence_logs")
 
 def ensure_db_schema():
     Base.metadata.create_all(bind=engine)

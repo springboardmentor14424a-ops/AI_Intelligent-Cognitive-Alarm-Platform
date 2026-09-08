@@ -5,8 +5,9 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Form, Query, Request, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
-from database import get_db, User, UserProfile, Alarm, ActivityLog, Notification, Report
+from database import get_db, User, UserProfile, Alarm, ActivityLog, Notification, Report, SleepAdherenceLog
 import auth
+from recommendation_engine import RecommendationEngine
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -217,7 +218,7 @@ def admin_broadcast(
 # Reports Downloads
 @router.get("/export")
 def admin_export_data(
-    format: str = Query("csv", regex="^(csv|excel|pdf)$"),
+    format: str = Query("csv", pattern="^(csv|excel|pdf)$"),
     db: Session = Depends(get_db),
     current_admin: User = Depends(auth.get_current_user)
 ):
@@ -579,5 +580,69 @@ def admin_get_engagement_analytics(
             "average_star_rating": avg_csat,
             "total_reviews": len(feedbacks)
         }
+    }
+
+
+@router.get("/recommendations/monitoring")
+def admin_get_recommendation_monitoring(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Returns platform-wide recommendation telemetry, sleep adherence Yes/No monitoring,
+    and recent user adherence scores for Module 8 Habit Scoring.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return RecommendationEngine.get_platform_recommendations_summary(db)
+
+
+@router.get("/sleep-adherence")
+def admin_get_sleep_adherence_logs(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(auth.get_current_user)
+):
+    """
+    Returns all user sleep schedule adherence responses (Yes / No) and awarded scores.
+    """
+    if not current_admin or current_admin.role != 'administrator':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    logs = (
+        db.query(SleepAdherenceLog)
+        .order_by(SleepAdherenceLog.created_at.desc())
+        .limit(50)
+        .all()
+    )
+
+    result = []
+    for l in logs:
+        u = db.query(User).filter(User.id == l.user_id).first()
+        result.append({
+            "id": l.id,
+            "user_id": l.user_id,
+            "user_name": u.full_name or u.name or u.username if u else f"User {l.user_id}",
+            "user_email": u.email if u else "N/A",
+            "adhered": l.adhered,
+            "adhered_label": "YES" if l.adhered else "NO",
+            "target_bedtime": l.target_bedtime,
+            "target_wake_time": l.target_wake_time,
+            "score": l.score,
+            "notes": l.notes or "",
+            "created_at": l.created_at.strftime("%Y-%m-%d %H:%M") if l.created_at else "N/A"
+        })
+
+    yes_count = sum(1 for x in result if x["adhered"])
+    total = len(result)
+    rate = round((yes_count / total * 100), 1) if total > 0 else 100.0
+
+    return {
+        "success": True,
+        "total_check_ins": total,
+        "adhered_yes_count": yes_count,
+        "adhered_no_count": total - yes_count,
+        "adherence_rate_pct": rate,
+        "logs": result
     }
 

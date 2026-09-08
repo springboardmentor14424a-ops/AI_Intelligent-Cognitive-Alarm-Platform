@@ -136,7 +136,7 @@
                             </thead>
                             <tbody>
                                 {% for d in client_dossiers %}
-                                    <tr onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')" style="cursor: pointer;">
+                                    <tr onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.profile.bed_time if (d.profile and d.profile.bed_time) else '23:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')" style="cursor: pointer;">
                                         <td><strong>{{ d.user.full_name or d.user.name or d.user.username }}</strong></td>
                                         <td>{{ d.user.email }}</td>
                                         <td>{{ d.profile.streak if d.profile else 0 }} days</td>
@@ -162,7 +162,7 @@
                         <h3>Wellness Users</h3>
                         <div style="display: flex; flex-direction: column; gap: 12px;">
                             {% for d in client_dossiers %}
-                                <div class="client-item" id="client-card-{{ d.user.id }}" onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')">
+                                <div class="client-item" id="client-card-{{ d.user.id }}" onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.profile.bed_time if (d.profile and d.profile.bed_time) else '23:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')">
                                     <div style="display: flex; align-items: center; gap: 12px;">
                                         <img src="{{ d.user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 36px; height: 36px; border-radius: 50%;">
                                         <div>
@@ -188,14 +188,18 @@
                                     <a id="client-excel-btn" href="#" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Export Excel</a>
                                 </div>
                             </div>
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px; margin-top: 14px;">
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 13px; margin-top: 14px;">
                                 <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
-                                    <span style="color: var(--text-secondary);">Target Wake</span>
-                                    <p id="client-wake-p" style="font-size: 16px; font-weight: bold; margin-top: 4px;">07:00</p>
+                                    <span style="color: var(--text-secondary);">Target Bedtime</span>
+                                    <p id="client-bed-p" style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #a78bfa;">23:00</p>
                                 </div>
                                 <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
-                                    <span style="color: var(--text-secondary);">Streak</span>
-                                    <p id="client-streak-p" style="font-size: 16px; font-weight: bold; margin-top: 4px;">0 days</p>
+                                    <span style="color: var(--text-secondary);">Target Wake</span>
+                                    <p id="client-wake-p" style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #38bdf8;">07:00</p>
+                                </div>
+                                <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Streak / Adherence</span>
+                                    <p id="client-streak-p" style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #4ade80;">0 days</p>
                                 </div>
                             </div>
 
@@ -218,6 +222,31 @@
                                     <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
                                         <div style="color: var(--text-secondary);">🌙 Sleep Adherence (20%)</div>
                                         <strong id="client-sub-sleep" style="font-size: 14px; color: #38bdf8;">--%</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sleep Trend Reports & Progress Monitoring -->
+                            <div style="margin-top: 16px; border-top: 1px solid var(--border-card); padding-top: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">📈 Sleep Trends &amp; Progress Monitoring</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; font-size: 11px;">
+                                    <div style="background: rgba(56, 189, 248, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                                        <span style="color: var(--text-secondary);">Wake Drift Avg</span>
+                                        <div id="coach-drift-avg" style="font-size: 13px; font-weight: bold; color: #38bdf8; margin-top: 2px;">-- min</div>
+                                    </div>
+                                    <div style="background: rgba(74, 222, 128, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(74, 222, 128, 0.2);">
+                                        <span style="color: var(--text-secondary);">Sleep Debt</span>
+                                        <div id="coach-sleep-debt" style="font-size: 13px; font-weight: bold; color: #4ade80; margin-top: 2px;">-- min</div>
+                                    </div>
+                                    <div style="background: rgba(167, 139, 250, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(167, 139, 250, 0.2);">
+                                        <span style="color: var(--text-secondary);">Productivity Score</span>
+                                        <div id="coach-prod-score" style="font-size: 13px; font-weight: bold; color: #a78bfa; margin-top: 2px;">--/100</div>
+                                    </div>
+                                    <div style="background: rgba(245, 158, 11, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.2);">
+                                        <span style="color: var(--text-secondary);">Weekly Compliance</span>
+                                        <div id="coach-weekly-compliance" style="font-size: 13px; font-weight: bold; color: #f59e0b; margin-top: 2px;">--%</div>
                                     </div>
                                 </div>
                             </div>
@@ -265,7 +294,7 @@
             }
         }
 
-        function selectClient(id, name, streak, score, wake, subWake, subChallenge, subSnooze, subSleep) {
+        function selectClient(id, name, streak, score, wake, bed, subWake, subChallenge, subSnooze, subSleep) {
             setTab('clients-tab', null);
             document.querySelectorAll('.client-item').forEach(c => c.classList.remove('active'));
             const card = document.getElementById(`client-card-${id}`);
@@ -276,7 +305,8 @@
             panel.style.display = 'flex';
 
             document.getElementById('client-name-title').innerText = `Client: ${name}`;
-            document.getElementById('client-wake-p').innerText = wake;
+            document.getElementById('client-wake-p').innerText = wake || '07:00';
+            document.getElementById('client-bed-p').innerText = bed || '23:00';
             document.getElementById('client-streak-p').innerText = `${streak} days`;
 
             document.getElementById('client-sub-wake').innerText = `${Math.round(subWake || 75)}%`;
@@ -289,6 +319,25 @@
 
             document.getElementById('coach-notes-form').action = `/api/coach/notes/${id}`;
             document.getElementById('coach-msg-form').action = `/api/coach/message/${id}`;
+
+            // Fetch live Sleep Trend Reports and Progress Monitoring for selected client
+            fetch(`/api/coach/client/${id}/analytics`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.behavioral_insights) {
+                        const bi = data.behavioral_insights;
+                        const drift = bi.wake_up_behavior ? bi.wake_up_behavior.avg_drift_minutes : 0;
+                        const debt = bi.sleep_patterns ? bi.sleep_patterns.sleep_debt_minutes : 0;
+                        const prod = bi.productivity_correlation ? bi.productivity_correlation.productivity_score : 75;
+                        const comp = bi.habit_consistency ? bi.habit_consistency.weekly_compliance_pct : 85;
+
+                        document.getElementById('coach-drift-avg').innerText = `+${drift} min`;
+                        document.getElementById('coach-sleep-debt').innerText = `${debt} min`;
+                        document.getElementById('coach-prod-score').innerText = `${prod}/100`;
+                        document.getElementById('coach-weekly-compliance').innerText = `${comp}%`;
+                    }
+                })
+                .catch(err => console.log('Could not load client detailed analytics', err));
         }
     </script>
 </body>

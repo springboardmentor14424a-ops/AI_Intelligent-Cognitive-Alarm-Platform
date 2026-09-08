@@ -981,25 +981,25 @@
                         <span class="badge badge-active" style="font-size: 12px; padding: 4px 10px;">{{ habit_data.grade }}</span>
                     </div>
 
-                    <!-- 5 Column KPI Grid -->
-                    <div class="grid-kpi" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                    <!-- 6 Column KPI Grid -->
+                    <div class="grid-kpi" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px;">
                         <!-- Main Overall Score Card -->
                         <div class="glass-card" style="border: 2px solid rgba(74, 222, 128, 0.4); background: rgba(74, 222, 128, 0.04); text-align: center;">
-                            <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Overall Habit Score</span>
-                            <div style="font-size: 38px; font-weight: 900; color: #4ade80; margin: 8px 0;" id="hero-habit-score">{{ habit_data.habit_score }}<span style="font-size: 18px; color: var(--text-secondary);">/100</span></div>
-                            <div style="font-size: 11px; color: var(--text-secondary);">{{ habit_data.status_description }}</div>
+                            <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 700;">Weighted Habit Score</span>
+                            <div style="font-size: 36px; font-weight: 900; color: #4ade80; margin: 6px 0;" id="hero-habit-score">{{ habit_data.habit_score }}<span style="font-size: 16px; color: var(--text-secondary);">/100</span></div>
+                            <div style="font-size: 11px; color: var(--text-secondary);" id="hero-habit-desc">{{ habit_data.status_description }}</div>
                         </div>
 
                         <!-- 1. Wake-Up Consistency (35%) -->
                         <div class="glass-card" style="border-left: 4px solid #38bdf8;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Wake Consistency</span>
-                                <span class="badge badge-info" style="font-size: 10px;">Weight: 35%</span>
+                                <span class="badge badge-info" style="font-size: 10px;">35%</span>
                             </div>
-                            <div style="font-size: 26px; font-weight: 800; color: #38bdf8; margin: 8px 0;">{{ habit_data.subscores.wake_up_consistency }}%</div>
-                            <div style="font-size: 11px; color: var(--text-secondary);">Streak stability & time drift index</div>
-                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                                <div style="width: {{ habit_data.subscores.wake_up_consistency }}%; height: 100%; background: #38bdf8; border-radius: 4px;"></div>
+                            <div style="font-size: 24px; font-weight: 800; color: #38bdf8; margin: 6px 0;" id="sub-wake-consistency">{{ habit_data.subscores.wake_up_consistency }}%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">Target drift &amp; regularity</div>
+                            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 6px; overflow: hidden;">
+                                <div id="bar-wake-consistency" style="width: {{ habit_data.subscores.wake_up_consistency }}%; height: 100%; background: #38bdf8; border-radius: 4px;"></div>
                             </div>
                         </div>
 
@@ -1007,12 +1007,12 @@
                         <div class="glass-card" style="border-left: 4px solid #a78bfa;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Challenge Success</span>
-                                <span class="badge badge-info" style="font-size: 10px;">Weight: 25%</span>
+                                <span class="badge badge-info" style="font-size: 10px;">25%</span>
                             </div>
-                            <div style="font-size: 26px; font-weight: 800; color: #a78bfa; margin: 8px 0;">{{ habit_data.subscores.challenge_completion }}%</div>
-                            <div style="font-size: 11px; color: var(--text-secondary);">Accuracy, latency & solve rates</div>
-                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                                <div style="width: {{ habit_data.subscores.challenge_completion }}%; height: 100%; background: #a78bfa; border-radius: 4px;"></div>
+                            <div style="font-size: 24px; font-weight: 800; color: #a78bfa; margin: 6px 0;" id="sub-challenge-completion">{{ habit_data.subscores.challenge_completion }}%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">Accuracy, latency &amp; win rate</div>
+                            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 6px; overflow: hidden;">
+                                <div id="bar-challenge-completion" style="width: {{ habit_data.subscores.challenge_completion }}%; height: 100%; background: #a78bfa; border-radius: 4px;"></div>
                             </div>
                         </div>
 
@@ -1020,12 +1020,12 @@
                         <div class="glass-card" style="border-left: 4px solid #f59e0b;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Snooze Reduction</span>
-                                <span class="badge badge-info" style="font-size: 10px;">Weight: 20%</span>
+                                <span class="badge badge-info" style="font-size: 10px;">20%</span>
                             </div>
-                            <div style="font-size: 26px; font-weight: 800; color: #f59e0b; margin: 8px 0;">{{ habit_data.subscores.snooze_reduction }}%</div>
-                            <div style="font-size: 11px; color: var(--text-secondary);">First-attempt alarm dismissals</div>
-                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                                <div style="width: {{ habit_data.subscores.snooze_reduction }}%; height: 100%; background: #f59e0b; border-radius: 4px;"></div>
+                            <div style="font-size: 24px; font-weight: 800; color: #f59e0b; margin: 6px 0;" id="sub-snooze-reduction">{{ habit_data.subscores.snooze_reduction }}%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">Zero-snooze wake frequency</div>
+                            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 6px; overflow: hidden;">
+                                <div id="bar-snooze-reduction" style="width: {{ habit_data.subscores.snooze_reduction }}%; height: 100%; background: #f59e0b; border-radius: 4px;"></div>
                             </div>
                         </div>
 
@@ -1033,13 +1033,123 @@
                         <div class="glass-card" style="border-left: 4px solid #ec4899;">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Sleep Adherence</span>
-                                <span class="badge badge-info" style="font-size: 10px;">Weight: 20%</span>
+                                <span class="badge badge-info" style="font-size: 10px;">20%</span>
                             </div>
-                            <div style="font-size: 26px; font-weight: 800; color: #ec4899; margin: 8px 0;">{{ habit_data.subscores.sleep_schedule_adherence }}%</div>
-                            <div style="font-size: 11px; color: var(--text-secondary);">Bedtime consistency & circadian rhythm</div>
-                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 8px; overflow: hidden;">
-                                <div style="width: {{ habit_data.subscores.sleep_schedule_adherence }}%; height: 100%; background: #ec4899; border-radius: 4px;"></div>
+                            <div style="font-size: 24px; font-weight: 800; color: #ec4899; margin: 6px 0;" id="sub-sleep-adherence">{{ habit_data.subscores.sleep_schedule_adherence }}%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">Bedtime consistency &amp; check-in</div>
+                            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 6px; overflow: hidden;">
+                                <div id="bar-sleep-adherence" style="width: {{ habit_data.subscores.sleep_schedule_adherence }}%; height: 100%; background: #ec4899; border-radius: 4px;"></div>
                             </div>
+                        </div>
+
+                        <!-- 5. Productivity & Sleep Routine Scoring -->
+                        <div class="glass-card" style="border-left: 4px solid #10b981;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Productivity Score</span>
+                                <span class="badge badge-active" style="font-size: 10px;">Output</span>
+                            </div>
+                            <div style="font-size: 24px; font-weight: 800; color: #10b981; margin: 6px 0;" id="sub-productivity-score">{{ habit_data.subscores.productivity_score }}%</div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">Routine: <span id="sub-sleep-routine">{{ habit_data.subscores.sleep_schedule_adherence }}%</span></div>
+                            <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 4px; margin-top: 6px; overflow: hidden;">
+                                <div id="bar-productivity" style="width: {{ habit_data.subscores.productivity_score }}%; height: 100%; background: #10b981; border-radius: 4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Circadian Target Setup & Sleep Adherence Check-In Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 18px; margin-top: 20px;">
+                        <!-- Card 1: Interactive Sleep Adherence Check-In (Module 8 Feed) -->
+                        <div class="glass-card" style="border: 1px solid rgba(236, 72, 153, 0.3); background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h3 style="font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                    <span>🛌</span> Sleep Adherence Check-In
+                                </h3>
+                                <span id="user-adherence-badge" class="badge badge-info" style="font-size: 11px;">Module 8 Adherence Check</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                                Did you adhere to your target bedtime (<strong style="color: #ec4899;" id="adherence-display-bedtime">{{ profile.sleep_time if profile and profile.sleep_time else '22:30' }}</strong>) and planned sleep routine last night?
+                            </p>
+
+                            <div style="display: flex; gap: 12px; margin-bottom: 14px;">
+                                <button type="button" onclick="submitSleepAdherenceCheck(true)" class="btn btn-success" style="flex: 1; padding: 12px; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <span>✅</span> YES, Adhered (+95 Pts)
+                                </button>
+                                <button type="button" onclick="submitSleepAdherenceCheck(false)" class="btn btn-danger" style="flex: 1; padding: 12px; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                                    <span>❌</span> NO, Disrupted (+45 Pts)
+                                </button>
+                            </div>
+
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="sleep-adherence-notes" class="form-input" placeholder="Optional notes (e.g. Read 20 mins, slept on schedule)" style="font-size: 12px; flex: 1;">
+                                <button type="button" onclick="loadSleepAdherenceHistory()" class="btn btn-secondary" style="font-size: 11px; padding: 6px 10px;" title="View past adherence check-ins">📋 History</button>
+                            </div>
+
+                            <div id="sleep-adherence-feedback" style="margin-top: 10px; font-size: 12px; display: none; padding: 8px 12px; border-radius: 6px;"></div>
+
+                            <!-- Sleep Adherence History Table (always visible, loads on page load) -->
+                            <div style="margin-top: 16px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">📋 Sleep Adherence History</span>
+                                    <button type="button" onclick="loadSleepAdherenceHistory()" class="btn btn-secondary" style="font-size: 10px; padding: 3px 8px;">↻ Refresh</button>
+                                </div>
+                                <div class="table-container" style="max-height: 200px; overflow-y: auto;">
+                                    <table class="custom-table" style="font-size: 11px;" id="adherence-history-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Response</th>
+                                                <th>Score</th>
+                                                <th>Bedtime</th>
+                                                <th>Wake</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="adherence-history-tbody">
+                                            <tr><td colspan="6" style="text-align:center; color: var(--text-secondary); padding: 12px;">Loading history...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 2: Ask Bed Time & Wake Up Time (Circadian Calibration) -->
+                        <div class="glass-card" style="border: 1px solid rgba(56, 189, 248, 0.3); background: linear-gradient(135deg, rgba(56, 189, 248, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h3 style="font-size: 16px; margin: 0; display: flex; align-items: center; gap: 8px;">
+                                    <span>🌙</span> Set Bed Time &amp; Wake-Up Time
+                                </h3>
+                                <span class="badge badge-active" style="font-size: 11px;">Circadian Setup</span>
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                                Configure bedtime &amp; wake-up time to drive wake consistency (35%), challenge success (25%), snooze reduction (20%), and sleep schedule adherence (20%).
+                            </p>
+
+                            <form id="circadian-targets-form" onsubmit="saveCircadianTargets(event)">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                                    <div class="form-group">
+                                        <label style="font-size: 11px;">Target Bedtime</label>
+                                        <input type="time" id="target-bedtime-input" required class="form-input" value="{{ profile.sleep_time if profile and profile.sleep_time else '22:30' }}" style="font-size: 13px; padding: 6px 8px;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="font-size: 11px;">Target Wake Up</label>
+                                        <input type="time" id="target-waketime-input" required class="form-input" value="{{ profile.wake_up_time if profile and profile.wake_up_time else '07:00' }}" style="font-size: 13px; padding: 6px 8px;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="font-size: 11px;">Duration (Hrs)</label>
+                                        <input type="number" step="0.5" id="target-duration-input" class="form-input" value="{{ profile.sleep_duration if profile and profile.sleep_duration else 8.0 }}" style="font-size: 13px; padding: 6px 8px;">
+                                    </div>
+                                </div>
+
+                                <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+                                    <button type="button" onclick="setPresetTimes('22:00', '06:00', 8.0)" class="btn btn-secondary" style="font-size: 10px; padding: 4px 8px;">Early (22:00 - 06:00)</button>
+                                    <button type="button" onclick="setPresetTimes('22:30', '06:30', 8.0)" class="btn btn-secondary" style="font-size: 10px; padding: 4px 8px;">Standard (22:30 - 06:30)</button>
+                                    <button type="button" onclick="setPresetTimes('23:00', '07:00', 8.0)" class="btn btn-secondary" style="font-size: 10px; padding: 4px 8px;">Late (23:00 - 07:00)</button>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 8px;">
+                                    💾 Save Circadian Targets &amp; Recalculate Model
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </div>
@@ -3687,6 +3797,182 @@
                 showToast('Network error recording confirmation', 'error');
             }
         }
+
+        // =====================================================================
+        // MODULE 8: SLEEP ADHERENCE & CIRCADIAN CALIBRATION JS LOGIC
+        // =====================================================================
+
+        function setPresetTimes(bed, wake, dur) {
+            document.getElementById('target-bedtime-input').value = bed;
+            document.getElementById('target-waketime-input').value = wake;
+            document.getElementById('target-duration-input').value = dur;
+            showToast(`Preset selected: ${bed} bedtime ➔ ${wake} wake-up (${dur}h sleep)`, 'info');
+        }
+
+        async function submitSleepAdherenceCheck(adhered) {
+            const notes = document.getElementById('sleep-adherence-notes').value;
+            const feedbackBox = document.getElementById('sleep-adherence-feedback');
+
+            try {
+                showToast(adhered ? 'Recording bedtime adherence (Yes)...' : 'Logging sleep disruption (No)...', 'info');
+                const res = await fetch('/api/habit/sleep-adherence', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        adhered: adhered,
+                        notes: notes || (adhered ? 'Met target bedtime on schedule' : 'Bedtime missed')
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(`✅ ${data.status_message}`, 'success');
+
+                    const badge = document.getElementById('user-adherence-badge');
+                    if (badge) {
+                        badge.className = adhered ? 'badge badge-active' : 'badge badge-suspended';
+                        badge.innerText = adhered ? '✅ Adhered (+95)' : '❌ Disrupted (+45)';
+                    }
+
+                    if (feedbackBox) {
+                        feedbackBox.style.display = 'block';
+                        feedbackBox.style.background = adhered ? 'rgba(74, 222, 128, 0.12)' : 'rgba(239, 68, 68, 0.12)';
+                        feedbackBox.style.border = adhered ? '1px solid #4ade80' : '1px solid #f87171';
+                        feedbackBox.style.color = adhered ? '#4ade80' : '#f87171';
+                        feedbackBox.innerHTML = `<strong>Adherence Checked:</strong> ${data.status_message} <br><span style="color: var(--text-primary);">Overall Habit Score updated to <strong>${data.habit_score}/100</strong> (${data.grade})</span>`;
+                    }
+
+                    // Dynamically update UI KPIs
+                    updateUIHabitScores(data);
+                    // Refresh history table
+                    loadSleepAdherenceHistory();
+                } else {
+                    showToast(data.detail || 'Could not record sleep adherence', 'error');
+                }
+            } catch (err) {
+                showToast('Network error submitting sleep adherence check-in', 'error');
+            }
+        }
+
+        async function saveCircadianTargets(e) {
+            e.preventDefault();
+            const bedTime = document.getElementById('target-bedtime-input').value;
+            const wakeTime = document.getElementById('target-waketime-input').value;
+            const duration = parseFloat(document.getElementById('target-duration-input').value) || 8.0;
+
+            try {
+                showToast('Saving circadian targets & recalculating habit engine...', 'info');
+                const res = await fetch('/api/user/circadian-target', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        bed_time: bedTime,
+                        wake_up_time: wakeTime,
+                        sleep_duration: duration
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('✅ Circadian targets saved! All 4 weighted habit subscores re-evaluated.', 'success');
+
+                    const dispBed = document.getElementById('adherence-display-bedtime');
+                    if (dispBed) dispBed.innerText = bedTime;
+
+                    updateUIHabitScores(data);
+                } else {
+                    showToast(data.detail || 'Failed to update circadian targets', 'error');
+                }
+            } catch (err) {
+                showToast('Network error saving circadian targets', 'error');
+            }
+        }
+
+        function updateUIHabitScores(data) {
+            if (!data) return;
+            if (data.habit_score !== undefined) {
+                const heroScore = document.getElementById('hero-habit-score');
+                if (heroScore) heroScore.innerHTML = `${data.habit_score}<span style="font-size: 16px; color: var(--text-secondary);">/100</span>`;
+            }
+            if (data.status_description) {
+                const desc = document.getElementById('hero-habit-desc');
+                if (desc) desc.innerText = data.status_description;
+            }
+
+            const subs = data.subscores || {};
+            if (subs.wake_up_consistency !== undefined) {
+                const el = document.getElementById('sub-wake-consistency');
+                if (el) el.innerText = `${subs.wake_up_consistency}%`;
+                const bar = document.getElementById('bar-wake-consistency');
+                if (bar) bar.style.width = `${subs.wake_up_consistency}%`;
+            }
+            if (subs.challenge_completion !== undefined) {
+                const el = document.getElementById('sub-challenge-completion');
+                if (el) el.innerText = `${subs.challenge_completion}%`;
+                const bar = document.getElementById('bar-challenge-completion');
+                if (bar) bar.style.width = `${subs.challenge_completion}%`;
+            }
+            if (subs.snooze_reduction !== undefined) {
+                const el = document.getElementById('sub-snooze-reduction');
+                if (el) el.innerText = `${subs.snooze_reduction}%`;
+                const bar = document.getElementById('bar-snooze-reduction');
+                if (bar) bar.style.width = `${subs.snooze_reduction}%`;
+            }
+            if (subs.sleep_schedule_adherence !== undefined) {
+                const el = document.getElementById('sub-sleep-adherence');
+                if (el) el.innerText = `${subs.sleep_schedule_adherence}%`;
+                const bar = document.getElementById('bar-sleep-adherence');
+                if (bar) bar.style.width = `${subs.sleep_schedule_adherence}%`;
+                const rout = document.getElementById('sub-sleep-routine');
+                if (rout) rout.innerText = `${subs.sleep_schedule_adherence}%`;
+            }
+            if (subs.productivity_score !== undefined) {
+                const el = document.getElementById('sub-productivity-score');
+                if (el) el.innerText = `${subs.productivity_score}%`;
+                const bar = document.getElementById('bar-productivity');
+                if (bar) bar.style.width = `${subs.productivity_score}%`;
+            }
+        }
+
+        async function loadSleepAdherenceHistory() {
+            const tbody = document.getElementById('adherence-history-tbody');
+            try {
+                const res = await fetch('/api/habit/sleep-adherence/history');
+                if (!res.ok) {
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:12px;">Could not load history.</td></tr>`;
+                    return;
+                }
+                const logs = await res.json();
+                if (!logs || logs.length === 0) {
+                    if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:12px;">No check-ins recorded yet. Submit your first Yes / No above!</td></tr>`;
+                    return;
+                }
+                const rows = logs.map(l => {
+                    const dateStr = l.created_at ? l.created_at.substring(0, 10) : 'Today';
+                    const isYes = l.adhered;
+                    const badge = isYes
+                        ? `<span class="badge badge-active" style="font-size:10px;">✅ YES</span>`
+                        : `<span class="badge badge-suspended" style="font-size:10px;">❌ NO</span>`;
+                    const scoreColor = isYes ? '#4ade80' : '#f59e0b';
+                    const notes = l.notes ? l.notes.substring(0, 30) + (l.notes.length > 30 ? '…' : '') : '—';
+                    return `<tr>
+                        <td>${dateStr}</td>
+                        <td>${badge}</td>
+                        <td style="color:${scoreColor};font-weight:700;">${l.score} pts</td>
+                        <td>${l.target_bedtime || '—'}</td>
+                        <td>${l.target_wake_time || '—'}</td>
+                        <td style="color:var(--text-secondary);">${notes}</td>
+                    </tr>`;
+                }).join('');
+                if (tbody) tbody.innerHTML = rows;
+            } catch (err) {
+                if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--text-secondary);padding:12px;">Network error loading history.</td></tr>`;
+                console.error(err);
+            }
+        }
+
+        // Auto-load sleep adherence history on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSleepAdherenceHistory();
+        });
     </script>
 </body>
 </html>

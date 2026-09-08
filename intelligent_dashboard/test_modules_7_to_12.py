@@ -440,3 +440,101 @@ class TestReportExports:
         assert res_no.status_code == 200
         assert res_no.json()["confirmed"] is False
         assert res_no.json()["streak_bonus_points"] == 0
+
+    def test_17_habit_score_35_25_20_20_exact_model(self):
+        """Module 8: Verify exact weighted scoring formula:
+        Wake-Up Consistency (35%) + Challenge Completion (25%) + Snooze Reduction (20%) + Sleep Schedule Adherence (20%)
+        and productivity scoring."""
+        db = TestSession()
+        user = db.query(User).filter(User.email == "m7user@cognitive.com").first()
+
+        score_data = HabitScoringEngine.compute_and_persist_habit_score(user.id, db)
+        db.close()
+
+        subs = score_data["subscores"]
+        expected_score = round(
+            (subs["wake_up_consistency"] * 0.35) +
+            (subs["challenge_completion"] * 0.25) +
+            (subs["snooze_reduction"] * 0.20) +
+            (subs["sleep_schedule_adherence"] * 0.20),
+            1
+        )
+        assert score_data["habit_score"] == expected_score
+        assert "productivity_score" in score_data
+        assert 0.0 <= score_data["productivity_score"] <= 100.0
+
+    def test_18_circadian_target_update_recalculation(self):
+        """Module 8 & 10: Calibration of target bedtime and wake-up time triggers score re-evaluation."""
+        token = get_auth_token()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        res = client.post("/api/user/circadian-target", json={
+            "bed_time": "22:30",
+            "wake_up_time": "06:30",
+            "sleep_duration": 8.0
+        }, headers=headers)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["success"] is True
+        assert data["bed_time"] == "22:30"
+        assert data["wake_up_time"] == "06:30"
+        assert "updated_habit_score" in data
+        assert "productivity_score" in data
+
+    def test_19_sleep_adherence_checkin_yes_and_no(self):
+        """Module 8 & 10: Sleep adherence prompt Yes/No check-in awarding designated score (+95 for Yes, +45 for No)."""
+        token = get_auth_token()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Check-in Yes
+        res_yes = client.post("/api/habit/sleep-adherence", json={
+            "adhered": True,
+            "notes": "Slept on time at 22:30, woke at 06:30 sharp."
+        }, headers=headers)
+        assert res_yes.status_code == 200
+        data_yes = res_yes.json()
+        assert data_yes["success"] is True
+        assert data_yes["adhered"] is True
+        assert data_yes["awarded_score"] == 95.0
+        assert "new_habit_score" in data_yes
+
+        # Check-in No
+        res_no = client.post("/api/habit/sleep-adherence", json={
+            "adhered": False,
+            "notes": "Stayed up reading until 01:00."
+        }, headers=headers)
+        assert res_no.status_code == 200
+        data_no = res_no.json()
+        assert data_no["success"] is True
+        assert data_no["adhered"] is False
+        assert data_no["awarded_score"] == 45.0
+        assert "new_habit_score" in data_no
+
+        # Check history
+        res_hist = client.get("/api/habit/sleep-adherence/history", headers=headers)
+        assert res_hist.status_code == 200
+        history = res_hist.json()
+        assert len(history) >= 2
+        assert history[0]["adhered"] in [True, False]
+
+    def test_20_admin_recommendation_and_sleep_monitoring(self):
+        """Module 10: Admin Dashboard recommendation monitoring and sleep adherence logs."""
+        admin_token = get_auth_token("m7admin@cognitive.com", "administrator")
+        headers = {"Authorization": f"Bearer {admin_token}"}
+
+        # Monitoring endpoint
+        res_mon = client.get("/api/admin/recommendations/monitoring", headers=headers)
+        assert res_mon.status_code == 200
+        mon_data = res_mon.json()
+        assert mon_data["success"] is True
+        assert "monitoring_metrics" in mon_data
+        assert "recent_sleep_adherence_logs" in mon_data
+        assert mon_data["monitoring_metrics"]["total_adherence_checkins"] >= 2
+
+        # Sleep adherence logs list endpoint
+        res_adh = client.get("/api/admin/sleep-adherence", headers=headers)
+        assert res_adh.status_code == 200
+        adh_data = res_adh.json()
+        assert adh_data["success"] is True
+        assert len(adh_data["logs"]) >= 2
+

@@ -14,7 +14,7 @@ and updates UserProfile in real-time.
 import datetime
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Session
-from database import User, UserProfile, Alarm, ChallengePerformance, WakeLog, HabitScoreLog, ActivityLog
+from database import User, UserProfile, Alarm, ChallengePerformance, WakeLog, HabitScoreLog, ActivityLog, SleepAdherenceLog
 
 
 class HabitScoringEngine:
@@ -121,7 +121,7 @@ class HabitScoringEngine:
     def calculate_sleep_schedule_adherence_score(cls, user_id: int, db: Session) -> float:
         """
         4. Sleep Routine & Schedule Adherence Scoring (20% weight):
-        Based on planned sleep duration, target bedtime alignment, and sleep debt minimization.
+        Based on planned sleep duration, target bedtime alignment, and sleep adherence Yes/No check-ins.
         """
         user = db.query(User).filter(User.id == user_id).first()
         profile = user.profile if user else None
@@ -145,15 +145,33 @@ class HabitScoringEngine:
 
         diff_hours = abs(calc_dur - target_duration)
         if diff_hours <= 0.5:
-            score = 95.0
+            base_duration_score = 95.0
         elif diff_hours <= 1.0:
-            score = 80.0
+            base_duration_score = 80.0
         elif diff_hours <= 2.0:
-            score = 65.0
+            base_duration_score = 65.0
         else:
-            score = 45.0
+            base_duration_score = 45.0
 
-        return round(max(10.0, min(100.0, score)), 1)
+        # Check latest sleep adherence check-in (Yes / No)
+        latest_adherence = (
+            db.query(SleepAdherenceLog)
+            .filter(SleepAdherenceLog.user_id == user_id)
+            .order_by(SleepAdherenceLog.created_at.desc())
+            .first()
+        )
+
+        if latest_adherence is not None:
+            # If user confirmed adhering (Yes) vs not adhering (No)
+            if latest_adherence.adhered:
+                check_score = latest_adherence.score or 95.0
+                score = (check_score * 0.75) + (base_duration_score * 0.25)
+            else:
+                check_score = latest_adherence.score or 45.0
+                score = min(50.0, (check_score * 0.75) + (base_duration_score * 0.25))
+            return round(max(10.0, min(100.0, score)), 1)
+
+        return round(max(10.0, min(100.0, base_duration_score)), 1)
 
     @classmethod
     def calculate_sleep_routine_score(cls, user_id: int, db: Session) -> float:
@@ -164,11 +182,13 @@ class HabitScoringEngine:
     def calculate_productivity_score(cls, user_id: int, db: Session) -> float:
         """
         Calculates Overall Productivity Score (0 - 100).
-        Correlates waking consistency and cognitive efficiency.
+        Correlates waking consistency, challenge completion, and sleep schedule adherence.
         """
         consistency = cls.calculate_wake_up_consistency_score(user_id, db)
         challenge = cls.calculate_challenge_completion_score(user_id, db)
-        return round((consistency * 0.5) + (challenge * 0.5), 1)
+        sleep_adherence = cls.calculate_sleep_schedule_adherence_score(user_id, db)
+        score = (consistency * 0.40) + (challenge * 0.40) + (sleep_adherence * 0.20)
+        return round(max(10.0, min(100.0, score)), 1)
 
     @classmethod
     def calculate_habit_adherence_score(cls, user_id: int, db: Session) -> float:
@@ -251,6 +271,7 @@ class HabitScoringEngine:
 
         return {
             "habit_score": weighted_score,
+            "productivity_score": sub_prod,
             "grade": grade,
             "status_description": status_desc,
             "weights": {
@@ -266,4 +287,140 @@ class HabitScoringEngine:
                 "sleep_schedule_adherence": sub_sleep,
                 "productivity_score": sub_prod
             }
+        }
+
+    @classmethod
+    def record_sleep_adherence_check(
+        cls, user_id: int, adhered: bool, notes: Optional[str], db: Session
+    ) -> Dict[str, Any]:
+        """
+        Record user response to 'Did you adhere to your sleep schedule? (Yes / No)'
+        and apply the designated score to Module 8 Habit Scoring Model.
+        """
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User {user_id} not found")
+
+        profile = user.profile
+        if not profile:
+            profile = UserProfile(user_id=user.id)
+            db.add(profile)
+            db.commit()
+
+        target_bed = profile.sleep_time or "22:30"
+        target_wake = profile.wake_up_time or "07:00"
+
+        # Award specific score for Yes vs No
+        score_awarded = 95.0 if adhered else 45.0
+
+        log_entry = SleepAdherenceLog(
+            user_id=user_id,
+            adhered=adhered,
+            target_bedtime=target_bed,
+            target_wake_time=target_wake,
+            score=score_awarded,
+            notes=notes or ("Adhered to target bedtime" if adhered else "Missed target bedtime")
+        )
+        db.add(log_entry)
+
+        act = ActivityLog(
+            user_id=user_id,
+            action="Sleep Adherence Check",
+            details=f"User responded {'YES' if adhered else 'NO'} to sleep schedule adherence (Score: {score_awarded})"
+        )
+        db.add(act)
+        db.commit()
+
+        # Recalculate complete habit score
+        habit_summary = cls.compute_and_persist_habit_score(user_id, db)
+
+        status_msg = (
+            "Sleep schedule adherence confirmed! Excellent consistency (+95 adherence rating)."
+            if adhered
+            else "Sleep schedule disruption noted. Score adjusted with recovery guidance."
+        )
+
+        return {
+            "success": True,
+            "adhered": adhered,
+            "awarded_adherence_score": score_awarded,
+            "awarded_score": score_awarded,
+            "status_message": status_msg,
+            "habit_score": habit_summary["habit_score"],
+            "new_habit_score": habit_summary["habit_score"],
+            "productivity_score": habit_summary["productivity_score"],
+            "grade": habit_summary["grade"],
+            "status_description": habit_summary["status_description"],
+            "subscores": habit_summary["subscores"],
+            "weights": habit_summary["weights"]
+        }
+
+    @classmethod
+    def update_circadian_targets(
+        cls, user_id: int, bed_time: str, wake_up_time: str, sleep_duration: Optional[float], db: Session
+    ) -> Dict[str, Any]:
+        """
+        Ask user for bedtime and wake-up time, and use them to update:
+        - Wake-up consistency scoring
+        - Habit adherence scoring
+        - Challenge completion scoring
+        - Productivity scoring
+        - Sleep routine scoring
+        - Weighted Scoring Model (35% Wake, 25% Challenge, 20% Snooze, 20% Sleep)
+        """
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise ValueError(f"User {user_id} not found")
+
+        profile = user.profile
+        if not profile:
+            profile = UserProfile(user_id=user.id)
+            db.add(profile)
+
+        # Clean strings
+        bed_time = bed_time.strip()
+        wake_up_time = wake_up_time.strip()
+
+        # Calculate planned duration if not explicitly provided
+        if sleep_duration is None or sleep_duration <= 0:
+            try:
+                sh, sm = map(int, bed_time.split(":"))
+                wh, wm = map(int, wake_up_time.split(":"))
+                mins = (wh * 60 + wm) - (sh * 60 + sm)
+                if mins < 0:
+                    mins += 1440
+                sleep_duration = round(mins / 60.0, 1)
+            except Exception:
+                sleep_duration = 8.0
+
+        profile.sleep_time = bed_time
+        profile.wake_up_time = wake_up_time
+        profile.sleep_duration = float(sleep_duration)
+
+        act = ActivityLog(
+            user_id=user_id,
+            action="Update Circadian Target",
+            details=f"Updated Bedtime: {bed_time}, Wake-Up: {wake_up_time}, Target Duration: {sleep_duration}h"
+        )
+        db.add(act)
+        db.commit()
+
+        # Recalculate complete weighted model
+        updated_habit = cls.compute_and_persist_habit_score(user_id, db)
+
+        return {
+            "success": True,
+            "message": "Circadian targets updated and habit scoring re-evaluated successfully.",
+            "bed_time": bed_time,
+            "wake_up_time": wake_up_time,
+            "target_bedtime": bed_time,
+            "target_wake_up_time": wake_up_time,
+            "target_sleep_duration": sleep_duration,
+            "habit_score": updated_habit["habit_score"],
+            "updated_habit_score": updated_habit["habit_score"],
+            "productivity_score": updated_habit["productivity_score"],
+            "grade": updated_habit["grade"],
+            "status_description": updated_habit["status_description"],
+            "subscores": updated_habit["subscores"],
+            "weights": updated_habit["weights"]
         }

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from database import get_db, User, UserProfile, Alarm, ActivityLog, Announcement, Notification, HabitScoreLog
+from database import get_db, User, UserProfile, Alarm, ActivityLog, Announcement, Notification, HabitScoreLog, SleepAdherenceLog
 import auth
 from verification_engine import WakeUpVerificationEngine, VerificationMethod
 from behavioral_engine import BehavioralAnalyticsEngine
@@ -338,6 +338,103 @@ def get_habit_score_history(
         }
         for l in logs
     ]
+
+
+class SleepAdherenceCheckSchema(BaseModel):
+    adhered: bool = Field(True, description="True for YES (adhered to sleep schedule), False for NO")
+    notes: Optional[str] = Field(None, description="Optional morning sleep adherence notes")
+
+
+@router.post("/habit/sleep-adherence", response_class=JSONResponse)
+def submit_sleep_adherence_checkin(
+    data: SleepAdherenceCheckSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """
+    POST /api/habit/sleep-adherence
+    Records user response to 'Did you adhere to your sleep schedule? (Yes / No)'.
+    Applies designated score (95 for Yes, 45 for No) to Module 8 Habit Scoring Model.
+    """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = HabitScoringEngine.record_sleep_adherence_check(
+        user_id=current_user.id,
+        adhered=data.adhered,
+        notes=data.notes,
+        db=db
+    )
+    return result
+
+
+@router.get("/habit/sleep-adherence/history", response_class=JSONResponse)
+def get_user_sleep_adherence_history(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """
+    GET /api/habit/sleep-adherence/history
+    Returns chronological log of user sleep adherence check-ins.
+    """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    logs = (
+        db.query(SleepAdherenceLog)
+        .filter(SleepAdherenceLog.user_id == current_user.id)
+        .order_by(SleepAdherenceLog.created_at.desc())
+        .limit(30)
+        .all()
+    )
+    return [
+        {
+            "id": l.id,
+            "adhered": l.adhered,
+            "adhered_label": "YES" if l.adhered else "NO",
+            "target_bedtime": l.target_bedtime,
+            "target_wake_time": l.target_wake_time,
+            "score": l.score,
+            "notes": l.notes,
+            "created_at": l.created_at.isoformat() if l.created_at else None
+        }
+        for l in logs
+    ]
+
+
+class CircadianTargetSchema(BaseModel):
+    bed_time: str = Field(..., description="Target bedtime (e.g. '22:30')")
+    wake_up_time: str = Field(..., description="Target wake-up time (e.g. '07:00')")
+    sleep_duration: Optional[float] = Field(None, description="Planned duration in hours (e.g. 8.0)")
+
+
+@router.post("/user/circadian-target", response_class=JSONResponse)
+def update_circadian_target(
+    data: CircadianTargetSchema,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """
+    POST /api/user/circadian-target
+    Sets user bedtime and wake-up time, and recalculates:
+    - Wake-up consistency scoring (35%)
+    - Challenge completion scoring (25%)
+    - Snooze reduction scoring (20%)
+    - Sleep schedule adherence scoring (20%)
+    - Productivity scoring
+    - Sleep routine scoring
+    """
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    result = HabitScoringEngine.update_circadian_targets(
+        user_id=current_user.id,
+        bed_time=data.bed_time,
+        wake_up_time=data.wake_up_time,
+        sleep_duration=data.sleep_duration,
+        db=db
+    )
+    return result
 
 
 # =============================================================================
