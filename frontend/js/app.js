@@ -146,7 +146,43 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 });
 
 document.getElementById("btn-google-signin").addEventListener("click", () => {
-  showToast("Google Sign-In needs OAuth credentials configured — see the helper note below the button.", "error");
+  const width = 500;
+  const height = 600;
+
+  const left = window.screenX + (window.outerWidth - width) / 2;
+  const top = window.screenY + (window.outerHeight - height) / 2;
+
+  window.open(
+    "/api/auth/google",
+    "google-signin",
+    `width=${width},height=${height},left=${left},top=${top}`
+  );
+});
+
+window.addEventListener("message", async (event) => {
+  if (event.origin !== window.location.origin) {
+    return;
+  }
+
+  if (event.data?.type === "google-auth-success") {
+    try {
+      setToken(event.data.token);
+
+      currentUser = await Api.me();
+
+      enterApp();
+
+      showToast("Google Sign-In successful!", "success");
+    } catch (err) {
+      clearToken();
+      showToast("Google Sign-In failed. Please try again.", "error");
+      console.error(err);
+    }
+  }
+
+  if (event.data?.type === "google-auth-error") {
+    showToast("Google Sign-In was cancelled or failed.", "error");
+  }
 });
 
 /* ===== Auth forms ===== */
