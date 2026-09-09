@@ -1,117 +1,221 @@
-# Intelligent Cognitive Alarm Platform (v2)
+# 🧠 Cognitive Alarm Platform
 
-A full-stack cognitive alarm app: FastAPI backend + a single-page vanilla
-HTML/CSS/JS frontend (no build step). Every number shown in the UI is real
-data from your own database — nothing is hardcoded or faked for show.
+> **Wake up. Solve. Own your morning.**
 
-## What's genuinely implemented
+A full-stack **Intelligent Cognitive Alarm Platform** that turns waking up into an interactive challenge.
 
-| Area | Status |
-|---|---|
-| Auth & Roles | ✅ JWT auth, signup with role choice (User / Wellness Coach), 3 seeded demo accounts (Admin/Coach/User) for one-click login |
-| Alarm Scheduling | ✅ create/list/toggle/delete, repeat rules, per-alarm challenge type + difficulty + multi-step verification count |
-| Cognitive Challenge Engine | ✅ math / logic / memory / riddle generators, scaled by difficulty |
-| Wake-Up Verification | ✅ full-screen ringing modal: countdown timer, multi-step challenges, failed-attempt counter, score, snooze lock after max snoozes |
-| Habit Scoring | ✅ exact weighted formula (Wake Consistency 35% / Challenge Success 25% / Snooze Reduction 20% / Sleep Adherence 20%) |
-| Behavioral Analytics | ✅ real charts (Chart.js) — accuracy trend, difficulty progression, challenge-type breakdown, snoozes by weekday — all computed from your attempt history |
-| AI Personalization | ⚠️ **rule-based**, not a trained ML model — snooze risk %, optimal bedtime, best challenge type, and difficulty recommendation are all computed with simple, explainable formulas from your real data. Labeled honestly in the UI. |
-| Role-Based Access Control | ✅ real server-side enforcement — an Admin/Wellness Coach-only page lists all users + habit scores; a regular user hitting that API gets a genuine 403 |
-| Reports & Export | ✅ real PDF (via reportlab) and CSV downloads of your habit score + attempt history |
-| Profile Settings | ✅ mobile-alarm-app style settings: snooze duration, max snoozes, ringtone choice, vibration toggle, gradual volume toggle, emoji avatar picker, dark/light theme |
-| Google Sign-In | ❌ UI button present but intentionally inert — real Google OAuth needs a Google Cloud project + client credentials, which aren't something I can fabricate. Clicking it explains this rather than faking a login. |
-| Notifications / real background alarm ringing | ❌ not built — alarms are triggered manually via "Simulate Ring" rather than firing at the actual clock time in the background |
-| Docker / cloud deployment | ❌ not built — runs locally via `uvicorn` |
+Instead of simply dismissing an alarm, users solve cognitive challenges, build better wake-up habits, track their progress, and receive personalized insights based on their real activity.
 
-## Tech stack
+🌐 **Live Demo:**  
+https://ai-intelligent-cognitive-alarm-platform.onrender.com
 
-- **Backend:** Python, FastAPI, SQLAlchemy (SQLite by default — one line in
-  `app/database.py` to swap to PostgreSQL), JWT auth, bcrypt password hashing,
-  reportlab for PDF generation.
-- **Frontend:** Plain HTML/CSS/JS, Chart.js (via CDN) for charts. No npm, no
-  build step. Served directly by the FastAPI backend.
+---
 
-## Folder structure
+## ✨ What Makes It Different?
 
-```
+Traditional alarms ask:
+
+> 😴 "Do you want to snooze?"
+
+Cognitive Alarm asks:
+
+> 🧠 "Are you actually awake?"
+
+The platform combines **alarm management, cognitive challenges, habit scoring, analytics, personalization, and role-based access control** into one application.
+
+---
+
+## 🚀 Features
+
+### 🔐 Authentication & User Management
+
+- JWT-based authentication
+- User registration and login
+- Google OAuth sign-in
+- Role-based accounts:
+  - 👤 Standard User
+  - 🧑‍🏫 Wellness Coach
+  - 👑 Admin
+- Quick demo login for testing different roles
+- Secure password hashing with bcrypt
+
+### ⏰ Intelligent Alarm Centre
+
+- Create, edit, toggle and delete alarms
+- Repeating alarm schedules
+- Custom challenge type
+- Adjustable challenge difficulty
+- Multi-step wake-up verification
+- Snooze limits and configurable snooze duration
+
+### 🧠 Cognitive Challenge Engine
+
+Choose from different challenge types:
+
+- ➗ Math
+- 🧩 Logic
+- 🧠 Memory
+- ❓ Riddles
+
+Challenge difficulty automatically scales according to the selected level.
+
+### 🌅 Wake-Up Verification
+
+When an alarm is simulated:
+
+- Full-screen ringing interface
+- Countdown timer
+- Multi-step challenges
+- Failed-attempt tracking
+- Wake-up score
+- Snooze tracking
+- Snooze lockout after maximum attempts
+
+### 📊 Habit Scoring
+
+The platform calculates a habit score using:
+
+| Metric | Weight |
+|---|---:|
+| Wake Consistency | 35% |
+| Challenge Success | 25% |
+| Snooze Reduction | 20% |
+| Sleep Adherence | 20% |
+
+All displayed scores are calculated from the user's actual activity data.
+
+### 📈 Behavioral Analytics
+
+Interactive Chart.js visualizations for:
+
+- Accuracy trends
+- Difficulty progression
+- Challenge-type distribution
+- Snoozes by weekday
+- Attempt history
+
+No fake statistics are added just to make the dashboard look impressive.
+
+### 🤖 AI Personalization
+
+The current personalization system is **rule-based rather than a trained ML model**.
+
+It generates explainable recommendations such as:
+
+- 💤 Snooze risk percentage
+- 🌙 Optimal bedtime
+- 🧩 Recommended challenge type
+- 📊 Recommended difficulty
+
+The recommendations are calculated using the user's actual activity data.
+
+> **Note:** This is intentionally labeled as rule-based AI in the application rather than being presented as a trained machine-learning model.
+
+### 🛡️ Role-Based Access Control
+
+Real server-side authorization is implemented.
+
+- Admin and Wellness Coach users can access the administrative user list.
+- Regular users cannot access protected admin APIs.
+- Unauthorized access returns a genuine **403 Forbidden** response.
+
+### 📄 Reports & Export
+
+Users can export their data as:
+
+- 📑 PDF reports
+- 📊 CSV files
+
+Reports include habit scores and challenge attempt history.
+
+### ⚙️ Profile & Personalization Settings
+
+Users can customize:
+
+- Snooze duration
+- Maximum snoozes
+- Ringtone
+- Vibration
+- Gradual volume
+- Emoji avatar
+- Dark / light theme
+- Sleep preferences
+- Challenge preferences
+
+---
+
+## 🛠️ Tech Stack
+
+### Backend
+
+- **Python**
+- **FastAPI**
+- **SQLAlchemy**
+- **SQLite**
+- **JWT Authentication**
+- **bcrypt**
+- **Google OAuth**
+- **ReportLab**
+
+### Frontend
+
+- **HTML5**
+- **CSS3**
+- **Vanilla JavaScript**
+- **Chart.js**
+
+No React, npm, or frontend build system is required.
+
+The frontend is served directly by the FastAPI backend.
+
+### Deployment
+
+- **GitHub**
+- **Render**
+- Public HTTPS deployment
+
+---
+
+## 📁 Project Structure
+
+```text
 alarm-platform/
+│
 ├── backend/
 │   ├── app/
-│   │   ├── main.py            # FastAPI entrypoint, serves frontend, seeds demo accounts
-│   │   ├── seed.py            # Creates the 3 demo accounts on startup
+│   │   ├── main.py
+│   │   ├── seed.py
 │   │   ├── database.py
-│   │   ├── models.py          # User, Alarm, ChallengeAttempt, Feedback
+│   │   ├── models.py
 │   │   ├── schemas.py
-│   │   ├── auth.py            # JWT + bcrypt + require_role() for RBAC
+│   │   ├── auth.py
+│   │   │
 │   │   ├── routers/
-│   │   │   ├── auth.py        # register/login/demo-login/profile
+│   │   │   ├── auth.py
 │   │   │   ├── alarms.py
-│   │   │   ├── challenges.py  # generate/submit/snooze/history
-│   │   │   ├── dashboard.py   # habit score + day streak
+│   │   │   ├── challenges.py
+│   │   │   ├── dashboard.py
 │   │   │   ├── analytics.py
 │   │   │   ├── personalization.py
-│   │   │   ├── admin.py       # role-gated: list all users
-│   │   │   ├── reports.py     # PDF + CSV export
+│   │   │   ├── admin.py
+│   │   │   ├── reports.py
 │   │   │   └── feedback.py
+│   │   │
 │   │   └── services/
 │   │       ├── challenge_service.py
 │   │       ├── habit_scoring.py
 │   │       ├── analytics_service.py
 │   │       └── personalization_service.py
+│   │
 │   └── requirements.txt
-└── frontend/
-    ├── index.html    # landing + auth + full app shell (all 8 pages) + 2 modals
-    ├── css/style.css # teal/amber theme, background art, animations
-    └── js/
-        ├── api.js
-        └── app.js
-```
-
-## How to run it
-
-**Requirements:** Python 3.10–3.12 recommended (very new Python versions like
-3.14 may lack prebuilt wheels for some dependencies).
-
-```bash
-cd alarm-platform/backend
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Mac/Linux
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-Open **http://localhost:8000**.
-
-## Trying it out
-
-- Click **Get Started** to sign up (choose Standard User or Wellness Coach),
-  or use a **Quick Demo Login** (Admin / Coach / User) on the sign-in screen
-  — no registration needed.
-- **Alarm Centre** → Create Alarm → pick a challenge type, difficulty, and
-  how many verification steps it takes to disarm.
-- Click **Simulate Ring** on any alarm card to open the full wake-up
-  verification flow (timer, multi-step challenges, snooze with a lockout).
-- **Analytics** and **AI Personalization** fill in with real charts/insights
-  once you've completed a few challenges — they're honestly empty at first,
-  not padded with fake numbers.
-- **Habit & Verification** → Recalculate Score / Test Verification Challenge
-  / download PDF or CSV reports.
-- Log in with the **Admin** or **Coach** demo account to see the
-  role-gated **Admin Panel** listing every user's habit score.
-
-## API reference
-
-Interactive docs (Swagger UI) auto-generated at **http://localhost:8000/docs**.
-
-## Suggested next steps
-
-1. **Real background alarm firing** — currently alarms only "ring" when you
-   click Simulate Ring. A real version needs either a service worker +
-   Notifications API (web) or a native alarm scheduler (mobile).
-2. **Real ML for AI Personalization** — swap the rule-based formulas in
-   `services/personalization_service.py` for a model trained on real usage
-   data (needs a lot more data than one person's demo usage to be worthwhile).
-3. **Google OAuth** — wire up `authlib` or `fastapi-sso` with a real Google
-   Cloud OAuth client ID/secret.
-4. **PostgreSQL + Docker** — change one line in `database.py`, then add a
-   `Dockerfile` + `docker-compose.yml`.
+│
+├── frontend/
+│   ├── index.html
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       ├── api.js
+│       └── app.js
+│
+├── .gitignore
+└── README.md
