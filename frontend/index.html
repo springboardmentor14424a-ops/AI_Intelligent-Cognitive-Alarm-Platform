@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cognitive Alarm Platform</title>
+<link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===== LANDING PAGE ===== -->
+  <section id="view-landing" class="view active">
+    <nav class="landing-nav">
+      <div class="landing-brand">
+        <div class="logo-mark">⏰</div>
+        <span>CognitiveAlarm</span>
+      </div>
+      <div class="landing-nav-actions">
+        <button class="btn-secondary" id="landing-signin-btn">Sign In</button>
+        <button class="btn-primary" id="landing-getstarted-btn" style="margin-top:0">Get Started</button>
+      </div>
+    </nav>
+
+    <div class="hero">
+      <span class="eyebrow">No More Snooze Spam</span>
+      <h1>Mornings shouldn't feel like a fight.<br/>They should feel like a plan.</h1>
+      <p class="hero-line">Your alarm shouldn't beg. It should challenge.</p>
+      <p class="sub">Solve a quick puzzle to prove you're actually up, and watch your habit score glow up over time.</p>
+      <div class="hero-actions">
+        <button class="btn-primary" id="hero-create-account-btn" style="margin-top:0">Let's Go — Sign Up Free</button>
+        <button class="btn-secondary" id="hero-access-btn">I Already Have an Account</button>
+      </div>
+    </div>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🧠</div>
+        <h4>Brain Before Coffee</h4>
+        <p>Math, logic, memory and riddle puzzles you actually have to solve before the alarm shuts up.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">⏰</div>
+        <h4>Alarms That Mean It</h4>
+        <p>Set as many as you want, on repeat or one-off — each one locked behind its own mini challenge.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <h4>Receipts on Your Routine</h4>
+        <p>A real habit score, real charts, and honest feedback — not vibes, actual data on how your mornings are going.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== AUTH VIEW ===== -->
+  <section id="view-auth" class="view">
+    <button class="back-home" id="back-home-btn">← Back to Home</button>
+    <div class="auth-card">
+      <div class="brand">
+        <div class="brand-mark">⏰</div>
+        <h1>Cognitive Alarm</h1>
+        <p class="tagline">Wake up. Solve. Own your morning.</p>
+        <p class="auth-quote" id="auth-quote">"The way you wake up sets the tone for everything after it."</p>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="login">Log In</button>
+        <button class="tab-btn" data-tab="register">Sign Up</button>
+      </div>
+
+      <form id="form-login" class="auth-form active">
+        <label>Email</label>
+        <input type="email" id="login-email" required placeholder="you@example.com" />
+        <label>Password</label>
+        <input type="password" id="login-password" required placeholder="••••••••" />
+        <button type="submit" class="btn-primary">Sign In</button>
+        <p class="form-error" id="login-error"></p>
+
+        <div class="divider">OR</div>
+        <button type="button" class="btn-outline-google" id="btn-google-signin">
+          <span>🔵</span> Sign in with Google
+        </button>
+        <p class="helper-note">Google Sign-In needs OAuth credentials configured by an admin — not wired up in this dev build.</p>
+
+        <div class="demo-logins">
+          <span class="demo-logins-label">Quick Demo Logins</span>
+          <div class="demo-btn-row">
+            <button type="button" class="demo-btn" data-demo-role="admin">👑 Admin</button>
+            <button type="button" class="demo-btn" data-demo-role="wellness_coach">🧑‍⚕️ Coach</button>
+            <button type="button" class="demo-btn" data-demo-role="user">👤 User</button>
+          </div>
+        </div>
+      </form>
+
+      <form id="form-register" class="auth-form">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" required placeholder="Your name" />
+        <label>Email</label>
+        <input type="email" id="reg-email" required placeholder="you@example.com" />
+        <label>Password</label>
+        <input type="password" id="reg-password" required placeholder="At least 6 characters" minlength="6" />
+        <label>Role</label>
+        <select id="reg-role">
+          <option value="user">Standard User</option>
+          <option value="wellness_coach">Wellness Coach</option>
+        </select>
+        <button type="submit" class="btn-primary">Sign Up</button>
+        <p class="form-error" id="register-error"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===== APP SHELL ===== -->
+  <section id="view-shell" class="view">
+    <nav class="sidebar">
+      <div class="brand-mini">
+        <div class="logo-mark">⏰</div>
+        <span>CognitiveAlarm</span>
+      </div>
+
+      <div class="sidebar-user">
+        <span class="avatar" id="sidebar-avatar">⏰</span>
+        <div class="who">
+          <span id="sidebar-user-name">—</span>
+          <span id="sidebar-user-role">—</span>
+        </div>
+      </div>
+
+      <button class="nav-item active" data-page="overview">📊 Overview</button>
+      <button class="nav-item" data-page="alarms">⏰ Alarm Centre</button>
+      <button class="nav-item" data-page="challenges">🧩 Challenges</button>
+      <button class="nav-item" data-page="analytics">📈 Analytics</button>
+      <button class="nav-item" data-page="habit">🏆 Habit &amp; Verification</button>
+      <button class="nav-item" data-page="ai">🤖 AI Personalization</button>
+      <button class="nav-item" id="nav-admin" data-page="admin" style="display:none">🛡️ Admin Panel</button>
+      <button class="nav-item" data-page="profile">⚙️ Profile Settings</button>
+
+      <div class="sidebar-footer">
+        <button class="theme-switch-btn" id="btn-theme-switch">🌙 Theme: Dark</button>
+        <button class="btn-logout-full" id="btn-logout">Log Out</button>
+      </div>
+    </nav>
+
+    <main class="content">
+
+      <!-- ===== OVERVIEW ===== -->
+      <div id="page-overview" class="page active">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>Overview</h2>
+          </div>
+          <button class="bell-btn">🔔<span class="bell-badge" id="bell-count">0</span></button>
+        </div>
+
+        <div class="welcome-banner">
+          <h3 id="welcome-message">Welcome back!</h3>
+          <p>Complete a cognitive challenge or manage your alarms below to raise your habit score.</p>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-value" id="stat-streak">--</span><span class="stat-label">Day Streak</span></div>
+          <div class="stat-card"><span class="stat-value" id="stat-habit-score">--</span><span class="stat-label">Habit Score</span></div>
+          <div class="stat-card"><span class="stat-value" id="stat-sleep">--</span><span class="stat-label">Target Sleep</span></div>
+          <div class="stat-card"><span class="stat-value" id="stat-solved">--</span><span class="stat-label">Puzzles Solved</span></div>
+        </div>
+
+        <div class="panel-row">
+          <div class="panel">
+            <h3>⏰ Active Alarms</h3>
+            <div id="overview-alarms-list"><p class="empty-row">No alarms yet.</p></div>
+          </div>
+          <div class="panel">
+            <h3>📄 Wellness Reports</h3>
+            <div class="report-buttons">
+              <button class="report-link-btn" id="btn-download-pdf">📄 Download PDF Report</button>
+              <button class="report-link-btn" id="btn-download-csv">📊 Download CSV Report</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel feedback-panel">
+          <h3>⭐ Platform Feedback</h3>
+          <p class="panel-sub">Help us optimize your cognitive waking experience.</p>
+          <div class="star-select" id="feedback-stars">
+            <button type="button" data-star="1">★</button>
+            <button type="button" data-star="2">★</button>
+            <button type="button" data-star="3">★</button>
+            <button type="button" data-star="4">★</button>
+            <button type="button" data-star="5">★</button>
+          </div>
+          <textarea id="feedback-comment" rows="2" placeholder="Optional comment..." style="width:100%"></textarea>
+          <button class="btn-primary" id="btn-submit-feedback">Submit Feedback</button>
+        </div>
+
+        <div class="panel">
+          <h3>Habit Score Breakdown</h3>
+          <div class="breakdown" id="overview-breakdown-bars"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Recent Wake-Up Attempts</h3>
+          <table class="attempts-table">
+            <thead><tr><th>Type</th><th>Difficulty</th><th>Result</th><th>When</th></tr></thead>
+            <tbody id="recent-attempts-body"><tr><td colspan="4" class="empty-row">No attempts yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== ALARM CENTRE ===== -->
+      <div id="page-alarms" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>Alarm Centre</h2>
+          </div>
+          <button class="btn-primary" id="btn-open-create-alarm" style="margin-top:0">+ Create Alarm</button>
+        </div>
+        <div class="panel">
+          <h3>Active Schedules</h3>
+          <div id="alarms-grid" class="alarms-grid"><p class="empty-row">No alarms yet — create one above.</p></div>
+        </div>
+      </div>
+
+      <!-- ===== CHALLENGES ===== -->
+      <div id="page-challenges" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>Challenges</h2>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>🧩 Cognitive Challenge Hub</h3>
+          <p class="panel-sub">Your personalized challenge history — difficulty adapts based on your performance.</p>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-value" id="chal-total-solved">--</span><span class="stat-label">Total Solved</span></div>
+          <div class="stat-card"><span class="stat-value" id="chal-total-score">--</span><span class="stat-label">Total Score</span></div>
+          <div class="stat-card"><span class="stat-value" id="chal-avg-accuracy">--</span><span class="stat-label">Avg Accuracy</span></div>
+          <div class="stat-card"><span class="stat-value" id="chal-current-level">--</span><span class="stat-label">Current Level</span></div>
+          <div class="stat-card"><span class="stat-value" id="chal-win-rate">--</span><span class="stat-label">Win Rate</span></div>
+        </div>
+        <div class="panel">
+          <h3>Challenge Performance History</h3>
+          <table class="attempts-table">
+            <thead><tr><th>Date &amp; Time</th><th>Type</th><th>Difficulty</th><th>Correct</th><th>Snoozed</th><th>Status</th></tr></thead>
+            <tbody id="challenge-history-body"><tr><td colspan="6" class="empty-row">No history yet.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== ANALYTICS ===== -->
+      <div id="page-analytics" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>Analytics</h2>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>📈 Analytics &amp; Difficulty Progression</h3>
+          <p class="panel-sub">Real charts built from your actual attempt history — empty until you complete a few challenges.</p>
+        </div>
+        <div class="panel-row">
+          <div class="panel"><h3>Accuracy Trend</h3><div class="chart-wrap"><canvas id="chart-accuracy"></canvas></div></div>
+          <div class="panel"><h3>Difficulty Progression</h3><div class="chart-wrap"><canvas id="chart-difficulty"></canvas></div></div>
+        </div>
+        <div class="panel-row">
+          <div class="panel"><h3>Challenge Type Breakdown</h3><div class="chart-wrap"><canvas id="chart-types"></canvas></div></div>
+          <div class="panel"><h3>Snooze Frequency by Weekday</h3><div class="chart-wrap"><canvas id="chart-snooze"></canvas></div></div>
+        </div>
+        <div class="panel-row">
+          <div class="panel"><h3>🌙 Sleep Duration Breakdown</h3><div class="chart-wrap"><canvas id="chart-sleep"></canvas></div></div>
+          <div class="panel"><h3>🕸️ Habit Consistency Radar</h3><div class="chart-wrap"><canvas id="chart-radar"></canvas></div></div>
+        </div>
+
+        <div class="panel">
+          <h3>🧭 Behavioral Snapshot</h3>
+          <p class="panel-sub">Five quick reads on your patterns — all computed from your own attempt history, not simulated.</p>
+          <div class="behavior-card-grid">
+            <div class="behavior-card">
+              <span class="behavior-card-title">😴 Snooze Pattern</span>
+              <span class="behavior-card-value" id="bh-snooze-avg">--</span>
+              <span class="behavior-card-sub">avg snoozes / active day</span>
+              <span class="behavior-card-extra" id="bh-snooze-extra">--</span>
+            </div>
+            <div class="behavior-card">
+              <span class="behavior-card-title">⏰ Wake-Up Behavior</span>
+              <span class="behavior-card-value" id="bh-ontime-rate">--</span>
+              <span class="behavior-card-sub">solved on first try (not snoozed)</span>
+              <span class="behavior-card-extra" id="bh-reaction-time">--</span>
+            </div>
+            <div class="behavior-card">
+              <span class="behavior-card-title">🎯 Focus Index</span>
+              <span class="behavior-card-value" id="bh-focus-index">--</span>
+              <span class="behavior-card-sub">blend of accuracy + response speed</span>
+            </div>
+            <div class="behavior-card">
+              <span class="behavior-card-title">🔥 Habit Consistency</span>
+              <span class="behavior-card-value" id="bh-streak">--</span>
+              <span class="behavior-card-sub">current day streak</span>
+              <span class="behavior-card-extra" id="bh-weekly-compliance">--</span>
+            </div>
+            <div class="behavior-card">
+              <span class="behavior-card-title">🌙 Sleep Target</span>
+              <span class="behavior-card-value" id="bh-sleep-target">--</span>
+              <span class="behavior-card-sub">your set goal — no sensor data tracked</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== HABIT & VERIFICATION ===== -->
+      <div id="page-habit" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>Habit &amp; Verification</h2>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>🏆 Habit Scoring &amp; Wake-Up Verification Hub</h3>
+          <p class="panel-sub">Multi-dimensional habit score powered by the 35/25/20/20 weighted model.</p>
+          <div class="hero-actions" style="justify-content:flex-start">
+            <button class="btn-primary" id="btn-recalculate-score" style="margin-top:0">🔄 Recalculate Score</button>
+            <button class="btn-secondary" id="btn-test-verification">🔔 Test Verification Challenge</button>
+            <button class="btn-secondary" id="btn-habit-pdf">📄 PDF Report</button>
+            <button class="btn-secondary" id="btn-habit-csv">📊 CSV Report</button>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <span class="stat-value" id="habit-overall">--</span>
+            <span class="stat-label">Overall Habit Score <span class="grade-badge" id="habit-grade">--</span></span>
+          </div>
+          <div class="stat-card"><span class="stat-value" id="habit-wake">--</span><span class="stat-label">Wake Consistency (35%)</span></div>
+          <div class="stat-card"><span class="stat-value" id="habit-challenge">--</span><span class="stat-label">Challenge Success (25%)</span></div>
+          <div class="stat-card"><span class="stat-value" id="habit-snooze">--</span><span class="stat-label">Snooze Reduction (20%)</span></div>
+        </div>
+        <div class="panel">
+          <h3>Sleep Schedule Adherence (20%)</h3>
+          <div class="breakdown" id="habit-adherence-bar"></div>
+        </div>
+
+        <div class="panel">
+          <h3>🔐 Verification Method</h3>
+          <p class="panel-sub">This is the default method new alarms use — set it per-alarm too, in Create Alarm.</p>
+          <div class="method-picker-grid">
+            <button type="button" class="method-btn" data-method="puzzle_completion">
+              <span class="method-icon">🧩</span><span>Puzzle Completion</span>
+              <span class="method-desc">Solve one challenge to disarm.</span>
+            </button>
+            <button type="button" class="method-btn" data-method="multi_step">
+              <span class="method-icon">🔢</span><span>Multi-Step</span>
+              <span class="method-desc">Solve several in sequence — a miss just retries that step.</span>
+            </button>
+            <button type="button" class="method-btn" data-method="consecutive_streak">
+              <span class="method-icon">🎯</span><span>Consecutive Streak</span>
+              <span class="method-desc">Get N correct in a row — one miss resets the streak.</span>
+            </button>
+            <button type="button" class="method-btn" data-method="timed_blitz">
+              <span class="method-icon">⏱️</span><span>Timed Blitz</span>
+              <span class="method-desc">Same as puzzle completion, but on a tighter 20s clock.</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>☀️ Post-Wake Confirmation Check-In</h3>
+          <p class="panel-sub">Log how alert you feel a few minutes after waking — purely self-reported, stored for your own reference.</p>
+          <label>Alertness Rating: <span id="checkin-rating-label">5</span>/10</label>
+          <input type="range" id="checkin-rating" min="1" max="10" value="5" style="width:100%" />
+          <label>Notes (optional)</label>
+          <input type="text" id="checkin-notes" placeholder="How's the morning going?" />
+          <button class="btn-primary" id="btn-submit-checkin">Log Check-In</button>
+          <p class="panel-sub" id="checkin-last" style="margin-top:10px"></p>
+        </div>
+      </div>
+
+      <!-- ===== AI PERSONALIZATION ===== -->
+      <div id="page-ai" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>AI Personalization</h2>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>🤖 Rule-Based Personalization Engine</h3>
+          <p class="panel-sub">Explainable, data-driven recommendations from your own history — not a trained ML model (see README for what a real one would need).</p>
+          <div class="hero-actions" style="justify-content:flex-start">
+            <button class="btn-primary" id="btn-apply-recommendation" style="margin-top:0">✨ Apply Recommendation</button>
+            <button class="btn-secondary" id="btn-refresh-ai">🔄 Refresh Analysis</button>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-card"><span class="stat-value" id="ai-snooze-risk">--</span><span class="stat-label">Snooze Risk</span></div>
+          <div class="stat-card"><span class="stat-value" id="ai-bedtime">--</span><span class="stat-label">Optimal Bedtime</span></div>
+          <div class="stat-card"><span class="stat-value" id="ai-best-type">--</span><span class="stat-label">Best Challenge Type</span></div>
+          <div class="stat-card"><span class="stat-value" id="ai-habit-score">--</span><span class="stat-label">Habit Score</span></div>
+        </div>
+        <div class="panel-row">
+          <div class="panel">
+            <h3>💡 Insights</h3>
+            <div id="ai-insights-list"></div>
+          </div>
+          <div class="panel">
+            <h3>⚠️ Risk Factors</h3>
+            <div id="ai-risks-list"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>🏅 Challenge Type Rankings</h3>
+          <p class="panel-sub">Ranked by accuracy and average solve time for your own history.</p>
+          <div id="ai-rankings"></div>
+        </div>
+
+        <div class="panel-row">
+          <div class="panel">
+            <h3>🎚️ Adaptive Difficulty Engine</h3>
+            <p class="panel-sub">Rule: accuracy ≥80% over your last 10 attempts → level up; &lt;40% → level down.</p>
+            <div class="difficulty-track" id="ai-difficulty-track">
+              <span>Beginner</span><span>Easy</span><span>Medium</span><span>Hard</span><span>Expert</span>
+            </div>
+            <div class="difficulty-track-bar"><div class="difficulty-track-fill" id="ai-difficulty-fill"></div></div>
+            <p class="panel-sub" id="ai-difficulty-note" style="margin-top:10px"></p>
+          </div>
+          <div class="panel">
+            <h3>📘 Learning Pattern Analysis</h3>
+            <p class="panel-sub">Compares your older attempts against your most recent ones.</p>
+            <div class="mini-stat-row">
+              <div class="mini-stat"><span class="mini-stat-value" id="ai-trajectory">--</span><span class="mini-stat-label">Trajectory</span></div>
+              <div class="mini-stat"><span class="mini-stat-value" id="ai-speed-gain">--</span><span class="mini-stat-label">Speed Change</span></div>
+              <div class="mini-stat"><span class="mini-stat-value" id="ai-retention">--</span><span class="mini-stat-label">Retention Index</span></div>
+            </div>
+            <div class="mini-stat-row" style="margin-top:10px">
+              <div class="mini-stat"><span class="mini-stat-value" id="ai-cognitive-speed">--</span><span class="mini-stat-label">Cognitive Speed</span></div>
+              <div class="mini-stat"><span class="mini-stat-value" id="ai-mastery-score">--</span><span class="mini-stat-label">Mastery Score</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>🔔 Notification Previews</h3>
+          <p class="panel-sub">These show what each alert would say — this dev build doesn't send real background push notifications yet.</p>
+          <div class="notif-preview-grid">
+            <button type="button" class="notif-preview-btn" id="btn-test-bedtime">🌙 Test Bedtime Alert</button>
+            <button type="button" class="notif-preview-btn" id="btn-test-habit">🔥 Test Habit Alert</button>
+            <button type="button" class="notif-preview-btn" id="btn-test-progress">📊 Test Progress Digest</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h3>⚙️ Currently Applied Personalization Settings</h3>
+          <div class="stat-grid">
+            <div class="stat-card"><span class="stat-value" id="ai-current-waketime" style="font-size:18px">--</span><span class="stat-label">Wake-Up Time</span></div>
+            <div class="stat-card"><span class="stat-value" id="ai-current-sleepgoal" style="font-size:18px">--</span><span class="stat-label">Target Sleep Duration</span></div>
+            <div class="stat-card"><span class="stat-value" id="ai-current-challenge" style="font-size:18px">--</span><span class="stat-label">Challenge Preference</span></div>
+            <div class="stat-card"><span class="stat-value" id="ai-current-difficulty" style="font-size:18px">--</span><span class="stat-label">Difficulty Level</span></div>
+          </div>
+        </div>
+
+        <div class="panel feedback-panel">
+          <h3>⭐ Help Improve This Engine</h3>
+          <p class="panel-sub">Your feedback here is stored the same way as Overview feedback, tagged so it's easy to filter later.</p>
+          <textarea id="ai-feedback-comment" rows="2" placeholder="What would make these recommendations more useful?" style="width:100%"></textarea>
+          <button class="btn-primary" id="btn-submit-ai-feedback">Submit AI Feedback</button>
+        </div>
+      </div>
+
+      <!-- ===== ADMIN PANEL (role-gated) ===== -->
+      <div id="page-admin" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / Admin</div>
+            <h2>Admin Panel</h2>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>🛡️ All Users &amp; Habit Scores</h3>
+          <p class="panel-sub">Real role-based access control — only Admin and Wellness Coach accounts can load this page's data.</p>
+          <table class="admin-table">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Habit Score</th><th>Alarms</th><th>Attempts</th></tr></thead>
+            <tbody id="admin-users-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== PROFILE SETTINGS ===== -->
+      <div id="page-profile" class="page">
+        <div class="topbar">
+          <div>
+            <div class="breadcrumb">Platform / User Panel</div>
+            <h2>Profile Settings</h2>
+          </div>
+        </div>
+
+        <form id="form-profile">
+          <div class="panel">
+            <div class="settings-section-title">Personal Info</div>
+            <div class="avatar-picker" id="avatar-picker"></div>
+            <div class="form-grid-2">
+              <div><label>Full Name</label><input type="text" id="profile-name" disabled /></div>
+              <div><label>Phone</label><input type="text" id="profile-phone" placeholder="Optional" /></div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="settings-section-title">Wake &amp; Sleep</div>
+            <div class="form-grid-2">
+              <div><label>Preferred Wake Time</label><input type="time" id="profile-wake-time" /></div>
+              <div><label>Target Bedtime</label><input type="time" id="profile-sleep-time" /></div>
+            </div>
+            <div class="form-grid-2">
+              <div><label>Sleep Duration Goal (hours)</label><input type="number" id="profile-sleep-duration" min="4" max="12" step="0.5" /></div>
+              <div><label>Preferred Challenge Type</label>
+                <select id="profile-challenge-type">
+                  <option value="math">Math Problems</option>
+                  <option value="logic">Logic Puzzles</option>
+                  <option value="memory">Memory Challenges</option>
+                  <option value="riddle">Riddles</option>
+                </select>
+              </div>
+            </div>
+            <label>Default Difficulty</label>
+            <select id="profile-difficulty">
+              <option value="beginner">Beginner</option>
+              <option value="easy">Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+              <option value="expert">Expert</option>
+            </select>
+          </div>
+
+          <div class="panel">
+            <div class="settings-section-title">Alarm Behavior</div>
+            <div class="form-grid-2">
+              <div><label>Snooze Duration (minutes)</label><input type="number" id="profile-snooze-duration" min="1" max="30" /></div>
+              <div><label>Max Snoozes Allowed</label><input type="number" id="profile-max-snoozes" min="0" max="10" /></div>
+            </div>
+            <label>Default Ringtone</label>
+            <div class="sound-picker-row">
+              <select id="profile-ringtone" style="flex:1">
+                <option value="classic_bell">Classic Bell</option>
+                <option value="digital_beep">Digital Beep</option>
+                <option value="gentle_chime">Gentle Chime</option>
+                <option value="radar">Radar Sweep</option>
+                <option value="xylophone">Xylophone</option>
+              </select>
+              <button type="button" class="btn-preview-sound" id="btn-preview-profile-sound">▶ Preview</button>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-row-label">Vibration</div><div class="toggle-row-sub">Vibrate device when alarm rings (mobile only)</div></div>
+              <button type="button" class="toggle" id="toggle-vibration"><span class="knob"></span></button>
+            </div>
+            <div class="toggle-row">
+              <div><div class="toggle-row-label">Gradual Volume</div><div class="toggle-row-sub">Ramp volume up slowly instead of full blast</div></div>
+              <button type="button" class="toggle" id="toggle-gradual-volume"><span class="knob"></span></button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary">Save Settings</button>
+          <p class="form-success" id="profile-success"></p>
+        </form>
+      </div>
+
+    </main>
+  </section>
+
+  <!-- ===== CREATE ALARM MODAL ===== -->
+  <div id="modal-create-alarm" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-card-header">
+        <h3>Create Alarm</h3>
+        <button class="modal-close-x" id="close-create-alarm">✕</button>
+      </div>
+      <form id="form-new-alarm">
+        <label>Alarm Name</label>
+        <input type="text" id="alarm-label" placeholder="Morning Alarm" required />
+
+        <div class="form-grid-2">
+          <div>
+            <label>Alarm Time</label>
+            <input type="time" id="alarm-time" required />
+          </div>
+          <div>
+            <label>Repeat Rule</label>
+            <select id="alarm-repeat">
+              <option value="">Once</option>
+              <option value="Mon,Tue,Wed,Thu,Fri,Sat,Sun">Daily</option>
+              <option value="Mon,Tue,Wed,Thu,Fri">Weekdays</option>
+              <option value="Sat,Sun">Weekends</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-grid-2">
+          <div>
+            <label>Challenge Type</label>
+            <select id="alarm-challenge-type">
+              <option value="math">Math Problems</option>
+              <option value="logic">Logic Puzzles</option>
+              <option value="memory">Memory Challenges</option>
+              <option value="riddle">Riddles</option>
+            </select>
+          </div>
+          <div>
+            <label>Difficulty</label>
+            <select id="alarm-difficulty">
+              <option value="beginner">Beginner</option>
+              <option value="easy" selected>Easy</option>
+              <option value="medium">Medium</option>
+              <option value="hard">Hard</option>
+              <option value="expert">Expert</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Alarm Sound</label>
+        <div class="sound-picker-row">
+          <select id="alarm-ringtone" style="flex:1">
+            <option value="classic_bell">Classic Bell</option>
+            <option value="digital_beep">Digital Beep</option>
+            <option value="gentle_chime">Gentle Chime</option>
+            <option value="radar">Radar Sweep</option>
+            <option value="xylophone">Xylophone</option>
+          </select>
+          <button type="button" class="btn-preview-sound" id="btn-preview-alarm-sound">▶ Preview</button>
+        </div>
+
+        <label>Verification Method</label>
+        <select id="alarm-verification-method">
+          <option value="puzzle_completion">Puzzle Completion</option>
+          <option value="multi_step">Multi-Step</option>
+          <option value="consecutive_streak">Consecutive Streak</option>
+          <option value="timed_blitz">Timed Blitz (20s)</option>
+        </select>
+
+        <label>Verification Steps (challenges to solve)</label>
+        <input type="number" id="alarm-multi-step" min="1" max="5" value="1" />
+
+        <div class="toggle-row">
+          <div class="toggle-row-label">Vibration</div>
+          <button type="button" class="toggle on" id="toggle-alarm-vibration"><span class="knob"></span></button>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-row-label">Smart Gradient Card</div>
+          <button type="button" class="toggle" id="toggle-alarm-gradient"><span class="knob"></span></button>
+        </div>
+
+        <button type="submit" class="btn-primary">Create Alarm</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== ALARM RING / VERIFICATION MODAL ===== -->
+  <div id="modal-challenge" class="modal-overlay">
+    <div class="modal-card wide">
+      <div class="ring-modal-header">
+        <span class="ring-icon-big">🔔</span>
+        <h3 class="ring-title">ALARM IS RINGING!</h3>
+        <div class="ring-tags">
+          <span class="badge badge-accent" id="challenge-type-label"></span>
+          <span class="badge badge-warning" id="challenge-difficulty-label"></span>
+          <span class="badge badge-info">Verification Engine</span>
+        </div>
+      </div>
+      <div class="ring-stats-row">
+        <span>⏱ Timer: <b id="ring-timer">60s</b></span>
+        <span>❌ Failed: <b id="ring-failed">0</b></span>
+        <span>⭐ Score: <b id="ring-score">--</b></span>
+      </div>
+      <p class="ring-step-label" id="ring-step-label">Step 1/1</p>
+
+      <div class="challenge-prompt-box">
+        <p id="challenge-prompt">Loading challenge…</p>
+      </div>
+      <input type="text" id="challenge-answer" placeholder="Type your answer here…" autocomplete="off" />
+      <button type="button" class="hint-link" id="btn-show-hint">Show Hint</button>
+      <p class="form-error" id="challenge-error"></p>
+
+      <div class="modal-actions">
+        <button id="btn-submit-challenge" class="btn-primary btn-disarm">Disarm &amp; Turn Off Alarm</button>
+      </div>
+      <div class="mute-snooze-row">
+        <button type="button" class="small-toggle-btn" id="btn-mute-audio">🔊 Mute Audio</button>
+        <button type="button" class="small-toggle-btn" id="btn-snooze">😴 Snooze</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"></div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/static/js/api.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
