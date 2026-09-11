@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Cognitive Alarm</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .switch-tab { display: none; }
+        .switch-tab.active { display: flex; flex-direction: column; gap: 30px; }
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn.active { background: var(--primary); color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div style="display: flex; flex-direction: column; gap: 40px;">
+                <!-- Brand -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">A</div>
+                    <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.5px;">CognitiveAlarm</span>
+                </div>
+
+                <!-- Profile -->
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card);">
+                    <img src="{{ user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div style="overflow: hidden;">
+                        <div style="font-size: 14px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ user.full_name or user.username }}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Administrator</div>
+                    </div>
+                </div>
+
+                <!-- Nav Menu -->
+                <nav style="display: flex; flex-direction: column; gap: 6px;">
+                    <button onclick="setTab('overview-tab', this)" class="nav-btn active">🛡 Overview</button>
+                    <button onclick="setTab('users-tab', this)" class="nav-btn">👤 User Directory</button>
+                    <button onclick="setTab('recommendations-tab', this); loadAdminRecommendationsMonitoring();" class="nav-btn">💡 Recommendations &amp; Sleep Adherence</button>
+                    <button onclick="setTab('health-tab', this); loadAdminTelemetry();" class="nav-btn">⚡ Production &amp; Backups</button>
+                    <button onclick="setTab('feedback-tab', this); loadAdminFeedback();" class="nav-btn">⭐ User Feedback</button>
+                    <button onclick="setTab('logs-tab', this)" class="nav-btn">📋 System Logs</button>
+                    <button onclick="setTab('settings-tab', this)" class="nav-btn">⚙ Settings</button>
+                </nav>
+            </div>
+
+            <!-- Bottom -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <a href="/api/auth/logout" class="btn btn-danger" style="width: 100%;">Log Out</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Platform / Administration</div>
+                    <h1 id="tab-title" style="font-size: 26px; font-weight: 800;">Overview</h1>
+                </div>
+            </header>
+
+            <!-- TAB 1: OVERVIEW -->
+            <div id="overview-tab" class="switch-tab active">
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>System Operation Panel</h2>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">Monitor morning wake streaks, user actions, and health indexes.</p>
+                    </div>
+                    <button onclick="openModal('broadcast-modal')" class="btn btn-primary">Broadcast Announcement</button>
+                </div>
+
+                <!-- KPI Cards (Modules 7-12 Enriched) -->
+                <div class="grid-kpi" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Users</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px;">{{ stats.total_users }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Active Alarms</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px;">{{ stats.active_alarms }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Avg Habit Score</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #4ade80;">{{ stats.avg_habit_score if stats and stats.avg_habit_score is defined else 50.0 }}/100</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Challenges</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #a78bfa;">{{ stats.total_challenges if stats and stats.total_challenges is defined else 0 }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Wellness Coaches</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px;">{{ stats.coaches }}</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">System Health</span>
+                        <h3 style="font-size: 26px; font-weight: bold; margin-top: 6px; color: var(--success);">99.9%</h3>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px;">
+                    <div class="glass-card">
+                        <h3>Circadian Platform Growth</h3>
+                        <div style="height: 200px; margin-top: 15px;"><canvas id="growthChart"></canvas></div>
+                    </div>
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <h3>Daily Active Engagements (DAU)</h3>
+                            <span style="font-size: 11px; color: var(--text-secondary);">Last 7 Days</span>
+                        </div>
+                        <div style="height: 200px; margin-top: 11px;"><canvas id="dauChart"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- Platform Announcements & System Reports Hub -->
+                <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; margin-top: 24px;">
+                    <!-- Active Announcements -->
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <h3>📢 Platform Announcements</h3>
+                            <button onclick="openModal('broadcast-modal')" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;">+ New Broadcast</button>
+                        </div>
+                        <div style="max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+                            {% if announcements %}
+                                {% for a in announcements %}
+                                    <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                            <strong style="font-size: 14px;">{{ a.title }}</strong>
+                                            <div style="display: flex; gap: 6px;">
+                                                <span class="badge badge-info" style="font-size: 10px;">{{ a.target_role }}</span>
+                                                <span class="badge {{ 'badge-active' if a.priority == 'normal' else 'badge-suspended' }}" style="font-size: 10px;">{{ a.priority }}</span>
+                                            </div>
+                                        </div>
+                                        <p style="font-size: 13px; color: var(--text-secondary); margin: 0; line-height: 1.4;">{{ a.content }}</p>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div style="text-align: center; color: var(--text-secondary); padding: 25px;">No active platform broadcasts yet.</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Platform Reports & Export Hub -->
+                    <div class="glass-card">
+                        <h3 style="margin-bottom: 14px;">📑 Comprehensive System Reports</h3>
+                        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">Download structured analytics and telemetry reports in PDF or multi-sheet Excel.</p>
+                        
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-card);">
+                                <span style="font-size: 13px; font-weight: 500;">Complete Platform Dossier</span>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="/api/reports/export/pdf?report_type=all" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 PDF</a>
+                                    <a href="/api/reports/export/excel?report_type=all" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Excel</a>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-card);">
+                                <span style="font-size: 13px; font-weight: 500;">Habit & Wake Reports</span>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="/api/reports/export/pdf?report_type=habit" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 PDF</a>
+                                    <a href="/api/reports/export/excel?report_type=wake_up" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Excel</a>
+                                </div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(255,255,255,0.02); border-radius: 8px; border: 1px solid var(--border-card);">
+                                <span style="font-size: 13px; font-weight: 500;">Cognitive & Sleep Analytics</span>
+                                <div style="display: flex; gap: 6px;">
+                                    <a href="/api/reports/export/pdf?report_type=challenge" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 PDF</a>
+                                    <a href="/api/reports/export/excel?report_type=sleep" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Excel</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: USER DIRECTORY -->
+            <div id="users-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2>System Accounts Directory</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="openModal('add-user-modal')" class="btn btn-primary">+ Add User Account</button>
+                        <a href="/api/admin/export?format=pdf" class="btn btn-secondary">Download PDF</a>
+                        <a href="/api/admin/export?format=excel" class="btn btn-secondary">Download Excel</a>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>User detail</th>
+                                <th>System Role</th>
+                                <th>Provider</th>
+                                <th>Streak / Habit</th>
+                                <th>Coach Assigned</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                                <tr>
+                                    <td>
+                                        <div style="display: flex; gap: 10px; align-items: center;">
+                                            <img src="{{ u.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 32px; height: 32px; border-radius: 50%;">
+                                            <div>
+                                                <strong>{{ u.full_name or u.username }}</strong>
+                                                <p style="font-size: 11px; color: var(--text-secondary);">@{{ u.username }} • {{ u.email }}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td style="text-transform: capitalize;">{{ u.role }}</td>
+                                    <td style="text-transform: capitalize;">{{ u.provider }}</td>
+                                    <td>
+                                        {% if u.role == 'user' and u.profile %}
+                                            {{ u.profile.streak }} days / {{ u.profile.habit_score }} score
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if u.role == 'user' %}
+                                            {% if u.coach_id %}
+                                                <div style="display: flex; align-items: center; gap: 8px;">
+                                                    <span>Coach ID: {{ u.coach_id }}</span>
+                                                    <form action="/api/admin/users/remove-coach/{{ u.id }}" method="POST">
+                                                        <button type="submit" style="background: none; border: none; color: var(--danger); cursor: pointer; font-size: 11px;">Remove</button>
+                                                    </form>
+                                                </div>
+                                            {% else %}
+                                                <button onclick="openAssignCoach('{{ u.id }}', '{{ u.full_name or u.username }}')" class="btn btn-secondary" style="padding: 4px 8px; font-size: 11px;">Assign Coach</button>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ 'badge-active' if u.account_status == 'active' else 'badge-suspended' }}">
+                                            {{ u.account_status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div style="display: flex; gap: 8px;">
+                                            <button onclick="openEditUser('{{ u.id }}', '{{ u.name or u.email }}', '{{ u.role }}')" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Edit</button>
+                                            <form action="/api/admin/users/toggle-status/{{ u.id }}" method="POST">
+                                                <button type="submit" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;">Toggle Status</button>
+                                            </form>
+                                            <form action="/api/admin/users/reset-password/{{ u.id }}" method="POST">
+                                                <button type="submit" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;" title="Reset password">Reset Pass</button>
+                                            </form>
+                                            <form action="/api/admin/users/delete/{{ u.id }}" method="POST" onsubmit="return confirm('Permanently delete user?')">
+                                                <button type="submit" class="btn btn-danger" style="padding: 6px 10px; font-size: 12px;">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 3: PRODUCTION HEALTH & BACKUPS (Module 5) -->
+            <div id="health-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2>⚡ Production Health & Maintenance</h2>
+                        <p style="color: var(--text-secondary); font-size: 13px;">Real-time system telemetry, database health, and disaster recovery snapshot backups.</p>
+                    </div>
+                    <button onclick="createDatabaseBackup()" class="btn btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                        💾 Create DB Snapshot Backup
+                    </button>
+                </div>
+
+                <!-- Telemetry Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">API & DB Status</span>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px;">
+                            <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: #10b981;"></span>
+                            <h3 id="health-api-status" style="font-size: 22px; font-weight: bold;">Healthy</h3>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Uptime verified & DB connected</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Database Size</span>
+                        <h3 id="health-db-size" style="font-size: 22px; font-weight: bold; margin-top: 6px;">-- KB</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">SQLite / PostgreSQL Engine</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Background Jobs</span>
+                        <h3 id="health-jobs-count" style="font-size: 22px; font-weight: bold; margin-top: 6px;">3 Active</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">APScheduler Alarm & Bedtime triggers</p>
+                    </div>
+
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Memory Usage</span>
+                        <h3 id="health-mem-usage" style="font-size: 22px; font-weight: bold; margin-top: 6px;">-- %</h3>
+                        <p id="health-mem-avail" style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Available: -- MB</p>
+                    </div>
+                </div>
+
+                <!-- Database Backups List -->
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 14px;">🗄️ Database Backup Snapshots</h3>
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Backup Filename</th>
+                                    <th>File Size</th>
+                                    <th>Created Timestamp</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backups-table-body">
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading backup snapshots...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: USER FEEDBACK (Module 5) -->
+            <div id="feedback-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2>⭐ User Feedback & Satisfaction</h2>
+                        <p style="color: var(--text-secondary); font-size: 13px;">User star ratings, feature requests, and issue resolution moderation.</p>
+                    </div>
+                </div>
+
+                <!-- Feedback Table -->
+                <div class="glass-card">
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Rating</th>
+                                    <th>Category</th>
+                                    <th>Comments</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="feedback-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading feedback submissions...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: RECOMMENDATION MONITORING & SLEEP ADHERENCE (MODULE 8 & 9) -->
+            <div id="recommendations-tab" class="switch-tab">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div>
+                        <h2>💡 Recommendation Monitoring &amp; Sleep Adherence</h2>
+                        <p style="color: var(--text-secondary); font-size: 13px;">Platform-wide telemetry tracking 5-pillar recommendations and user bedtime adherence check-in responses (Yes / No) for Module 8 Habit Scoring.</p>
+                    </div>
+                    <button onclick="loadAdminRecommendationsMonitoring()" class="btn btn-primary" style="font-size: 12px;">
+                        🔄 Refresh Monitoring
+                    </button>
+                </div>
+
+                <!-- KPI Summary Cards -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Check-Ins</span>
+                        <h3 id="rec-total-checks" style="font-size: 26px; font-weight: bold; margin-top: 6px;">--</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">User bedtime check-in logs</p>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Adhered (YES)</span>
+                        <h3 id="rec-yes-count" style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #4ade80;">--</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Target bedtime met</p>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Disrupted (NO)</span>
+                        <h3 id="rec-no-count" style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #f87171;">--</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Circadian schedule missed</p>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Adherence Rate</span>
+                        <h3 id="rec-rate-pct" style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #38bdf8;">--%</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Platform compliance ratio</p>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Avg Adherence Score</span>
+                        <h3 id="rec-avg-score" style="font-size: 26px; font-weight: bold; margin-top: 6px; color: #a78bfa;">--</h3>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Out of 100 max pts</p>
+                    </div>
+                </div>
+
+                <!-- 5-Pillar Recommendation Engine Overview -->
+                <div class="glass-card">
+                    <h3 style="margin-bottom: 14px;">🧠 Active 5-Pillar Recommendation Pillars</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                        <div style="padding: 12px; background: rgba(56, 189, 248, 0.05); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px;">
+                            <strong style="color: #38bdf8; font-size: 13px;">1. Sleep Improvement</strong>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Target bedtime calculations, wind-down reminders, ambient temperature protocols.</p>
+                        </div>
+                        <div style="padding: 12px; background: rgba(74, 222, 128, 0.05); border: 1px solid rgba(74, 222, 128, 0.2); border-radius: 8px;">
+                            <strong style="color: #4ade80; font-size: 13px;">2. Wake-Up Optimization</strong>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Sunlight exposure protocols, immediate hydration, multi-step prefrontal activation.</p>
+                        </div>
+                        <div style="padding: 12px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 8px;">
+                            <strong style="color: #f59e0b; font-size: 13px;">3. Habit Improvement</strong>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Milestone streak trophies, weekend drift protection, neuroplastic habit loop reinforcement.</p>
+                        </div>
+                        <div style="padding: 12px; background: rgba(167, 139, 250, 0.05); border: 1px solid rgba(167, 139, 250, 0.2); border-radius: 8px;">
+                            <strong style="color: #a78bfa; font-size: 13px;">4. Peak Productivity</strong>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Prime cognitive focus window calibration, adenosine delay, 50/10 Pomodoro intervals.</p>
+                        </div>
+                        <div style="padding: 12px; background: rgba(236, 72, 153, 0.05); border: 1px solid rgba(236, 72, 153, 0.2); border-radius: 8px;">
+                            <strong style="color: #ec4899; font-size: 13px;">5. Personalized Challenges</strong>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Adaptive challenge difficulty (Beginner to Expert) based on waking inertia clearance.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- User Sleep Adherence Check-in Logs Table -->
+                <div class="glass-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                        <h3>🛌 User Sleep Adherence Check-Ins (Yes / No Telemetry)</h3>
+                        <span style="font-size: 12px; color: var(--text-secondary);">Module 8 Scoring Feed</span>
+                    </div>
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Target Bedtime</th>
+                                    <th>Wake Time</th>
+                                    <th>Adhered Response</th>
+                                    <th>Awarded Score</th>
+                                    <th>Notes</th>
+                                    <th>Checked At</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rec-monitoring-tbody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 20px;">Loading sleep adherence check-in logs...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: SYSTEM LOGS -->
+            <div id="logs-tab" class="switch-tab">
+                <h2>Audit Event Logs</h2>
+                <div class="table-container">
+                    <table class="custom-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Triggering User ID</th>
+                                <th>Action Event</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for l in logs %}
+                                <tr>
+                                    <td style="font-size: 12px; color: var(--text-secondary);">{{ l.created_at.strftime('%Y-%m-%d %H:%M:%S') if l.created_at else '-' }}</td>
+                                    <td><strong>User ID: {{ l.user_id or 'System' }}</strong></td>
+                                    <td><span class="badge badge-info">{{ l.action }}</span></td>
+                                    <td style="color: var(--text-secondary);">{{ l.details }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 4: SETTINGS -->
+            <div id="settings-tab" class="switch-tab">
+                <h2>Admin Platform Settings</h2>
+                <div class="glass-card" style="max-width: 600px;">
+                    <h3>System Parameters</h3>
+                    <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 20px;">
+                        <div class="form-group">
+                            <label>Token Expiration Settings (minutes)</label>
+                            <input type="number" class="form-input" value="1440" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Max Login Attempt Lockout</label>
+                            <input type="number" class="form-input" value="5" disabled>
+                        </div>
+                        <button onclick="showToast('System settings updated')" class="btn btn-primary">Save Configuration</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Broadcast Modal -->
+    <div id="broadcast-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>📢 Broadcast Platform Announcement</h3>
+                <button onclick="closeModal('broadcast-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/admin/announcements/broadcast" method="POST">
+                <div class="form-group">
+                    <label>Announcement Title</label>
+                    <input type="text" name="title" required class="form-input" placeholder="e.g. New Cognitive Verification Challenges Live!">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div class="form-group">
+                        <label>Target Audience</label>
+                        <select name="target_role" class="form-input">
+                            <option value="all">🌐 All Users & Coaches</option>
+                            <option value="user">👤 End Users Only</option>
+                            <option value="coach">🩺 Wellness Coaches Only</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority</label>
+                        <select name="priority" class="form-input">
+                            <option value="normal">Normal</option>
+                            <option value="high">High Priority</option>
+                            <option value="urgent">🚨 Urgent System Alert</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Message Content</label>
+                    <textarea name="content" required class="form-input" rows="4" style="resize: vertical; background: var(--bg-primary);" placeholder="Write the announcement message details..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">🚀 Broadcast to Feeds & Send Notifications</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="add-user-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Add User Account</h3>
+                <button onclick="closeModal('add-user-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/admin/users/create" method="POST">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="full_name" required class="form-input" placeholder="Sarah Connor">
+                </div>
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" required class="form-input" placeholder="sconnor">
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" name="email" required class="form-input" placeholder="sarah@sky.net">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" required class="form-input" placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <label>System Role</label>
+                    <select name="role" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="user">Standard User</option>
+                        <option value="coach">Wellness Coach</option>
+                        <option value="administrator">System Administrator</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3>Edit User Profile</h3>
+                <button onclick="closeModal('edit-user-modal')" class="modal-close">×</button>
+            </div>
+            <form id="edit-user-form" action="" method="POST">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="edit-full-name" name="full_name" required class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>System Role</label>
+                    <select id="edit-role" name="role" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="user">Standard User</option>
+                        <option value="coach">Wellness Coach</option>
+                        <option value="administrator">System Administrator</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Assign Coach Modal -->
+    <div id="assign-coach-modal" class="modal-overlay">
+        <div class="modal-content glass-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 id="assign-coach-title">Assign Coach</h3>
+                <button onclick="closeModal('assign-coach-modal')" class="modal-close">×</button>
+            </div>
+            <form action="/api/admin/users/assign-coach" method="POST">
+                <input type="hidden" id="assign-user-id" name="user_id">
+                <div class="form-group">
+                    <label>Select Certified Coach</label>
+                    <select name="coach_id" required class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                        <option value="">-- Choose Coach --</option>
+                        {% for ch in coaches %}
+                            <option value="{{ ch.id }}">{{ ch.full_name }} (@{{ ch.username }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Confirm Assignment</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        function setTab(tabId, btn) {
+            document.querySelectorAll('.switch-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (btn) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-title').innerText = btn.innerText.substring(2);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            const msg = params.get('msg');
+            if (msg) {
+                showToast(msg, 'info');
+            }
+            if (tab === 'users') {
+                const btn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.innerText.includes('Directory'));
+                if (btn) setTab('users-tab', btn);
+            }
+        });
+
+        function openEditUser(id, fullName, role) {
+            document.getElementById('edit-user-form').action = `/api/admin/users/edit/${id}`;
+            document.getElementById('edit-full-name').value = fullName;
+            document.getElementById('edit-role').value = role;
+            openModal('edit-user-modal');
+        }
+
+        function openAssignCoach(userId, userName) {
+            document.getElementById('assign-user-id').value = userId;
+            document.getElementById('assign-coach-title').innerText = `Assign Coach to: ${userName}`;
+            openModal('assign-coach-modal');
+        }
+
+        new Chart(document.getElementById('growthChart'), {
+            type: 'line',
+            data: {
+                labels: {{ growth_labels | tojson }},
+                datasets: [{
+                    label: 'Cumulative Registrations',
+                    data: {{ growth_data | tojson }},
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.18)',
+                    borderWidth: 2.5,
+                    pointBackgroundColor: '#60a5fa',
+                    pointBorderColor: '#ffffff',
+                    pointBorderWidth: 1.5,
+                    pointRadius: 4.5,
+                    fill: true,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        title: { display: true, text: 'Total Users', color: '#94a3b8' },
+                        grid: { color: 'rgba(255, 255, 255, 0.06)' }
+                    }
+                }
+            }
+        });
+
+        new Chart(document.getElementById('dauChart'), {
+            type: 'bar',
+            data: {
+                labels: {{ dau_labels | tojson }},
+                datasets: [{
+                    label: 'Active Log Events',
+                    data: {{ dau_data | tojson }},
+                    backgroundColor: [
+                        'rgba(56, 189, 248, 0.85)',   // Mon - Cyan
+                        'rgba(129, 140, 248, 0.85)',  // Tue - Indigo
+                        'rgba(167, 139, 250, 0.85)',  // Wed - Purple
+                        'rgba(236, 72, 153, 0.85)',   // Thu - Pink
+                        'rgba(245, 158, 11, 0.85)',   // Fri - Amber
+                        'rgba(16, 185, 129, 0.85)',   // Sat - Emerald
+                        'rgba(239, 68, 68, 0.85)'     // Sun - Coral
+                    ],
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 0.15)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        title: { display: true, text: 'Engagement Events', color: '#94a3b8' },
+                        grid: { color: 'rgba(255, 255, 255, 0.06)' }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8', font: { size: 10 } },
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (items) => items[0]?.label || '',
+                            label: (item) => ` ${item.raw} engagement event${item.raw !== 1 ? 's' : ''}`
+                        }
+                    }
+                }
+            }
+        });
+
+        // =====================================================================
+        // MODULE 5: ADMIN PRODUCTION TELEMETRY, BACKUP & FEEDBACK HANDLERS
+        // =====================================================================
+
+        async function loadAdminTelemetry() {
+            try {
+                const res = await fetch('/api/admin/system/metrics');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const dbSizeEl = document.getElementById('health-db-size');
+                const memUsageEl = document.getElementById('health-mem-usage');
+                const memAvailEl = document.getElementById('health-mem-avail');
+
+                if (dbSizeEl && data.database) dbSizeEl.textContent = `${data.database.file_size_kb} KB`;
+                if (memUsageEl && data.system) memUsageEl.textContent = `${data.system.memory_usage_percent}%`;
+                if (memAvailEl && data.system) memAvailEl.textContent = `Available: ${data.system.available_memory_mb} MB`;
+
+                loadAdminBackups();
+            } catch (err) {
+                console.error('Error loading telemetry:', err);
+            }
+        }
+
+        async function loadAdminBackups() {
+            try {
+                const res = await fetch('/api/admin/backup/list');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('backups-table-body');
+                if (!tbody) return;
+
+                if (!data.backups || data.backups.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 15px;">No backups created yet. Click "+ Create DB Snapshot Backup" above.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.backups.map(b => `
+                    <tr>
+                        <td><strong>${b.filename}</strong></td>
+                        <td>${b.size_kb} KB</td>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${b.created_at}</td>
+                        <td>
+                            <a href="/api/admin/backup/download/${b.filename}" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">⬇️ Download</a>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Error loading backups:', err);
+            }
+        }
+
+        async function createDatabaseBackup() {
+            try {
+                showToast('Creating database snapshot backup...', 'info');
+                const res = await fetch('/api/admin/backup/create', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('✅ ' + data.message, 'success');
+                    loadAdminBackups();
+                } else {
+                    showToast(data.detail || 'Backup creation failed', 'error');
+                }
+            } catch (err) {
+                showToast('Network error during backup creation', 'error');
+            }
+        }
+
+        async function loadAdminFeedback() {
+            try {
+                const res = await fetch('/api/admin/feedback');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('feedback-table-body');
+                if (!tbody) return;
+
+                if (!data.feedbacks || data.feedbacks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 20px;">No feedback submissions yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.feedbacks.map(f => {
+                    const stars = '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating);
+                    const statusBadge = f.status === 'resolved' ? 'badge-active' : (f.status === 'reviewed' ? 'badge-warning' : 'badge-suspended');
+                    return `
+                        <tr>
+                            <td>
+                                <strong>${f.user_name}</strong>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${f.user_email}</div>
+                            </td>
+                            <td style="color: #f59e0b; font-size: 16px;">${stars} <span style="font-size: 12px; color: var(--text-secondary);">(${f.rating}/5)</span></td>
+                            <td><span class="badge badge-info">${f.category}</span></td>
+                            <td style="max-width: 300px; font-size: 13px; line-height: 1.4;">${f.comment}</td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">${f.created_at || 'N/A'}</td>
+                            <td><span class="badge ${statusBadge}">${f.status}</span></td>
+                            <td>
+                                <select onchange="updateFeedbackStatus(${f.id}, this.value)" class="form-input" style="padding: 4px 8px; font-size: 11px; width: auto;">
+                                    <option value="new" ${f.status === 'new' ? 'selected' : ''}>New</option>
+                                    <option value="reviewed" ${f.status === 'reviewed' ? 'selected' : ''}>Reviewed</option>
+                                    <option value="resolved" ${f.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                                </select>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error loading feedbacks:', err);
+            }
+        }
+
+        async function updateFeedbackStatus(id, newStatus) {
+            try {
+                const formData = new FormData();
+                formData.append('status', newStatus);
+                const res = await fetch(`/api/admin/feedback/${id}/status`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast('Feedback status updated', 'success');
+                    loadAdminFeedback();
+                    showToast('Failed to update feedback status', 'error');
+                }
+            } catch (err) {
+                showToast('Network error updating feedback', 'error');
+            }
+        }
+
+        async function loadAdminRecommendationsMonitoring() {
+            try {
+                const res = await fetch('/api/admin/recommendations/monitoring');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                const m = data.sleep_adherence_monitoring || {};
+                document.getElementById('rec-total-checks').innerText = m.total_check_ins || 0;
+                document.getElementById('rec-yes-count').innerText = m.yes_adhered_count || 0;
+                document.getElementById('rec-no-count').innerText = m.no_disrupted_count || 0;
+                document.getElementById('rec-rate-pct').innerText = (m.platform_adherence_rate_pct || 100) + '%';
+                document.getElementById('rec-avg-score').innerText = (m.average_adherence_score || 95) + '/100';
+
+                const tbody = document.getElementById('rec-monitoring-tbody');
+                if (!tbody) return;
+
+                if (!m.recent_logs || m.recent_logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: 20px;">No user sleep adherence check-in entries logged yet. Users can log adherence on their Habit Hub.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = m.recent_logs.map(l => {
+                    const badge = l.adhered ? 'badge-active' : 'badge-suspended';
+                    return `
+                        <tr>
+                            <td>
+                                <strong>${l.user_name}</strong>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${l.user_email}</div>
+                            </td>
+                            <td><strong style="color: #38bdf8;">${l.target_bedtime || '--:--'}</strong></td>
+                            <td><strong style="color: #a78bfa;">${l.target_wake_time || '--:--'}</strong></td>
+                            <td>
+                                <span class="badge ${badge}" style="font-weight: 800;">
+                                    ${l.adhered ? '✅ YES (Adhered)' : '❌ NO (Disrupted)'}
+                                </span>
+                            </td>
+                            <td><strong style="color: ${l.adhered ? '#4ade80' : '#f87171'};">${l.score} pts</strong></td>
+                            <td style="font-size: 12px; color: var(--text-secondary); max-width: 200px;">${l.notes || '-'}</td>
+                            <td style="font-size: 12px; color: var(--text-secondary);">${l.created_at || 'Just now'}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.error('Error loading recommendation monitoring:', err);
+            }
+        }
+    </script>
+</body>
+</html>

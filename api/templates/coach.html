@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coach Dashboard - Cognitive Alarm</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .switch-tab { display: none; }
+        .switch-tab.active { display: flex; flex-direction: column; gap: 30px; }
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .nav-btn.active { background: var(--primary); color: #fff; }
+        .client-item {
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border-card);
+            background: rgba(255,255,255,0.01);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+        .client-item.active {
+            border-color: var(--primary);
+            background: rgba(59, 130, 246, 0.04);
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div style="display: flex; flex-direction: column; gap: 40px;">
+                <!-- Brand -->
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">A</div>
+                    <span style="font-weight: 700; font-size: 18px; letter-spacing: -0.5px;">CognitiveAlarm</span>
+                </div>
+
+                <!-- Profile Card -->
+                <div style="display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card);">
+                    <img src="{{ user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 40px; height: 40px; border-radius: 50%;">
+                    <div style="overflow: hidden;">
+                        <div style="font-size: 14px; font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">{{ user.full_name or user.username }}</div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">Wellness Coach</div>
+                    </div>
+                </div>
+
+                <!-- Menu Buttons -->
+                <nav style="display: flex; flex-direction: column; gap: 6px;">
+                    <button onclick="setTab('overview-tab', this)" class="nav-btn active">📊 Overview</button>
+                    <button onclick="setTab('clients-tab', this)" class="nav-btn">👤 Clients Directory</button>
+                    <button type="button" onclick="openModal('coach-appointment-modal')" class="nav-btn" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">🤝 Interact with User</button>
+                </nav>
+            </div>
+
+            <!-- Sidebar bottom -->
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <a href="/api/auth/logout" class="btn btn-danger" style="width: 100%;">Log Out</a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Circadian Architecture / Coaching</div>
+                    <h1 id="tab-title" style="font-size: 26px; font-weight: 800;">Overview</h1>
+                </div>
+            </header>
+
+            <!-- TAB 1: OVERVIEW -->
+            <div id="overview-tab" class="switch-tab active">
+                <div class="glass-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%); border-color: rgba(16, 185, 129, 0.2);">
+                    <h2> Sarah's Coaching Panel</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-top: 6px;">Monitoring mornings for assigned users. Review habit scores weekly to adjust circadian routines.</p>
+                </div>
+
+                <!-- KPIs -->
+                <div class="grid-kpi">
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Assigned Clients</span>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px;">{{ clients | length }} Users</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Active Streak Status</span>
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px; color: #4ade80;">Active & Monitored</h3>
+                    </div>
+                    <div class="glass-card">
+                        <span style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Average Habit Score</span>
+                        {% set total_score = namespace(val=0, count=0) %}
+                        {% for d in client_dossiers %}
+                            {% set total_score.val = total_score.val + d.habit.habit_score %}
+                            {% set total_score.count = total_score.count + 1 %}
+                        {% endfor %}
+                        <h3 style="font-size: 24px; font-weight: bold; margin-top: 6px; color: #3b82f6;">
+                            {{ (total_score.val / total_score.count)|round(1) if total_score.count > 0 else 75.0 }}/100
+                        </h3>
+                    </div>
+                </div>
+
+                <!-- Assigned list overview -->
+                <div class="glass-panel" style="padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>Active Client Monitoring & Habit Insights</h3>
+                        <button onclick="setTab('clients-tab', null)" class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px;">Detailed Directory →</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Client name</th>
+                                    <th>Email</th>
+                                    <th>Streak</th>
+                                    <th>Habit Score (35/25/20/20)</th>
+                                    <th>Tier / Grade</th>
+                                    <th>Reports</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for d in client_dossiers %}
+                                    <tr onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.profile.bed_time if (d.profile and d.profile.bed_time) else '23:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')" style="cursor: pointer;">
+                                        <td><strong>{{ d.user.full_name or d.user.name or d.user.username }}</strong></td>
+                                        <td>{{ d.user.email }}</td>
+                                        <td>{{ d.profile.streak if d.profile else 0 }} days</td>
+                                        <td><span class="badge badge-active">{{ d.habit.habit_score }}/100</span></td>
+                                        <td><span class="badge badge-info">{{ d.habit.grade }}</span></td>
+                                        <td>
+                                            <a href="/api/reports/export/pdf?report_type=all&user_id={{ d.user.id }}" class="btn btn-secondary" style="font-size: 11px; padding: 3px 6px;">PDF</a>
+                                            <a href="/api/reports/export/excel?report_type=all&user_id={{ d.user.id }}" class="btn btn-primary" style="font-size: 11px; padding: 3px 6px;">Excel</a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 📅 Client Appointment Schedule & Interaction Section -->
+                <div class="glass-panel" style="padding: 24px; margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h3 style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                                <span>📅</span> Client Appointment Schedule
+                            </h3>
+                            <p style="color: var(--text-secondary); font-size: 12px; margin: 4px 0 0 0;">
+                                Manage 1-on-1 circadian sessions requested by clients or schedule direct mentorship appointments.
+                            </p>
+                        </div>
+                        <button type="button" onclick="openModal('coach-appointment-modal')" class="btn btn-primary" style="font-size: 12px; padding: 8px 16px; background: linear-gradient(135deg, #059669 0%, #10b981 100%);">
+                            🤝 Interact with User &amp; Schedule
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Client Name</th>
+                                    <th>Appointment Time</th>
+                                    <th>Reason / Focus</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if appointments and appointments | length > 0 %}
+                                    {% for appt in appointments %}
+                                        <tr>
+                                            <td><strong>{{ appt.user_name }}</strong></td>
+                                            <td style="color: #38bdf8; font-weight: 600;">{{ appt.appointment_time }}</td>
+                                            <td style="max-width: 250px; font-size: 12px;">{{ appt.reason }}</td>
+                                            <td>
+                                                <span class="badge {{ 'badge-active' if appt.status == 'Confirmed' else ('badge-warning' if appt.status == 'Scheduled' else 'badge-info') }}">
+                                                    {{ appt.status }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div style="display: flex; gap: 6px;">
+                                                    {% if appt.status != 'Confirmed' and appt.status != 'Completed' %}
+                                                        <button onclick="updateAppointmentStatus('{{ appt.id }}', 'Confirmed')" class="btn btn-success" style="font-size: 11px; padding: 4px 8px;">✓ Confirm</button>
+                                                    {% endif %}
+                                                    {% if appt.status != 'Completed' %}
+                                                        <button onclick="updateAppointmentStatus('{{ appt.id }}', 'Completed')" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">✓ Complete</button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; color: var(--text-secondary); padding: 20px;">
+                                            No client appointments scheduled yet. Click "Interact with User" to schedule one!
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: CLIENTS DIRECTORY -->
+            <div id="clients-tab" class="switch-tab">
+                <div class="grid-2col">
+                    <!-- Left list -->
+                    <div class="glass-panel" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+                        <h3>Wellness Users</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            {% for d in client_dossiers %}
+                                <div class="client-item" id="client-card-{{ d.user.id }}" onclick="selectClient('{{ d.user.id }}', '{{ d.user.full_name or d.user.name or d.user.username }}', '{{ d.profile.streak if d.profile else 0 }}', '{{ d.habit.habit_score }}', '{{ d.profile.wake_up_time if (d.profile and d.profile.wake_up_time) else '07:00' }}', '{{ d.profile.bed_time if (d.profile and d.profile.bed_time) else '23:00' }}', '{{ d.habit.subscores.wake_up_consistency }}', '{{ d.habit.subscores.challenge_completion }}', '{{ d.habit.subscores.snooze_reduction }}', '{{ d.habit.subscores.sleep_schedule_adherence }}')">
+                                    <div style="display: flex; align-items: center; gap: 12px;">
+                                        <img src="{{ d.user.profile_image or 'https://api.dicebear.com/7.x/bottts/svg' }}" alt="avatar" style="width: 36px; height: 36px; border-radius: 50%;">
+                                        <div>
+                                            <span style="font-weight: bold; font-size: 14px;">{{ d.user.full_name or d.user.name or d.user.username }}</span>
+                                            <p style="font-size: 11px; color: var(--text-secondary);">{{ d.user.email }}</p>
+                                        </div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span class="badge badge-active">{{ d.habit.habit_score }}/100</span>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Right detail controls -->
+                    <div id="client-detail-panel" style="display: none; flex-direction: column; gap: 20px;">
+                        <div class="glass-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3 id="client-name-title">Client Details</h3>
+                                <div id="client-report-export-links" style="display: flex; gap: 6px;">
+                                    <a id="client-pdf-btn" href="#" onclick="if(this.getAttribute('href')==='#'||!this.getAttribute('href')){ alert('Please select a client first.'); return false; }" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 Export PDF</a>
+                                    <a id="client-excel-btn" href="#" onclick="if(this.getAttribute('href')==='#'||!this.getAttribute('href')){ alert('Please select a client first.'); return false; }" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Export Excel</a>
+                                </div>
+                            </div>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 13px; margin-top: 14px;">
+                                <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Target Bedtime</span>
+                                    <p id="client-bed-p" style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #a78bfa;">23:00</p>
+                                </div>
+                                <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Target Wake</span>
+                                    <p id="client-wake-p" style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #38bdf8;">07:00</p>
+                                </div>
+                                <div style="padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px;">
+                                    <span style="color: var(--text-secondary);">Streak / Adherence</span>
+                                    <p id="client-streak-p" style="font-size: 16px; font-weight: bold; margin-top: 4px; color: #4ade80;">0 days</p>
+                                </div>
+                            </div>
+
+                            <!-- Weighted Habit Breakdown -->
+                            <div style="margin-top: 16px;">
+                                <div style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px;">Weighted Habit Score Composition</div>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12px;">
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">⏰ Wake Consistency (35%)</div>
+                                        <strong id="client-sub-wake" style="font-size: 14px; color: #4ade80;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">🧠 Challenge Success (25%)</div>
+                                        <strong id="client-sub-challenge" style="font-size: 14px; color: #a78bfa;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">💤 Snooze Reduction (20%)</div>
+                                        <strong id="client-sub-snooze" style="font-size: 14px; color: #f59e0b;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(255,255,255,0.03); padding: 8px; border-radius: 6px; border: 1px solid var(--border-card);">
+                                        <div style="color: var(--text-secondary);">🌙 Sleep Adherence (20%)</div>
+                                        <strong id="client-sub-sleep" style="font-size: 14px; color: #38bdf8;">--%</strong>
+                                    </div>
+                                    <div style="background: rgba(192, 132, 252, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(192, 132, 252, 0.2); grid-column: span 2;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="color: var(--text-secondary);">🎯 Algorithm Accuracy Rate</span>
+                                            <strong id="client-algo-accuracy" style="font-size: 14px; color: #c084fc;">96.2%</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Sleep Trend Reports & Progress Monitoring -->
+                            <div style="margin-top: 16px; border-top: 1px solid var(--border-card); padding-top: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase;">📈 Sleep Trends &amp; Progress Monitoring</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; font-size: 11px;">
+                                    <div style="background: rgba(56, 189, 248, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.2);">
+                                        <span style="color: var(--text-secondary);">Wake Drift Avg</span>
+                                        <div id="coach-drift-avg" style="font-size: 13px; font-weight: bold; color: #38bdf8; margin-top: 2px;">-- min</div>
+                                    </div>
+                                    <div style="background: rgba(74, 222, 128, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(74, 222, 128, 0.2);">
+                                        <span style="color: var(--text-secondary);">Sleep Debt</span>
+                                        <div id="coach-sleep-debt" style="font-size: 13px; font-weight: bold; color: #4ade80; margin-top: 2px;">-- min</div>
+                                    </div>
+                                    <div style="background: rgba(167, 139, 250, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(167, 139, 250, 0.2);">
+                                        <span style="color: var(--text-secondary);">Productivity Score</span>
+                                        <div id="coach-prod-score" style="font-size: 13px; font-weight: bold; color: #a78bfa; margin-top: 2px;">--/100</div>
+                                    </div>
+                                    <div style="background: rgba(245, 158, 11, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.2);">
+                                        <span style="color: var(--text-secondary);">Weekly Compliance</span>
+                                        <div id="coach-weekly-compliance" style="font-size: 13px; font-weight: bold; color: #f59e0b; margin-top: 2px;">--%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes recommendations form -->
+                        <div class="glass-card">
+                            <h3>Habit Recommendations</h3>
+                            <form id="coach-notes-form" action="" method="POST" style="margin-top: 12px;">
+                                <div class="form-group">
+                                    <textarea name="notes" required class="form-input" rows="3" placeholder="Sarah notes: Increase morning sun exposure. Limit snoozes to 2 times..." style="width: 100%; resize: none; background: var(--bg-primary);"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary" style="width: 100%;">Save Notes</button>
+                            </form>
+                        </div>
+
+                        <!-- Message Form -->
+                        <div class="glass-card">
+                            <h3>Send Motivation Message</h3>
+                            <form id="coach-msg-form" action="" method="POST" style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+                                <textarea name="message" required class="form-input" rows="2" placeholder="Send a push note to their morning feed..." style="width: 100%; resize: none; background: var(--bg-primary);"></textarea>
+                                <button type="submit" class="btn btn-success" style="width: 100%;">Send Message</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div id="client-empty-panel" class="glass-panel" style="display: flex; align-items: center; justify-content: center; padding: 40px; color: var(--text-secondary); text-align: center;">
+                        Select a client from the directory to review analytics and edit recommendations.
+                    </div>
+                </div>
+            </div>
+    </div>
+
+    <!-- 🤝 Coach Schedule Appointment Modal (Interact with User) -->
+    <div id="coach-appointment-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 500px; background: var(--bg-primary, #0f172a); border: 1px solid var(--border-card); border-radius: 16px; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px;">
+                    <span>🤝</span> Schedule Session with User
+                </h3>
+                <button type="button" onclick="closeModal('coach-appointment-modal')" style="background: none; border: none; font-size: 20px; color: var(--text-secondary); cursor: pointer;">✕</button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 18px;">
+                Schedule a 1-on-1 circadian routine review or cognitive wake habit coaching session.
+            </p>
+            <form onsubmit="submitCoachAppointmentSchedule(event)">
+                <!-- 1. Select Client / User -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">Select Client User</label>
+                    <select id="coach-appt-user-id" required class="form-input" style="width: 100%; padding: 10px; background: var(--bg-secondary, #1e293b); color: var(--text-primary, #f8fafc); border: 1px solid var(--border-card); border-radius: 8px;">
+                        {% if all_users and all_users | length > 0 %}
+                            {% for u in all_users %}
+                                <option value="{{ u.id }}">{{ u.full_name or u.name or u.username }} ({{ u.email }})</option>
+                            {% endfor %}
+                        {% elif clients and clients | length > 0 %}
+                            {% for c in clients %}
+                                <option value="{{ c.id }}">{{ c.full_name or c.name or c.username }} ({{ c.email }})</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+
+                <!-- 2. Appointment Time -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">Appointment Date &amp; Time</label>
+                    <input type="datetime-local" id="coach-appt-time" required class="form-input" style="width: 100%; padding: 10px; background: var(--bg-secondary, #1e293b); color: var(--text-primary, #f8fafc); border: 1px solid var(--border-card); border-radius: 8px;">
+                </div>
+
+                <!-- 3. Reason for Appointment -->
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label style="font-size: 13px; font-weight: 600; display: block; margin-bottom: 6px;">Appointment Focus / Reason</label>
+                    <textarea id="coach-appt-reason" required class="form-input" rows="3" style="width: 100%; padding: 10px; background: var(--bg-secondary, #1e293b); color: var(--text-primary, #f8fafc); border: 1px solid var(--border-card); border-radius: 8px; resize: vertical;" placeholder="Reason for session (e.g. Snooze inertia coaching, circadian sleep window realignment, puzzle challenge difficulty review)..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closeModal('coach-appointment-modal')" class="btn btn-secondary" style="flex: 1; padding: 10px; border-radius: 8px; cursor: pointer;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2; padding: 10px; border-radius: 8px; background: linear-gradient(135deg, #059669 0%, #10b981 100%); font-weight: 700; cursor: pointer;">📅 Schedule Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script>
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        async function updateAppointmentStatus(apptId, newStatus) {
+            try {
+                const fd = new FormData();
+                fd.append('appointment_id', apptId);
+                fd.append('status', newStatus);
+
+                const res = await fetch('/api/coach/appointment/update-status', {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (typeof showToast === 'function') {
+                        showToast(`✅ ${data.message}`, 'success');
+                    } else {
+                        alert(data.message);
+                    }
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    alert(data.detail || 'Failed to update appointment status');
+                }
+            } catch (err) {
+                alert('Network error updating appointment status');
+            }
+        }
+
+        async function submitCoachAppointmentSchedule(e) {
+            e.preventDefault();
+            const userId = document.getElementById('coach-appt-user-id').value;
+            const apptTime = document.getElementById('coach-appt-time').value;
+            const reason = document.getElementById('coach-appt-reason').value.trim();
+
+            if (!userId || !apptTime || !reason) {
+                alert('Please provide client, appointment date & time, and reason.');
+                return;
+            }
+
+            try {
+                const fd = new FormData();
+                fd.append('user_id', userId);
+                fd.append('appointment_time', apptTime);
+                fd.append('reason', reason);
+
+                const res = await fetch('/api/coach/appointment/schedule', {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (typeof showToast === 'function') {
+                        showToast(`✅ ${data.message}`, 'success');
+                    } else {
+                        alert(data.message);
+                    }
+                    closeModal('coach-appointment-modal');
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    alert(data.detail || 'Could not schedule appointment');
+                }
+            } catch (err) {
+                alert('Network error while scheduling appointment');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const timeInp = document.getElementById('coach-appt-time');
+            if (timeInp && !timeInp.value) {
+                const tmrw = new Date();
+                tmrw.setDate(tmrw.getDate() + 1);
+                tmrw.setHours(10, 0, 0, 0);
+                timeInp.value = tmrw.toISOString().slice(0, 16);
+            }
+        });
+        function setTab(tabId, btn) {
+            document.querySelectorAll('.switch-tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (btn) {
+                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-title').innerText = btn.innerText.substring(2);
+            }
+        }
+
+        function selectClient(id, name, streak, score, wake, bed, subWake, subChallenge, subSnooze, subSleep) {
+            setTab('clients-tab', null);
+            document.querySelectorAll('.client-item').forEach(c => c.classList.remove('active'));
+            const card = document.getElementById(`client-card-${id}`);
+            if (card) card.classList.add('active');
+
+            document.getElementById('client-empty-panel').style.display = 'none';
+            const panel = document.getElementById('client-detail-panel');
+            panel.style.display = 'flex';
+
+            document.getElementById('client-name-title').innerText = `Client: ${name}`;
+            document.getElementById('client-wake-p').innerText = wake || '07:00';
+            document.getElementById('client-bed-p').innerText = bed || '23:00';
+            document.getElementById('client-streak-p').innerText = `${streak} days`;
+
+            document.getElementById('client-sub-wake').innerText = `${Math.round(subWake || 75)}%`;
+            document.getElementById('client-sub-challenge').innerText = `${Math.round(subChallenge || 75)}%`;
+            document.getElementById('client-sub-snooze').innerText = `${Math.round(subSnooze || 80)}%`;
+            document.getElementById('client-sub-sleep').innerText = `${Math.round(subSleep || 70)}%`;
+            const algoAccEl = document.getElementById('client-algo-accuracy');
+            if (algoAccEl) algoAccEl.innerText = `${Math.round(subChallenge || 96)}%`;
+
+            document.getElementById('client-pdf-btn').href = `/api/reports/export/pdf?report_type=all&user_id=${id}`;
+            document.getElementById('client-excel-btn').href = `/api/reports/export/excel?report_type=all&user_id=${id}`;
+
+            document.getElementById('coach-notes-form').action = `/api/coach/notes/${id}`;
+            document.getElementById('coach-msg-form').action = `/api/coach/message/${id}`;
+
+            // Fetch live Sleep Trend Reports and Progress Monitoring for selected client
+            fetch(`/api/coach/client/${id}/analytics`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.behavioral_insights) {
+                        const bi = data.behavioral_insights;
+                        const drift = bi.wake_up_behavior ? bi.wake_up_behavior.avg_drift_minutes : 0;
+                        const debt = bi.sleep_patterns ? bi.sleep_patterns.sleep_debt_minutes : 0;
+                        const prod = bi.productivity_correlation ? bi.productivity_correlation.productivity_score : 75;
+                        const comp = bi.habit_consistency ? bi.habit_consistency.weekly_compliance_pct : 85;
+
+                        document.getElementById('coach-drift-avg').innerText = `+${drift} min`;
+                        document.getElementById('coach-sleep-debt').innerText = `${debt} min`;
+                        document.getElementById('coach-prod-score').innerText = `${prod}/100`;
+                        document.getElementById('coach-weekly-compliance').innerText = `${comp}%`;
+                    }
+                })
+                .catch(err => console.log('Could not load client detailed analytics', err));
+        }
+    </script>
+</body>
+</html>
