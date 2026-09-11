@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: cogniwell-backend
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/server.js
+    envVars:
+      - key: PORT
+        value: 5001
+      - key: NODE_ENV
+        value: production
+      - key: PGUSER
+        sync: false
+      - key: PGPASSWORD
+        sync: false
+      - key: PGHOST
+        sync: false
+      - key: PGPORT
+        value: 5432
+      - key: PGDATABASE
+        value: cogniwell_db
+      - key: JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
