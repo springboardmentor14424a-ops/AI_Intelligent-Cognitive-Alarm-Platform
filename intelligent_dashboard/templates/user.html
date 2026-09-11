@@ -3813,7 +3813,25 @@
                 const data = await res.json();
                 if (res.ok && data.habit_score !== undefined) {
                     const heroScore = document.getElementById('hero-habit-score');
-                    if (heroScore) heroScore.innerHTML = `${data.habit_score}<span style="font-size: 18px; color: var(--text-secondary);">/100</span>`;
+                    if (heroScore) heroScore.innerHTML = `${data.habit_score}<span style="font-size: 16px; color: var(--text-secondary);">/100</span>`;
+                    
+                    const heroDesc = document.getElementById('hero-habit-desc');
+                    if (heroDesc && data.status_description) heroDesc.textContent = data.status_description;
+
+                    if (data.subscores) {
+                        const s = data.subscores;
+                        const setSub = (textId, barId, val) => {
+                            const tEl = document.getElementById(textId);
+                            const bEl = document.getElementById(barId);
+                            if (tEl) tEl.innerText = `${val}%`;
+                            if (bEl) bEl.style.width = `${Math.min(100, Math.max(0, val))}%`;
+                        };
+                        setSub('sub-wake-consistency', 'bar-wake-consistency', s.wake_up_consistency);
+                        setSub('sub-challenge-completion', 'bar-challenge-completion', s.challenge_completion);
+                        setSub('sub-snooze-reduction', 'bar-snooze-reduction', s.snooze_reduction);
+                        setSub('sub-sleep-adherence', 'bar-sleep-adherence', s.sleep_schedule_adherence);
+                    }
+
                     showToast(`✅ Habit Score recalculated: ${data.habit_score}/100 (${data.grade})`, 'success');
                 } else {
                     showToast('Failed to recalculate habit score', 'error');

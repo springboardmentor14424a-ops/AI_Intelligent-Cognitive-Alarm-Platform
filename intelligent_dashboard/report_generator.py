@@ -34,7 +34,7 @@ class ReportGenerator:
     def generate_pdf(cls, report_type: str, user_id: int, db: Session) -> io.BytesIO:
         """Generates professional PDF document for the requested report category."""
         user = db.query(User).filter(User.id == user_id).first()
-        username = user.name if user else "User"
+        username = (user.full_name or user.name or user.username) if user else "User"
         profile = user.profile if user else None
 
         buffer = io.BytesIO()

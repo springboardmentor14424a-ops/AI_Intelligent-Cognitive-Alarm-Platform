@@ -248,8 +248,8 @@
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <h3 id="client-name-title">Client Details</h3>
                                 <div id="client-report-export-links" style="display: flex; gap: 6px;">
-                                    <a id="client-pdf-btn" href="#" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 Export PDF</a>
-                                    <a id="client-excel-btn" href="#" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Export Excel</a>
+                                    <a id="client-pdf-btn" href="#" onclick="if(this.getAttribute('href')==='#'||!this.getAttribute('href')){ alert('Please select a client first.'); return false; }" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px;">📄 Export PDF</a>
+                                    <a id="client-excel-btn" href="#" onclick="if(this.getAttribute('href')==='#'||!this.getAttribute('href')){ alert('Please select a client first.'); return false; }" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px;">📊 Export Excel</a>
                                 </div>
                             </div>
                             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 13px; margin-top: 14px;">
