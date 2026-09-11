@@ -1,0 +1,385 @@
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f0f2f5;
+  padding: 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.login-card {
+  background: #ffffff;
+  width: 100%;
+  max-width: 440px;
+  border-radius: 12px;
+  padding: 36px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-logo {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #1a365d;
+  text-decoration: none;
+  letter-spacing: -0.5px;
+}
+
+.login-subtitle {
+  font-size: 0.85rem;
+  color: #718096;
+  margin-top: 4px;
+}
+
+/* Tabs */
+.auth-tabs {
+  display: flex;
+  background: #f7fafc;
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #718096;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+  background: #ffffff;
+  color: #1a365d;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.auth-error-banner {
+  background: #fff5f5;
+  border: 1px solid #feb2b2;
+  color: #c53030;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.form-group input, .form-group select {
+  padding: 10px 14px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus, .form-group select:focus {
+  border-color: #2b6cb0;
+}
+
+.btn-primary-auth {
+  background-color: #1a365d;
+  color: #ffffff;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background-color 0.2s ease;
+}
+
+.btn-primary-auth:hover {
+  background-color: #2b6cb0;
+}
+
+/* Divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0 16px 0;
+}
+
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.auth-divider span {
+  padding: 0 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #a0aec0;
+  letter-spacing: 0.5px;
+}
+
+/* Direct Google Login Button */
+.btn-google-direct {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #ffffff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(60,64,67,0.12), 0 1px 2px rgba(60,64,67,0.24);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-google-direct:hover {
+  background-color: #f8f9fa;
+  border-color: #d2e3fc;
+  box-shadow: 0 2px 6px rgba(60,64,67,0.15), 0 1px 3px rgba(60,64,67,0.3);
+}
+
+.btn-google-direct:active {
+  background-color: #f1f3f4;
+}
+
+/* OAuth Buttons */
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e0;
+  background: #ffffff;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #2d3748;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.oauth-btn:hover {
+  background-color: #f7fafc;
+}
+
+.demo-access-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+.demo-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #718096;
+  margin-bottom: 8px;
+}
+
+.demo-btn-group {
+  display: flex;
+  gap: 8px;
+}
+
+.demo-chip {
+  flex: 1;
+  padding: 6px;
+  background: #ebf8ff;
+  border: 1px solid #bee3f8;
+  color: #2b6cb0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.demo-chip:hover {
+  background: #2b6cb0;
+  color: #ffffff;
+}
+
+.login-footer {
+  text-align: center;
+  margin-top: 24px;
+}
+
+.home-link {
+  font-size: 0.85rem;
+  color: #718096;
+  text-decoration: none;
+}
+
+.home-link:hover {
+  color: #1a365d;
+}
+
+/* ─── Wide card for coach selection step ─── */
+.login-card-wide {
+  max-width: 580px;
+}
+
+/* ─── Coach Selection Step 2 ─── */
+.coach-select-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.coach-select-header h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a365d;
+  margin: 0 0 6px 0;
+}
+.coach-select-header p {
+  font-size: 0.85rem;
+  color: #718096;
+  margin: 0;
+}
+
+.coach-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+  padding-right: 4px;
+}
+
+.coach-select-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #f8fafc;
+  position: relative;
+}
+.coach-select-card:hover {
+  border-color: #2b6cb0;
+  background: #ebf4ff;
+  transform: translateX(3px);
+}
+.coach-select-card.selected {
+  border-color: #2b6cb0;
+  background: #ebf8ff;
+  box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.15);
+}
+
+.coach-select-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2b6cb0, #4299e1);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.coach-select-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+}
+.coach-select-info strong {
+  font-size: 0.95rem;
+  color: #1a365d;
+  font-weight: 700;
+}
+.coach-select-info span {
+  font-size: 0.8rem;
+  color: #718096;
+}
+
+.coach-select-check {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #2b6cb0;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.coach-select-loading,
+.coach-select-empty {
+  text-align: center;
+  color: #718096;
+  font-size: 0.9rem;
+  padding: 24px 0;
+}
+
+.coach-select-actions {
+  display: flex;
+  gap: 12px;
+}
+.btn-secondary-auth {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  background: white;
+  color: #4a5568;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary-auth:hover {
+  border-color: #2b6cb0;
+  color: #2b6cb0;
+}
+.coach-select-actions .btn-primary-auth {
+  flex: 2;
+  margin-top: 0;
+}
