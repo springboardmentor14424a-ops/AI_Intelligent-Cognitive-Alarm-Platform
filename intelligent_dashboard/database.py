@@ -19,7 +19,20 @@ def create_app_engine():
         return eng
     except Exception as e:
         print(f"Primary PostgreSQL connection notice ({e}). Using local database engine fallback.")
-        return create_engine("sqlite:///./alarm_platform.db", connect_args={"check_same_thread": False}, pool_pre_ping=True)
+        local_eng = create_engine(
+            "sqlite:///./alarm_platform.db",
+            connect_args={"check_same_thread": False, "timeout": 30.0},
+            pool_pre_ping=True
+        )
+        try:
+            from sqlalchemy import text
+            with local_eng.connect() as conn:
+                conn.execute(text("PRAGMA journal_mode=WAL;"))
+                conn.execute(text("PRAGMA synchronous=NORMAL;"))
+                conn.execute(text("PRAGMA busy_timeout=30000;"))
+        except Exception:
+            pass
+        return local_eng
 
 engine = create_app_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

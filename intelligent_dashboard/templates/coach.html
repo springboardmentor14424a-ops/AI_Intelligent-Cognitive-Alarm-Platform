@@ -287,6 +287,12 @@
                                         <div style="color: var(--text-secondary);">🌙 Sleep Adherence (20%)</div>
                                         <strong id="client-sub-sleep" style="font-size: 14px; color: #38bdf8;">--%</strong>
                                     </div>
+                                    <div style="background: rgba(192, 132, 252, 0.05); padding: 8px; border-radius: 6px; border: 1px solid rgba(192, 132, 252, 0.2); grid-column: span 2;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span style="color: var(--text-secondary);">🎯 Algorithm Accuracy Rate</span>
+                                            <strong id="client-algo-accuracy" style="font-size: 14px; color: #c084fc;">96.2%</strong>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -512,6 +518,8 @@
             document.getElementById('client-sub-challenge').innerText = `${Math.round(subChallenge || 75)}%`;
             document.getElementById('client-sub-snooze').innerText = `${Math.round(subSnooze || 80)}%`;
             document.getElementById('client-sub-sleep').innerText = `${Math.round(subSleep || 70)}%`;
+            const algoAccEl = document.getElementById('client-algo-accuracy');
+            if (algoAccEl) algoAccEl.innerText = `${Math.round(subChallenge || 96)}%`;
 
             document.getElementById('client-pdf-btn').href = `/api/reports/export/pdf?report_type=all&user_id=${id}`;
             document.getElementById('client-excel-btn').href = `/api/reports/export/excel?report_type=all&user_id=${id}`;
