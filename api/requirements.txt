@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+jinja2
+sqlalchemy
+mangum
+python-jose
+passlib
+bcrypt
+pandas
+openpyxl
+reportlab
+pydantic-settings
+google-generativeai
+apscheduler
+python-multipart
+requests

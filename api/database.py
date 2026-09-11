@@ -40,9 +40,13 @@ def create_app_engine():
     try:
         from sqlalchemy import text
         with local_eng.connect() as conn:
-            conn.execute(text("PRAGMA journal_mode=WAL;"))
-            conn.execute(text("PRAGMA synchronous=NORMAL;"))
-            conn.execute(text("PRAGMA busy_timeout=30000;"))
+            if is_vercel:
+                conn.execute(text("PRAGMA journal_mode=MEMORY;"))
+                conn.execute(text("PRAGMA synchronous=OFF;"))
+            else:
+                conn.execute(text("PRAGMA journal_mode=WAL;"))
+                conn.execute(text("PRAGMA synchronous=NORMAL;"))
+                conn.execute(text("PRAGMA busy_timeout=30000;"))
     except Exception:
         pass
     return local_eng

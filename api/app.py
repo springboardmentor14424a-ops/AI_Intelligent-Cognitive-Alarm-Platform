@@ -31,7 +31,10 @@ except Exception:
     pass
 
 
-Base.metadata.create_all(bind=engine)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"Table creation notice: {e}")
 
 
 def initial_seed_check():
@@ -95,7 +98,10 @@ def initial_seed_check():
     finally:
         db.close()
 
-initial_seed_check()
+try:
+    initial_seed_check()
+except Exception as e:
+    print(f"Seed notice: {e}")
 
 
 @asynccontextmanager
