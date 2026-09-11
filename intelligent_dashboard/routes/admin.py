@@ -309,9 +309,39 @@ def admin_export_data(
 import os
 import shutil
 import time
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 from fastapi.responses import FileResponse
 from database import Feedback, ChallengePerformance
+
+def _get_active_db_path() -> str:
+    is_vercel = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+    if is_vercel:
+        import tempfile
+        tmp_db = os.path.join(tempfile.gettempdir(), "alarm_platform.db").replace("\\", "/")
+        if os.path.exists(tmp_db):
+            return tmp_db
+    candidates = [
+        "alarm_platform.db",
+        os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alarm_platform.db"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "alarm_platform.db")
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return c
+    return "alarm_platform.db"
+
+def _get_backup_dir() -> str:
+    is_vercel = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+    if is_vercel:
+        import tempfile
+        b_dir = os.path.join(tempfile.gettempdir(), "backups")
+    else:
+        b_dir = "backups"
+    os.makedirs(b_dir, exist_ok=True)
+    return b_dir
 
 @router.get("/system/metrics")
 def admin_system_metrics(
@@ -332,8 +362,8 @@ def admin_system_metrics(
     total_feedback = db.query(Feedback).count()
 
     # System metrics
-    mem = psutil.virtual_memory() if hasattr(psutil, 'virtual_memory') else None
-    db_file = "alarm_platform.db"
+    mem = psutil.virtual_memory() if (psutil and hasattr(psutil, 'virtual_memory')) else None
+    db_file = _get_active_db_path()
     db_size_kb = round(os.path.getsize(db_file) / 1024, 1) if os.path.exists(db_file) else 0
 
     return {
@@ -369,14 +399,13 @@ def admin_create_backup(
     if not current_admin or current_admin.role != 'administrator':
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    backup_dir = "backups"
-    os.makedirs(backup_dir, exist_ok=True)
+    backup_dir = _get_backup_dir()
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     backup_filename = f"backup_alarm_platform_{timestamp}.db"
     backup_path = os.path.join(backup_dir, backup_filename)
 
-    src_db = "alarm_platform.db"
+    src_db = _get_active_db_path()
     if not os.path.exists(src_db):
         raise HTTPException(status_code=404, detail="Database file not found for backup")
 
@@ -410,8 +439,7 @@ def admin_list_backups(
     if not current_admin or current_admin.role != 'administrator':
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    backup_dir = "backups"
-    os.makedirs(backup_dir, exist_ok=True)
+    backup_dir = _get_backup_dir()
 
     backups = []
     for f in os.listdir(backup_dir):
@@ -438,7 +466,7 @@ def admin_download_backup(
     if not current_admin or current_admin.role != 'administrator':
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    backup_dir = "backups"
+    backup_dir = _get_backup_dir()
     safe_filename = os.path.basename(filename)
     backup_path = os.path.join(backup_dir, safe_filename)
 

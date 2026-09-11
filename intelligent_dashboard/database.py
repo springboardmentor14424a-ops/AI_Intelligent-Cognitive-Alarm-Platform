@@ -1,8 +1,15 @@
 
 
 import os
+import sys
 import datetime
 import tempfile
+import shutil
+
+_api_dir = os.path.dirname(os.path.abspath(__file__))
+if _api_dir not in sys.path:
+    sys.path.insert(0, _api_dir)
+
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Float, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from config import Config
@@ -15,6 +22,9 @@ is_vercel = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTI
 
 def create_app_engine():
     db_url = os.environ.get("DATABASE_URL")
+    if db_url and db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
     # In Vercel serverless without cloud DB, skip unreachable localhost postgres immediately
     if db_url and not (is_vercel and ("localhost" in db_url or "127.0.0.1" in db_url)):
         try:
@@ -29,6 +39,19 @@ def create_app_engine():
     # On serverless (Vercel Lambda), root is read-only, so use the system temp directory
     if is_vercel:
         db_file = os.path.join(tempfile.gettempdir(), "alarm_platform.db").replace("\\", "/")
+        if not os.path.exists(db_file):
+            for candidate in [
+                os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "alarm_platform.db"),
+                os.path.join(os.path.dirname(os.path.abspath(__file__)), "alarm_platform.db"),
+                "alarm_platform.db"
+            ]:
+                if os.path.exists(candidate):
+                    try:
+                        shutil.copy2(candidate, db_file)
+                        print(f"Copied bundled database from {candidate} to {db_file}")
+                        break
+                    except Exception as e:
+                        print(f"Could not copy bundled database: {e}")
     else:
         db_file = "./alarm_platform.db"
 
@@ -40,9 +63,13 @@ def create_app_engine():
     try:
         from sqlalchemy import text
         with local_eng.connect() as conn:
-            conn.execute(text("PRAGMA journal_mode=WAL;"))
-            conn.execute(text("PRAGMA synchronous=NORMAL;"))
-            conn.execute(text("PRAGMA busy_timeout=30000;"))
+            if is_vercel:
+                conn.execute(text("PRAGMA journal_mode=MEMORY;"))
+                conn.execute(text("PRAGMA synchronous=OFF;"))
+            else:
+                conn.execute(text("PRAGMA journal_mode=WAL;"))
+                conn.execute(text("PRAGMA synchronous=NORMAL;"))
+                conn.execute(text("PRAGMA busy_timeout=30000;"))
     except Exception:
         pass
     return local_eng
