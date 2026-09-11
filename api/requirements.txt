@@ -3,7 +3,7 @@ uvicorn
 jinja2
 sqlalchemy
 mangum
-python-jose
+python-jose[cryptography]
 passlib
 bcrypt
 pandas
@@ -15,3 +15,4 @@ apscheduler
 python-multipart
 requests
 psutil
+psycopg2-binary

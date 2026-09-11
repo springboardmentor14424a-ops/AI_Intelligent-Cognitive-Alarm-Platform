@@ -1,6 +1,14 @@
 import os
+import sys
 import datetime
 from contextlib import asynccontextmanager
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(BASE_DIR)
+for p in (BASE_DIR, ROOT_DIR):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
 from fastapi import FastAPI, Depends, Request, HTTPException, status, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +26,6 @@ from recommendation_engine import RecommendationEngine
 import auth
 from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 is_vercel = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
 
 try:
@@ -163,7 +170,7 @@ def system_health_check(db: Session = Depends(get_db)):
         db_connected = False
 
     return {
-        "status": "healthy" if db_connected and scheduler_info.get("running") else "degraded",
+        "status": "healthy" if db_connected and (scheduler_info.get("running") or is_vercel) else "degraded",
         "service": Config.PROJECT_NAME,
         "environment": "production",
         "timestamp": datetime.datetime.utcnow().isoformat(),
@@ -177,21 +184,21 @@ def system_health_check(db: Session = Depends(get_db)):
 
 @app.get("/", response_class=HTMLResponse)
 def get_landing(request: Request, current_user: User = Depends(auth.get_current_user)):
-    return templates.TemplateResponse("landing.html", {"request": request, "user": current_user})
+    return templates.TemplateResponse(request=request, name="landing.html", context={"user": current_user})
 
 @app.get("/login", response_class=HTMLResponse)
 def get_login(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="login.html", context={})
 
 @app.get("/register", response_class=HTMLResponse)
 def get_register(request: Request, current_user: User = Depends(auth.get_current_user)):
     if current_user:
         return RedirectResponse(url="/dashboard")
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="register.html", context={})
 
 @app.get("/reset-password", response_class=HTMLResponse)
 def get_reset_password(request: Request, token: str = Query("")):
-    return templates.TemplateResponse("profile.html", {"request": request, "token": token})
+    return templates.TemplateResponse(request=request, name="profile.html", context={"token": token})
 
 @app.get("/dashboard")
 def get_dashboard_router(current_user: User = Depends(auth.get_current_user)):
@@ -277,7 +284,7 @@ def get_admin_dashboard(request: Request, db: Session = Depends(get_db), current
         "avg_habit_score": avg_habit_score
     }
     
-    return templates.TemplateResponse("admin.html", {
+    return templates.TemplateResponse(request=request, name="admin.html", context={
         "request": request,
         "user": current_user,
         "users": users,
@@ -316,7 +323,7 @@ def get_coach_dashboard(request: Request, db: Session = Depends(get_db), current
     ).order_by(Appointment.created_at.desc()).all()
     all_users = db.query(User).filter(User.role == "user").all()
 
-    return templates.TemplateResponse("coach.html", {
+    return templates.TemplateResponse(request=request, name="coach.html", context={
         "request": request,
         "user": current_user,
         "clients": clients,
@@ -347,7 +354,7 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
     coaches = db.query(User).filter(User.role.in_(["coach", "administrator"])).all()
 
     unread_count = sum(1 for n in notifications if not n.read_status)
-    return templates.TemplateResponse("user.html", {
+    return templates.TemplateResponse(request=request, name="user.html", context={
         "request": request,
         "user": current_user,
         "profile": profile,

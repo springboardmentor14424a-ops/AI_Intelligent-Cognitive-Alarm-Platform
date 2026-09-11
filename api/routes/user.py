@@ -111,17 +111,24 @@ def upload_avatar(
     if not current_user:
         raise HTTPException(status_code=401, detail="Not authenticated")
         
-    upload_dir = "static/images"
-    os.makedirs(upload_dir, exist_ok=True)
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    upload_dir = os.path.join(base_dir, "static", "images")
+    try:
+        os.makedirs(upload_dir, exist_ok=True)
+    except Exception:
+        pass
     
     file_ext = os.path.splitext(file.filename)[1]
     filename = f"avatar_{current_user.id}{file_ext}"
     filepath = os.path.join(upload_dir, filename)
     
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        with open(filepath, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        current_user.profile_image = f"/static/images/{filename}"
+    except Exception:
+        current_user.profile_image = "/static/images/default_avatar.png"
         
-    current_user.profile_image = f"/static/images/{filename}"
     log = ActivityLog(user_id=current_user.id, action="Update Profile", details=f"Uploaded profile image: {filename}")
     db.add(log)
     db.commit()
