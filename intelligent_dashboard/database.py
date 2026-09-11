@@ -1,6 +1,8 @@
 
 
+import os
 import datetime
+import tempfile
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, ForeignKey, Date, Float, Text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from config import Config
@@ -9,30 +11,41 @@ connect_args = {}
 if Config.DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}
 
+is_vercel = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+
 def create_app_engine():
-    db_url = Config.DATABASE_URL
-    try:
-        eng = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
-        with eng.connect() as conn:
-            pass
-        print(f"Successfully connected to primary database: {db_url.split('@')[-1] if '@' in db_url else db_url}")
-        return eng
-    except Exception as e:
-        print(f"Primary PostgreSQL connection notice ({e}). Using local database engine fallback.")
-        local_eng = create_engine(
-            "sqlite:///./alarm_platform.db",
-            connect_args={"check_same_thread": False, "timeout": 30.0},
-            pool_pre_ping=True
-        )
+    db_url = os.environ.get("DATABASE_URL")
+    # In Vercel serverless without cloud DB, skip unreachable localhost postgres immediately
+    if db_url and not (is_vercel and ("localhost" in db_url or "127.0.0.1" in db_url)):
         try:
-            from sqlalchemy import text
-            with local_eng.connect() as conn:
-                conn.execute(text("PRAGMA journal_mode=WAL;"))
-                conn.execute(text("PRAGMA synchronous=NORMAL;"))
-                conn.execute(text("PRAGMA busy_timeout=30000;"))
-        except Exception:
-            pass
-        return local_eng
+            eng = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
+            with eng.connect() as conn:
+                pass
+            print(f"Successfully connected to primary database: {db_url.split('@')[-1] if '@' in db_url else db_url}")
+            return eng
+        except Exception as e:
+            print(f"Primary database connection notice ({e}). Using local database engine fallback.")
+
+    # On serverless (Vercel Lambda), root is read-only, so use the system temp directory
+    if is_vercel:
+        db_file = os.path.join(tempfile.gettempdir(), "alarm_platform.db").replace("\\", "/")
+    else:
+        db_file = "./alarm_platform.db"
+
+    local_eng = create_engine(
+        f"sqlite:///{db_file}",
+        connect_args={"check_same_thread": False, "timeout": 30.0},
+        pool_pre_ping=True
+    )
+    try:
+        from sqlalchemy import text
+        with local_eng.connect() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL;"))
+            conn.execute(text("PRAGMA synchronous=NORMAL;"))
+            conn.execute(text("PRAGMA busy_timeout=30000;"))
+    except Exception:
+        pass
+    return local_eng
 
 engine = create_app_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

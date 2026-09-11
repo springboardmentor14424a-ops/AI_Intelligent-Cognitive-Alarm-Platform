@@ -19,10 +19,16 @@ import auth
 from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-os.makedirs(os.path.join(BASE_DIR, "static", "css"), exist_ok=True)
-os.makedirs(os.path.join(BASE_DIR, "static", "js"), exist_ok=True)
-os.makedirs(os.path.join(BASE_DIR, "static", "images"), exist_ok=True)
-os.makedirs(os.path.join(BASE_DIR, "backups"), exist_ok=True)
+is_vercel = os.environ.get("VERCEL") == "1" or os.environ.get("AWS_LAMBDA_FUNCTION_NAME") is not None
+
+try:
+    os.makedirs(os.path.join(BASE_DIR, "static", "css"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DIR, "static", "js"), exist_ok=True)
+    os.makedirs(os.path.join(BASE_DIR, "static", "images"), exist_ok=True)
+    backup_path = "/tmp/backups" if is_vercel else os.path.join(BASE_DIR, "backups")
+    os.makedirs(backup_path, exist_ok=True)
+except Exception:
+    pass
 
 
 Base.metadata.create_all(bind=engine)
@@ -95,11 +101,19 @@ initial_seed_check()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """FastAPI lifespan: start APScheduler on boot, stop on shutdown."""
-    start_scheduler()
-    print("APScheduler started — alarm background jobs running.")
+    if not is_vercel:
+        try:
+            start_scheduler()
+            print("APScheduler started — alarm background jobs running.")
+        except Exception as e:
+            print(f"Scheduler start notice: {e}")
     yield
-    stop_scheduler()
-    print("APScheduler stopped gracefully.")
+    if not is_vercel:
+        try:
+            stop_scheduler()
+            print("APScheduler stopped gracefully.")
+        except Exception:
+            pass
 
 
 app = FastAPI(
