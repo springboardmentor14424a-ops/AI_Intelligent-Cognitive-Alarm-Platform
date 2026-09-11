@@ -7,6 +7,8 @@ if CURRENT_DIR not in sys.path:
 
 os.environ.setdefault("VERCEL", "1")
 
+handler = None
+
 try:
     from app import app
     from mangum import Mangum
