@@ -448,7 +448,10 @@ def ensure_db_schema():
     except Exception as e:
         print(f"Schema migration notice: {e}")
 
-ensure_db_schema()
+try:
+    ensure_db_schema()
+except Exception as e:
+    print(f"ensure_db_schema notice: {e}")
 
 def get_db():
     db = SessionLocal()
