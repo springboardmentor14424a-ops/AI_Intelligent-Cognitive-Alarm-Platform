@@ -97,6 +97,7 @@ class UserProfile(Base):
     challenge_preference = Column(String(50), default="Math Puzzle")
     difficulty_level = Column(String(20), default="medium")
     preferred_alarm_sound = Column(String(50), default="Chimes")
+    time_zone = Column(String(50), default="UTC")
 
     # Weighted Habit Subscores (35% WakeUp, 25% Challenge, 20% Snooze, 20% Sleep)
     wake_up_consistency_score = Column(Float, default=70.0)
@@ -308,6 +309,23 @@ class SleepAdherenceLog(Base):
 
     user = relationship("User", back_populates="sleep_adherence_logs")
 
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    coach_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    user_name = Column(String(100), nullable=False)
+    coach_name = Column(String(100), default="Wellness Coach")
+    appointment_time = Column(String(100), nullable=False)
+    reason = Column(Text, nullable=False)
+    status = Column(String(30), default="Scheduled") # Scheduled, Confirmed, Completed, Cancelled
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id], backref="user_appointments")
+    coach = relationship("User", foreign_keys=[coach_id], backref="coach_appointments")
+
 def ensure_db_schema():
     Base.metadata.create_all(bind=engine)
     try:
@@ -379,6 +397,8 @@ def ensure_db_schema():
                     conn.execute(text("ALTER TABLE user_profiles ADD COLUMN wake_confirmation_enabled BOOLEAN DEFAULT 1"))
                 if "preferred_alarm_sound" not in columns:
                     conn.execute(text("ALTER TABLE user_profiles ADD COLUMN preferred_alarm_sound VARCHAR(50) DEFAULT 'Chimes'"))
+                if "time_zone" not in columns:
+                    conn.execute(text("ALTER TABLE user_profiles ADD COLUMN time_zone VARCHAR(50) DEFAULT 'UTC'"))
                 conn.commit()
 
         # Migrate wake_up_confirmations

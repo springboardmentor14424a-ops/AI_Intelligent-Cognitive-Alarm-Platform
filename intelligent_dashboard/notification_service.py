@@ -149,6 +149,43 @@ def send_upcoming_reminder(user_id: int, alarm_title: str, minutes_until: int, f
         db.close()
 
 
+def send_wake_up_reminder(user_id: int, alarm_title: str = "Morning Alarm", minutes_until: int = 15, target_wake: str = "07:00", fcm_token: str = None) -> bool:
+    """
+    Sends wake-up reminder notification:
+    Alerts user before their scheduled wake-up time to prepare circadian awakening.
+    """
+    title = f"⏰ Wake-Up Reminder: {alarm_title}"
+    body = f"Your alarm '{alarm_title}' is scheduled for {target_wake} (in {minutes_until} minutes). Hydrate and get ready to rise!"
+
+    if fcm_token:
+        send_fcm_push(
+            fcm_token=fcm_token,
+            title=title,
+            body=body,
+            data={"type": "wake_up_reminder", "alarm_title": alarm_title, "target_wake": target_wake, "minutes_until": str(minutes_until)}
+        )
+
+    db = SessionLocal()
+    try:
+        notif = Notification(
+            user_id=user_id,
+            title=title,
+            message=body,
+            type="reminder",
+            read_status=False
+        )
+        db.add(notif)
+        db.commit()
+        logger.info(f"Wake-up reminder saved for user {user_id}: {alarm_title} ({target_wake})")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to save wake-up reminder: {e}")
+        return False
+    finally:
+        db.close()
+
+
 def send_bedtime_reminder(user_id: int, sleep_time: str, target_wake: str, fcm_token: str = None):
     """
     Task 3: Send an automated bedtime circadian reminder (e.g. 30-45m before sleep time).
@@ -323,12 +360,15 @@ def send_habit_alert(user_id: int, alert_type: str, message: str, fcm_token: str
         db.close()
 
 
-def broadcast_platform_announcement(title: str, content: str, target_role: str = "all", priority: str = "normal", admin_id: int = None):
+def broadcast_platform_announcement(title: str, content: str, target_role: str = "all", priority: str = "normal", admin_id: int = None, db = None):
     """
     Broadcasts a platform announcement to users/coaches and saves Announcement + in-app Notifications.
     """
     from database import User, Announcement
-    db = SessionLocal()
+    created_internally = False
+    if db is None:
+        db = SessionLocal()
+        created_internally = True
     try:
         # Create Announcement record
         ann = Announcement(
@@ -371,6 +411,7 @@ def broadcast_platform_announcement(title: str, content: str, target_role: str =
         logger.error(f"Broadcast failed: {e}")
         return {"success": False, "error": str(e)}
     finally:
-        db.close()
+        if created_internally:
+            db.close()
 
 

@@ -3,10 +3,11 @@ import io
 import csv
 import shutil
 import pandas as pd
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Request, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from database import get_db, User, UserProfile, ActivityLog, ChallengePerformance
+from database import get_db, User, UserProfile, ActivityLog, ChallengePerformance, Appointment, Notification
 import auth
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Table, TableStyle, Spacer
@@ -46,6 +47,8 @@ def update_my_profile(
     preferred_alarm_sound: str = Form("Chimes"),
     challenge_preference: str = Form("Math Puzzle"),
     difficulty_level: str = Form("medium"),
+    time_zone: str = Form("UTC"),
+    productivity_goal: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
 ):
@@ -69,6 +72,9 @@ def update_my_profile(
     profile.preferred_alarm_sound = preferred_alarm_sound
     profile.challenge_preference = challenge_preference
     profile.difficulty_level = difficulty_level
+    profile.time_zone = time_zone
+    if productivity_goal is not None:
+        profile.productivity_goal = productivity_goal
     
     # Log
     log = ActivityLog(user_id=current_user.id, action="Update Profile", details="Updated personal details and circadian targets")
@@ -368,4 +374,104 @@ def get_my_feedback(
         }
         for f in feedbacks
     ]
+
+
+# =====================================================================
+# APPOINTMENTS — User & Wellness Coach Interaction System
+# =====================================================================
+
+@router.post("/appointment/book")
+def book_coach_appointment(
+    name: str = Form(...),
+    appointment_time: str = Form(...),
+    reason: str = Form(...),
+    coach_id: Optional[int] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """User books an appointment with a coach providing Name, Time, and Reason."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    target_coach = None
+    if coach_id:
+        target_coach = db.query(User).filter(User.id == coach_id, User.role.in_(["coach", "administrator"])).first()
+    if not target_coach and current_user.coach_id:
+        target_coach = db.query(User).filter(User.id == current_user.coach_id).first()
+    if not target_coach:
+        target_coach = db.query(User).filter(User.role == "coach").first()
+    if not target_coach:
+        target_coach = db.query(User).filter(User.role == "administrator").first()
+
+    coach_name = target_coach.full_name or target_coach.username if target_coach else "Wellness Coach"
+    assigned_coach_id = target_coach.id if target_coach else None
+
+    appt = Appointment(
+        user_id=current_user.id,
+        coach_id=assigned_coach_id,
+        user_name=name.strip(),
+        coach_name=coach_name,
+        appointment_time=appointment_time.strip(),
+        reason=reason.strip(),
+        status="Scheduled"
+    )
+    db.add(appt)
+    db.commit()
+    db.refresh(appt)
+
+    # In-app notifications
+    notif_user = Notification(
+        user_id=current_user.id,
+        title="📅 Appointment Booked",
+        message=f"Your session with Coach {coach_name} is scheduled for {appointment_time.strip()}. Reason: {reason.strip()}",
+        type="coach",
+        read_status=False
+    )
+    db.add(notif_user)
+
+    if assigned_coach_id:
+        notif_coach = Notification(
+            user_id=assigned_coach_id,
+            title="📅 New Client Appointment Request",
+            message=f"{name.strip()} has scheduled a coaching session for {appointment_time.strip()}. Reason: {reason.strip()}",
+            type="coach",
+            read_status=False
+        )
+        db.add(notif_coach)
+
+    log = ActivityLog(user_id=current_user.id, action="Book Appointment", details=f"Booked appointment with {coach_name} for {appointment_time.strip()}")
+    db.add(log)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Appointment booked successfully with Coach {coach_name} for {appointment_time}!",
+        "appointment_id": appt.id
+    }
+
+
+@router.get("/appointments")
+def get_user_appointments(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """Retrieve all appointments for the current user."""
+    if not current_user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    appts = db.query(Appointment).filter(Appointment.user_id == current_user.id).order_by(Appointment.created_at.desc()).all()
+    return [
+        {
+            "id": a.id,
+            "user_name": a.user_name,
+            "coach_name": a.coach_name,
+            "appointment_time": a.appointment_time,
+            "reason": a.reason,
+            "status": a.status,
+            "notes": a.notes,
+            "created_at": a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else None
+        }
+        for a in appts
+    ]
+
 

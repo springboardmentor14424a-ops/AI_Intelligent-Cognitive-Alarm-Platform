@@ -58,6 +58,7 @@
                     <button onclick="setTab('habit-wake-tab', this)" class="nav-btn">🏆 Habit & Verification</button>
                     <button onclick="setTab('personalization-tab', this); loadPersonalizationTab();" class="nav-btn">🎯 AI Personalization</button>
                     <button onclick="setTab('profile-tab', this)" class="nav-btn">⚙ Profile Settings</button>
+                    <button type="button" onclick="openModal('book-appointment-modal')" class="nav-btn" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3);">🤝 Interact with Coach</button>
                 </nav>
             </div>
 
@@ -174,6 +175,39 @@
                             </div>
                             <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Help us optimize your cognitive waking experience.</p>
                             <button onclick="openModal('user-feedback-modal')" class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 8px;">✍ Submit Feedback & Rating</button>
+                        </div>
+
+                        <!-- 🤝 Interact with Coach & Appointment Card -->
+                        <div class="glass-card" style="background: linear-gradient(135deg, rgba(56, 189, 248, 0.12) 0%, rgba(59, 130, 246, 0.08) 100%); border: 1px solid rgba(56, 189, 248, 0.3);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <h3 style="font-size: 16px; display: flex; align-items: center; gap: 8px;">
+                                    <span>🤝</span> Wellness Coach
+                                </h3>
+                                <span class="badge badge-info" style="font-size: 10px;">1-on-1 Guidance</span>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">Book personalized circadian sessions with certified sleep and cognitive habit mentors.</p>
+                            <button onclick="openModal('book-appointment-modal')" class="btn btn-primary" style="width: 100%; font-size: 12px; padding: 10px; font-weight: 700; background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);">🤝 Interact with Coach &amp; Schedule</button>
+
+                            <!-- Scheduled Appointments List -->
+                            <div style="margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
+                                <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">📅 My Scheduled Appointments</span>
+                                <div id="user-appointments-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto;">
+                                    {% if appointments and appointments | length > 0 %}
+                                        {% for appt in appointments %}
+                                            <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-card); border-radius: 8px; padding: 10px; font-size: 12px;">
+                                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                                    <strong style="color: #38bdf8;">{{ appt.appointment_time }}</strong>
+                                                    <span class="badge {{ 'badge-active' if appt.status == 'Confirmed' else ('badge-warning' if appt.status == 'Scheduled' else 'badge-info') }}" style="font-size: 10px;">{{ appt.status }}</span>
+                                                </div>
+                                                <div style="color: var(--text-secondary); font-size: 11px;"><strong>Coach:</strong> {{ appt.coach_name }}</div>
+                                                <div style="color: var(--text-secondary); font-size: 11px; margin-top: 2px;"><strong>Reason:</strong> {{ appt.reason }}</div>
+                                            </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <p style="font-size: 11px; color: var(--text-secondary); margin: 0; text-align: center; padding: 8px;">No appointments scheduled yet.</p>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -923,17 +957,43 @@
                                     <input type="text" name="sleep_time" class="form-input" value="{{ profile.sleep_time if profile else '22:30' }}">
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>Sleep Duration (hours)</label>
-                                <input type="number" step="0.5" name="sleep_duration" class="form-input" value="{{ profile.sleep_duration if profile else 8.0 }}">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label>Sleep Duration (hours)</label>
+                                    <input type="number" step="0.5" name="sleep_duration" class="form-input" value="{{ profile.sleep_duration if profile else 8.0 }}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Time Zone</label>
+                                    <input type="text" name="time_zone" class="form-input" value="{{ profile.time_zone if profile and profile.time_zone else 'UTC' }}">
+                                </div>
                             </div>
                             <div class="form-group">
-                                <label>Preferred Challenge Lock</label>
-                                <select name="challenge_preference" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
-                                    <option value="Math Puzzle" {{ 'selected' if profile and profile.challenge_preference == 'Math Puzzle' }}>Math Puzzle</option>
-                                    <option value="Shake Phone" {{ 'selected' if profile and profile.challenge_preference == 'Shake Phone' }}>Shake Phone</option>
-                                    <option value="Typo Solver" {{ 'selected' if profile and profile.challenge_preference == 'Typo Solver' }}>Typo Solver</option>
-                                </select>
+                                <label>Productivity Goal</label>
+                                <input type="text" name="productivity_goal" class="form-input" placeholder="e.g. Master Machine Learning, morning fitness" value="{{ profile.productivity_goal if profile and profile.productivity_goal else '' }}">
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                                <div class="form-group">
+                                    <label>Difficulty Preference</label>
+                                    <select name="difficulty_level" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                                        <option value="beginner" {{ 'selected' if profile and profile.difficulty_level == 'beginner' }}>Beginner</option>
+                                        <option value="easy" {{ 'selected' if profile and profile.difficulty_level == 'easy' }}>Easy</option>
+                                        <option value="medium" {{ 'selected' if not profile or profile.difficulty_level == 'medium' }}>Medium</option>
+                                        <option value="hard" {{ 'selected' if profile and profile.difficulty_level == 'hard' }}>Hard</option>
+                                        <option value="expert" {{ 'selected' if profile and profile.difficulty_level == 'expert' }}>Expert</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Preferred Challenge</label>
+                                    <select name="challenge_preference" class="form-input" style="background-color: var(--bg-secondary); color: var(--text-primary);">
+                                        <option value="Math Problems" {{ 'selected' if profile and profile.challenge_preference == 'Math Problems' }}>Math Problems</option>
+                                        <option value="Logic Puzzles" {{ 'selected' if profile and profile.challenge_preference == 'Logic Puzzles' }}>Logic Puzzles</option>
+                                        <option value="Memory Challenges" {{ 'selected' if profile and profile.challenge_preference == 'Memory Challenges' }}>Memory Challenges</option>
+                                        <option value="Word Games" {{ 'selected' if profile and profile.challenge_preference == 'Word Games' }}>Word Games</option>
+                                        <option value="Pattern Recognition" {{ 'selected' if profile and profile.challenge_preference == 'Pattern Recognition' }}>Pattern Recognition</option>
+                                        <option value="Riddles" {{ 'selected' if profile and profile.challenge_preference == 'Riddles' }}>Riddles</option>
+                                        <option value="Quick Quizzes" {{ 'selected' if profile and profile.challenge_preference == 'Quick Quizzes' }}>Quick Quizzes</option>
+                                    </select>
+                                </div>
                             </div>
                             <button type="submit" class="btn btn-primary">Save Parameters</button>
                         </form>
@@ -967,6 +1027,7 @@
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button onclick="recalculateHabitScore()" class="btn btn-primary" style="font-size: 12px; padding: 8px 14px;">🔄 Recalculate Score</button>
                         <button onclick="openVerificationModal()" class="btn btn-success" style="font-size: 12px; padding: 8px 14px;">🧠 Test Verification Challenge</button>
+                        <button onclick="openModal('book-appointment-modal')" class="btn btn-primary" style="font-size: 12px; padding: 8px 14px; background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%);">🤝 Interact with Coach</button>
                         <a href="/api/reports/export/pdf?report_type=all" class="btn btn-secondary" style="font-size: 12px; padding: 8px 14px;">📄 PDF Report</a>
                         <a href="/api/reports/export/excel?report_type=all" class="btn btn-secondary" style="font-size: 12px; padding: 8px 14px;">📊 Excel Report</a>
                     </div>
@@ -1582,6 +1643,28 @@
                                 <a href="/api/reports/export/excel?report_type=challenge" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
                             </div>
                         </div>
+
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <strong style="font-size: 13px;">Productivity Analytics</strong>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">Focus windows & wake correlation</p>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/api/reports/export/pdf?report_type=productivity" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📄 PDF</a>
+                                <a href="/api/reports/export/excel?report_type=productivity" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
+                            </div>
+                        </div>
+
+                        <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px;">
+                            <div>
+                                <strong style="font-size: 13px;">Sleep Analytics</strong>
+                                <p style="font-size: 11px; color: var(--text-secondary); margin: 2px 0 0 0;">Circadian alignment & bedtime debt</p>
+                            </div>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="/api/reports/export/pdf?report_type=sleep" class="btn btn-secondary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📄 PDF</a>
+                                <a href="/api/reports/export/excel?report_type=sleep" class="btn btn-primary" style="font-size: 11px; padding: 4px 8px; flex: 1; text-align: center;">📊 Excel</a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1857,6 +1940,59 @@
         </div>
     </div>
 
+    <!-- 🤝 Book Appointment Modal (Interact with Coach) -->
+    <div id="book-appointment-modal" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h3 style="display: flex; align-items: center; gap: 8px; margin: 0; font-size: 18px;">
+                    <span>🤝</span> Schedule Coach Appointment
+                </h3>
+                <button type="button" onclick="closeModal('book-appointment-modal')" style="background: none; border: none; font-size: 20px; color: var(--text-secondary); cursor: pointer;">✕</button>
+            </div>
+            <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 18px;">
+                Connect 1-on-1 with a certified circadian & cognitive wellness coach.
+            </p>
+            <form onsubmit="submitAppointmentBooking(event)">
+                <!-- 1. Name -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 13px; font-weight: 600;">Your Name</label>
+                    <input type="text" id="appointment-user-name" name="name" required class="form-input" style="background: var(--bg-secondary); color: var(--text-primary);" value="{{ user.full_name or user.username }}" placeholder="Enter your full name">
+                </div>
+
+                <!-- 2. Select Coach -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 13px; font-weight: 600;">Select Wellness Coach</label>
+                    <select id="appointment-coach-id" name="coach_id" class="form-input" style="background: var(--bg-secondary); color: var(--text-primary);">
+                        {% if coaches and coaches | length > 0 %}
+                            {% for c in coaches %}
+                                <option value="{{ c.id }}">{{ c.full_name or c.username }} ({{ c.role | capitalize }})</option>
+                            {% endfor %}
+                        {% else %}
+                            <option value="">Assigned Wellness Mentor</option>
+                        {% endif %}
+                    </select>
+                </div>
+
+                <!-- 3. Time (Date and Time) -->
+                <div class="form-group" style="margin-bottom: 14px;">
+                    <label style="font-size: 13px; font-weight: 600;">Preferred Date &amp; Time</label>
+                    <input type="datetime-local" id="appointment-time-input" name="appointment_time" required class="form-input" style="background: var(--bg-secondary); color: var(--text-primary);">
+                </div>
+
+                <!-- 4. Reason for Appointment -->
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label style="font-size: 13px; font-weight: 600;">Reason for Appointment</label>
+                    <textarea id="appointment-reason-input" name="reason" required class="form-input" rows="3" style="background: var(--bg-secondary); color: var(--text-primary); resize: vertical;" placeholder="Explain why you are booking this appointment (e.g., Morning grogginess, snooze reduction strategy, customized challenge calibration)..."></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" onclick="closeModal('book-appointment-modal')" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                    <button type="submit" class="btn btn-primary" style="flex: 2; background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); font-weight: 700;">📅 Confirm &amp; Schedule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script src="/static/js/app.js"></script>
 
     <script>
@@ -2002,6 +2138,7 @@
         // ── Multi-Question State (min 5 questions per alarm session) ──────────
         let totalRequiredSteps = 5;   // minimum 5, +1 on each wrong answer
         let currentStepIndex   = 1;   // which question we are on right now
+        let currentVerificationMethod = null; // null for regular alarms, or string e.g. 'Multi-Step Challenges'
         // ─────────────────────────────────────────────────────────────────────
 
         function toggleHint() {
@@ -2039,6 +2176,7 @@
                 totalRequiredSteps      = 5;   // ← minimum 5 questions enforced
                 currentStepIndex        = 1;
                 alarmDisarmed           = false;
+                currentVerificationMethod = null;
             }
 
             // 🔒 Lock snooze until ALL questions are completed
@@ -2219,34 +2357,81 @@
             challengeCurrentSeconds = 60;
             document.getElementById('challenge-timer-sec').innerText = challengeCurrentSeconds;
 
-            fetch(`/api/challenges/generate?type=${encodeURIComponent(currentSolvedChallengeType)}&difficulty=${encodeURIComponent(currentChallengeDifficulty)}&alarm_id=${alarmId || ''}`)
+            const renderQuestion = (qText, expAns, hintText, opts, cType) => {
+                // Ensure question is NEVER empty
+                if (!qText || qText.trim() === '' || qText.trim().toLowerCase() === 'none') {
+                    const n1 = Math.floor(Math.random() * 25) + 10;
+                    const n2 = Math.floor(Math.random() * 25) + 5;
+                    qText = `Calculate: What is ${n1} + ${n2}?`;
+                    expAns = String(n1 + n2);
+                }
+                labelEl.innerText = qText;
+                challengeExpectedAnswer = expAns ? String(expAns).trim() : '42';
+                document.getElementById('challenge-expected').value = challengeExpectedAnswer;
+                if (cType) {
+                    currentSolvedChallengeType = cType;
+                    document.getElementById('current-challenge-type').value = cType;
+                }
+                hintEl.innerText = `💡 Hint: ${hintText || 'Read carefully and submit your answer.'}`;
+
+                if (opts && opts.length > 0) {
+                    opts.forEach(opt => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn btn-secondary opt-btn';
+                        btn.style.width = '100%';
+                        btn.style.padding = '8px';
+                        btn.style.fontSize = '14px';
+                        btn.innerText = opt;
+                        btn.onclick = () => selectOptionAnswer(opt);
+                        optsContainer.appendChild(btn);
+                    });
+                }
+                inputEl.focus();
+            };
+
+            if (currentVerificationMethod) {
+                // Multi-step verification mode
+                fetch('/api/verification/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        verification_method: currentVerificationMethod,
+                        difficulty: currentChallengeDifficulty || 'Medium',
+                        step_index: currentStepIndex,
+                        total_steps: totalRequiredSteps,
+                        time_limit_sec: 30
+                    })
+                })
                 .then(r => r.json())
                 .then(data => {
-                    labelEl.innerText = data.question || 'Solve to continue disarming alarm:';
-                    challengeExpectedAnswer = data.expected_answer || '';
-                    document.getElementById('challenge-expected').value = challengeExpectedAnswer;
-                    hintEl.innerText = `💡 Hint: ${data.hint || 'Read carefully!'}`;
-
-                    if (data.options && data.options.length > 0) {
-                        data.options.forEach(opt => {
-                            const btn = document.createElement('button');
-                            btn.type = 'button';
-                            btn.className = 'btn btn-secondary opt-btn';
-                            btn.style.width = '100%';
-                            btn.style.padding = '8px';
-                            btn.style.fontSize = '14px';
-                            btn.innerText = opt;
-                            btn.onclick = () => selectOptionAnswer(opt);
-                            optsContainer.appendChild(btn);
-                        });
-                    }
-                    inputEl.focus();
+                    const ch = data.challenge || data;
+                    const qText = data.question || (ch && ch.question) || (ch && ch.label);
+                    const expAns = data.expected_answer || (ch && ch.expected_answer);
+                    const hintText = data.hint || (ch && ch.hint);
+                    const opts = data.options || (ch && ch.options);
+                    const cType = data.challenge_type || (ch && ch.challenge_type);
+                    renderQuestion(qText, expAns, hintText, opts, cType);
                 })
                 .catch(() => {
-                    labelEl.innerText = 'What is 18 + 24?';
-                    challengeExpectedAnswer = '42';
-                    document.getElementById('challenge-expected').value = '42';
+                    const n1 = Math.floor(Math.random() * 20) + 12;
+                    const n2 = Math.floor(Math.random() * 20) + 8;
+                    renderQuestion(`Calculate: What is ${n1} + ${n2}?`, String(n1 + n2), 'Add the two numbers together', null, 'Math Problems');
                 });
+            } else {
+                fetch(`/api/challenges/generate?type=${encodeURIComponent(currentSolvedChallengeType)}&difficulty=${encodeURIComponent(currentChallengeDifficulty)}&alarm_id=${alarmId || ''}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        const qText = data.question || (data.challenge && data.challenge.question) || data.label;
+                        const expAns = data.expected_answer || (data.challenge && data.challenge.expected_answer);
+                        const hintText = data.hint || (data.challenge && data.challenge.hint);
+                        const opts = data.options || (data.challenge && data.challenge.options);
+                        renderQuestion(qText, expAns, hintText, opts, data.challenge_type);
+                    })
+                    .catch(() => {
+                        renderQuestion('Calculate: What is 18 + 24?', '42', 'Add 18 and 24', null, 'Math Problems');
+                    });
+            }
         }
 
         function handleSubmitResult(res) {
@@ -3641,6 +3826,13 @@
         async function testSpecificMethod(methodName) {
             try {
                 showToast(`Generating ${methodName} challenge...`, 'info');
+                currentVerificationMethod = methodName;
+                totalRequiredSteps = 5;
+                currentStepIndex = 1;
+                challengeFailedAttempts = 0;
+                challengeStartTime = new Date();
+                alarmDisarmed = false;
+
                 const res = await fetch('/api/verification/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -3656,22 +3848,80 @@
                 if (res.ok && data.challenge) {
                     const ch = data.challenge;
                     document.getElementById('challenge-alarm-id').value = '';
-                    document.getElementById('challenge-expected').value = ch.expected_answer;
-                    document.getElementById('current-challenge-type').value = ch.challenge_type;
-                    document.getElementById('challenge-type-badge').innerText = `${methodName}: ${ch.challenge_type}`;
-                    document.getElementById('challenge-diff-badge').innerText = ch.difficulty || 'Medium';
+                    
+                    let qText = data.question || ch.question || ch.label;
+                    let expAns = data.expected_answer || ch.expected_answer;
+                    if (!qText || qText.trim() === '' || qText.trim().toLowerCase() === 'none') {
+                        const n1 = Math.floor(Math.random() * 25) + 10;
+                        const n2 = Math.floor(Math.random() * 25) + 5;
+                        qText = `Calculate: What is ${n1} + ${n2}?`;
+                        expAns = String(n1 + n2);
+                    }
+
+                    challengeExpectedAnswer = expAns ? String(expAns).trim() : '42';
+                    document.getElementById('challenge-expected').value = challengeExpectedAnswer;
+
+                    const cType = data.challenge_type || ch.challenge_type || 'Math Problems';
+                    currentSolvedChallengeType = cType;
+                    currentChallengeDifficulty = ch.difficulty || 'Medium';
+                    document.getElementById('current-challenge-type').value = cType;
+
+                    document.getElementById('challenge-type-badge').innerText = `${methodName}: ${cType}`;
+                    document.getElementById('challenge-diff-badge').innerText = currentChallengeDifficulty;
                     document.getElementById('challenge-source-badge').innerText = 'Verification Engine';
-                    document.getElementById('challenge-label').innerText = ch.question || ch.label || 'Solve to confirm alertness:';
-                    document.getElementById('challenge-desc').innerText = `Verification Method: ${methodName} — Step ${ch.step_index || 1}/${ch.total_steps || 1}`;
+                    
+                    const labelEl = document.getElementById('challenge-label');
+                    labelEl.innerText = qText;
+                    labelEl.style.color = '#38bdf8';
+                    labelEl.style.fontWeight = '800';
+
+                    const descEl = document.getElementById('challenge-desc');
+                    if (descEl) {
+                        descEl.innerText = `Verification Method: ${methodName} — Step 1 of ${totalRequiredSteps}`;
+                    }
+
+                    const hintEl = document.getElementById('challenge-hint-text');
+                    if (hintEl) {
+                        hintEl.innerText = `💡 Hint: ${data.hint || ch.hint || 'Read carefully!'}`;
+                        hintEl.style.display = 'none';
+                    }
                     
                     const optCont = document.getElementById('challenge-options-container');
-                    if (optCont) optCont.innerHTML = '';
+                    if (optCont) {
+                        optCont.innerHTML = '';
+                        const opts = data.options || ch.options || [];
+                        if (opts && opts.length > 0) {
+                            opts.forEach(opt => {
+                                const btn = document.createElement('button');
+                                btn.type = 'button';
+                                btn.className = 'btn btn-secondary opt-btn';
+                                btn.style.width = '100%';
+                                btn.style.padding = '8px';
+                                btn.style.fontSize = '14px';
+                                btn.innerText = opt;
+                                btn.onclick = () => selectOptionAnswer(opt);
+                                optCont.appendChild(btn);
+                            });
+                        }
+                    }
                     
                     const inp = document.getElementById('challenge-input');
                     if (inp) {
                         inp.value = '';
                         inp.style.display = 'block';
                     }
+
+                    const snoozeBtn = document.getElementById('modal-snooze-btn');
+                    if (snoozeBtn) {
+                        snoozeBtn.disabled = true;
+                        snoozeBtn.style.opacity = '0.4';
+                        snoozeBtn.style.cursor = 'not-allowed';
+                        snoozeBtn.innerText = `🔒 Snooze Locked (${totalRequiredSteps} questions left)`;
+                        snoozeBtn.className = 'btn btn-warning';
+                    }
+
+                    challengeCurrentSeconds = 60;
+                    document.getElementById('challenge-timer-sec').innerText = challengeCurrentSeconds;
 
                     openModal('challenge-modal');
                 } else {
@@ -3969,9 +4219,59 @@
             }
         }
 
+        // =====================================================================
+        // APPOINTMENT BOOKING HANDLER (Interact with Coach)
+        // =====================================================================
+        async function submitAppointmentBooking(e) {
+            e.preventDefault();
+            const name = document.getElementById('appointment-user-name').value.trim();
+            const coachId = document.getElementById('appointment-coach-id').value;
+            const apptTime = document.getElementById('appointment-time-input').value;
+            const reason = document.getElementById('appointment-reason-input').value.trim();
+
+            if (!name || !apptTime || !reason) {
+                showToast('Please provide your name, appointment date & time, and reason.', 'warning');
+                return;
+            }
+
+            try {
+                showToast('Scheduling appointment with coach...', 'info');
+                const fd = new FormData();
+                fd.append('name', name);
+                fd.append('appointment_time', apptTime);
+                fd.append('reason', reason);
+                if (coachId) fd.append('coach_id', coachId);
+
+                const res = await fetch('/api/user/appointment/book', {
+                    method: 'POST',
+                    body: fd
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    showToast(`✅ ${data.message}`, 'success');
+                    closeModal('book-appointment-modal');
+                    document.getElementById('appointment-reason-input').value = '';
+                    setTimeout(() => window.location.reload(), 1200);
+                } else {
+                    showToast(data.detail || 'Could not schedule appointment', 'error');
+                }
+            } catch (err) {
+                showToast('Network error while booking appointment', 'error');
+            }
+        }
+
         // Auto-load sleep adherence history on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadSleepAdherenceHistory();
+            // Pre-fill datetime-local input to tomorrow 10:00 AM if empty
+            const timeInp = document.getElementById('appointment-time-input');
+            if (timeInp && !timeInp.value) {
+                const tmrw = new Date();
+                tmrw.setDate(tmrw.getDate() + 1);
+                tmrw.setHours(10, 0, 0, 0);
+                const iso = tmrw.toISOString().slice(0, 16);
+                timeInp.value = iso;
+            }
         });
     </script>
 </body>

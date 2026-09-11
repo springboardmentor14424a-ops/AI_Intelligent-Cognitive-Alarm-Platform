@@ -1,7 +1,8 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Form, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from sqlalchemy.orm import Session
-from database import get_db, User, UserProfile, Notification, ActivityLog
+from database import get_db, User, UserProfile, Notification, ActivityLog, Appointment
 import auth
 import datetime
 
@@ -78,7 +79,7 @@ def get_client_analytics(
         raise HTTPException(status_code=404, detail="Client not found")
 
     from habit_engine import HabitScoringEngine
-    from behavioral_analytics import BehavioralAnalyticsEngine
+    from behavioral_engine import BehavioralAnalyticsEngine
     from database import WakeLog, SleepAdherenceLog, ChallengePerformance
 
     habit_data = HabitScoringEngine.compute_and_persist_habit_score(user_id, db)
@@ -130,4 +131,121 @@ def get_client_analytics(
             for ch in challenges
         ]
     }
+
+
+# =====================================================================
+# COACH APPOINTMENTS — Client & Wellness Coach Interaction
+# =====================================================================
+
+@router.get("/appointments", response_class=JSONResponse)
+def get_coach_appointments(
+    db: Session = Depends(get_db),
+    current_coach: User = Depends(auth.get_current_user)
+):
+    """Retrieve all client appointments assigned to this coach or unassigned."""
+    if not current_coach or current_coach.role not in ['coach', 'administrator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    appts = db.query(Appointment).filter(
+        (Appointment.coach_id == current_coach.id) | (Appointment.coach_id == None)
+    ).order_by(Appointment.created_at.desc()).all()
+
+    return [
+        {
+            "id": a.id,
+            "user_id": a.user_id,
+            "user_name": a.user_name,
+            "coach_name": a.coach_name,
+            "appointment_time": a.appointment_time,
+            "reason": a.reason,
+            "status": a.status,
+            "notes": a.notes or "",
+            "created_at": a.created_at.strftime('%Y-%m-%d %H:%M') if a.created_at else None
+        }
+        for a in appts
+    ]
+
+
+@router.post("/appointment/update-status", response_class=JSONResponse)
+def update_appointment_status(
+    appointment_id: int = Form(...),
+    status: str = Form(...),
+    notes: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_coach: User = Depends(auth.get_current_user)
+):
+    """Coach updates appointment status (Confirmed, Completed, Cancelled)."""
+    if not current_coach or current_coach.role not in ['coach', 'administrator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    appt = db.query(Appointment).filter(Appointment.id == appointment_id).first()
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+
+    appt.status = status
+    if notes:
+        appt.notes = notes
+    db.commit()
+
+    # Send Notification to User
+    coach_name = current_coach.full_name or current_coach.username
+    notif = Notification(
+        user_id=appt.user_id,
+        title=f"📅 Appointment {status}",
+        message=f"Coach {coach_name} marked your appointment for {appt.appointment_time} as '{status}'. {notes or ''}",
+        type="coach",
+        read_status=False
+    )
+    db.add(notif)
+    db.commit()
+
+    return {"success": True, "message": f"Appointment marked as {status}!"}
+
+
+@router.post("/appointment/schedule", response_class=JSONResponse)
+def coach_schedule_appointment(
+    user_id: int = Form(...),
+    appointment_time: str = Form(...),
+    reason: str = Form(...),
+    db: Session = Depends(get_db),
+    current_coach: User = Depends(auth.get_current_user)
+):
+    """Coach directly schedules an appointment with a client asking client name/id, time, and reason."""
+    if not current_coach or current_coach.role not in ['coach', 'administrator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Client user not found")
+
+    coach_name = current_coach.full_name or current_coach.username or "Wellness Coach"
+    appt = Appointment(
+        user_id=user.id,
+        coach_id=current_coach.id,
+        user_name=user.full_name or user.username,
+        coach_name=coach_name,
+        appointment_time=appointment_time.strip(),
+        reason=reason.strip(),
+        status="Confirmed"
+    )
+    db.add(appt)
+    db.commit()
+    db.refresh(appt)
+
+    notif = Notification(
+        user_id=user.id,
+        title="📅 Coach Scheduled 1-on-1 Session",
+        message=f"Coach {coach_name} scheduled a 1-on-1 session with you for {appointment_time.strip()}. Reason: {reason.strip()}",
+        type="coach",
+        read_status=False
+    )
+    db.add(notif)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": f"Appointment scheduled with {user.full_name or user.username} for {appointment_time}!",
+        "appointment_id": appt.id
+    }
+
 

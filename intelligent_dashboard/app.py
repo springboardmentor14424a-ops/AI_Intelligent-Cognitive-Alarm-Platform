@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from config import Config
-from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report, ChallengePerformance, Feedback
+from database import engine, Base, SessionLocal, get_db, User, UserProfile, Alarm, Notification, ActivityLog, Report, ChallengePerformance, Feedback, Appointment
 from routes import auth as auth_routes, user as user_routes, admin as admin_routes, coach as coach_routes, alarm as alarm_routes, ai_personalization as ai_routes, verification_analytics as verification_routes
 from database import Announcement, WakeLog, WakeUpConfirmation, HabitScoreLog
 from habit_engine import HabitScoringEngine
@@ -115,9 +115,10 @@ app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth APIs"])
 app.include_router(user_routes.router, prefix="/api/user", tags=["User Profile APIs"])
 app.include_router(admin_routes.router, prefix="/api/admin", tags=["Admin Control APIs"])
 app.include_router(coach_routes.router, prefix="/api/coach", tags=["Coach Operations APIs"])
+app.include_router(coach_routes.router, prefix="/coach", tags=["Coach Alias APIs"])
 app.include_router(alarm_routes.router, prefix="/api/alarm", tags=["Alarms APIs"])
 app.include_router(alarm_routes.router, prefix="/alarms", tags=["Alarms Alias APIs"])
-app.include_router(alarm_routes.router, prefix="/api", tags=["Cognitive Challenges APIs"])
+app.include_router(alarm_routes.challenge_router, prefix="/api", tags=["Cognitive Challenges APIs"])
 app.include_router(ai_routes.router, prefix="/api/ai", tags=["AI & Personalization APIs"])
 app.include_router(verification_routes.router, prefix="/api", tags=["Verification & Analytics APIs"])
 
@@ -288,11 +289,19 @@ def get_coach_dashboard(request: Request, db: Session = Depends(get_db), current
             "behavior": b_data
         })
 
+    # Coach appointments (assigned to this coach or unassigned)
+    appointments = db.query(Appointment).filter(
+        (Appointment.coach_id == current_user.id) | (Appointment.coach_id == None)
+    ).order_by(Appointment.created_at.desc()).all()
+    all_users = db.query(User).filter(User.role == "user").all()
+
     return templates.TemplateResponse("coach.html", {
         "request": request,
         "user": current_user,
         "clients": clients,
-        "client_dossiers": client_dossiers
+        "client_dossiers": client_dossiers,
+        "appointments": appointments,
+        "all_users": all_users
     })
 
 @app.get("/dashboard/user", response_class=HTMLResponse)
@@ -312,6 +321,10 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
     wake_logs = db.query(WakeLog).filter(WakeLog.user_id == current_user.id).order_by(WakeLog.created_at.desc()).limit(10).all()
     confirmations = db.query(WakeUpConfirmation).filter(WakeUpConfirmation.user_id == current_user.id).order_by(WakeUpConfirmation.created_at.desc()).limit(5).all()
     
+    # User appointments and coaches list
+    appointments = db.query(Appointment).filter(Appointment.user_id == current_user.id).order_by(Appointment.created_at.desc()).all()
+    coaches = db.query(User).filter(User.role.in_(["coach", "administrator"])).all()
+
     unread_count = sum(1 for n in notifications if not n.read_status)
     return templates.TemplateResponse("user.html", {
         "request": request,
@@ -326,7 +339,9 @@ def get_user_dashboard(request: Request, db: Session = Depends(get_db), current_
         "announcements": announcements,
         "wake_logs": wake_logs,
         "confirmations": confirmations,
-        "unread_count": unread_count
+        "unread_count": unread_count,
+        "appointments": appointments,
+        "coaches": coaches
     })
 
 if __name__ == "__main__":

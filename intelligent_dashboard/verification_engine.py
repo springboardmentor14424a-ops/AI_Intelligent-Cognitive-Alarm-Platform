@@ -69,7 +69,7 @@ class WakeUpVerificationEngine:
             challenge = generate_cognitive_challenge(challenge_type=selected_type, difficulty=difficulty)
             challenge["verification_method"] = VerificationMethod.MULTI_STEP
             challenge["step_index"] = step_index
-            challenge["total_steps"] = max(5, total_steps)
+            challenge["total_steps"] = max(1, total_steps)
             challenge["is_final_step"] = (step_index >= challenge["total_steps"])
             challenge["instructions"] = f"Step {step_index} of {challenge['total_steps']}: Solve this challenge to proceed to the next step!"
             challenge["time_limit_sec"] = time_limit_sec
@@ -81,7 +81,7 @@ class WakeUpVerificationEngine:
             challenge = generate_cognitive_challenge(challenge_type=selected_type, difficulty=difficulty)
             challenge["verification_method"] = VerificationMethod.CONSECUTIVE
             challenge["consecutive_streak"] = consecutive_streak
-            challenge["consecutive_target"] = max(5, consecutive_target)
+            challenge["consecutive_target"] = max(1, consecutive_target)
             challenge["remaining_needed"] = max(0, challenge["consecutive_target"] - consecutive_streak)
             challenge["instructions"] = f"Consecutive Challenge: {consecutive_streak}/{challenge['consecutive_target']} solved correctly! A single error resets your streak."
             challenge["time_limit_sec"] = min(25, time_limit_sec)

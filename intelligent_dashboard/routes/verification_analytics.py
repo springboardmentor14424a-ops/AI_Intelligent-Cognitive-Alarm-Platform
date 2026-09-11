@@ -29,7 +29,8 @@ from notification_service import (
     send_challenge_reminder,
     send_habit_alert,
     broadcast_platform_announcement,
-    send_upcoming_reminder
+    send_upcoming_reminder,
+    send_wake_up_reminder
 )
 from report_generator import ReportGenerator
 
@@ -62,12 +63,9 @@ def generate_verification_task_get(
     consecutive_target: int = 3,
     time_limit_sec: int = 30,
     preferred_type: Optional[str] = None,
-    current_user: User = Depends(auth.get_current_user)
+    current_user: Optional[User] = Depends(auth.get_current_user)
 ):
     """Generates verification challenge based on selected method."""
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     challenge = WakeUpVerificationEngine.generate_verification_challenge(
         verification_method=method,
         difficulty=difficulty,
@@ -78,18 +76,26 @@ def generate_verification_task_get(
         time_limit_sec=time_limit_sec,
         preferred_type=preferred_type
     )
-    return {"challenge": challenge, "verification_method": method}
+    return {
+        "challenge": challenge,
+        "verification_method": method,
+        "question": challenge.get("question"),
+        "expected_answer": challenge.get("expected_answer"),
+        "hint": challenge.get("hint", ""),
+        "options": challenge.get("options", []),
+        "difficulty": challenge.get("difficulty", difficulty),
+        "challenge_type": challenge.get("challenge_type", "Math Problems"),
+        "step_index": challenge.get("step_index", step_index),
+        "total_steps": challenge.get("total_steps", total_steps)
+    }
 
 
 @router.post("/verification/generate", response_class=JSONResponse)
 def generate_verification_task_post(
     data: VerificationGenerateSchema,
-    current_user: User = Depends(auth.get_current_user)
+    current_user: Optional[User] = Depends(auth.get_current_user)
 ):
     """Generates verification challenge based on selected method (POST)."""
-    if not current_user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-
     m = data.verification_method or data.method or VerificationMethod.PUZZLE
     challenge = WakeUpVerificationEngine.generate_verification_challenge(
         verification_method=m,
@@ -101,7 +107,18 @@ def generate_verification_task_post(
         time_limit_sec=data.time_limit_sec,
         preferred_type=data.preferred_type
     )
-    return {"challenge": challenge, "verification_method": m}
+    return {
+        "challenge": challenge,
+        "verification_method": m,
+        "question": challenge.get("question"),
+        "expected_answer": challenge.get("expected_answer"),
+        "hint": challenge.get("hint", ""),
+        "options": challenge.get("options", []),
+        "difficulty": challenge.get("difficulty", data.difficulty),
+        "challenge_type": challenge.get("challenge_type", "Math Problems"),
+        "step_index": challenge.get("step_index", data.step_index),
+        "total_steps": challenge.get("total_steps", data.total_steps)
+    }
 
 
 class VerificationSubmitSchema(BaseModel):
@@ -272,6 +289,7 @@ def get_sleep_analytics(
 
 
 @router.get("/analytics/full-dossier", response_class=JSONResponse)
+@router.get("/analytics/behavioral-dossier", response_class=JSONResponse)
 @router.get("/analytics/predictive-engine", response_class=JSONResponse)
 def get_full_analytics_dossier(
     db: Session = Depends(get_db),
@@ -472,6 +490,7 @@ def get_challenge_recs(db: Session = Depends(get_db), current_user: User = Depen
 
 
 @router.get("/recommendations/all", response_class=JSONResponse)
+@router.get("/recommendations/unified", response_class=JSONResponse)
 def get_all_recs(db: Session = Depends(get_db), current_user: User = Depends(auth.get_current_user)):
     if not current_user: raise HTTPException(status_code=401, detail="Not authenticated")
     return RecommendationEngine.get_unified_recommendation_dossier(current_user.id, db)
@@ -521,6 +540,51 @@ def trigger_progress_notification(db: Session = Depends(get_db), current_user: U
     return {"success": ok, "message": "Progress digest notification triggered"}
 
 
+class WakeUpReminderSchema(BaseModel):
+    alarm_id: Optional[int] = None
+    alarm_title: Optional[str] = "Morning Alarm"
+    minutes_until: int = 15
+    target_wake: Optional[str] = "07:00"
+
+
+@router.post("/notifications/reminders/wake-up", response_class=JSONResponse)
+@router.post("/notifications/reminders/wakeup", response_class=JSONResponse)
+def trigger_wake_up_reminder(
+    data: Optional[WakeUpReminderSchema] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """Wake-up reminder: notifies user ahead of alarm time to prepare awakening routine."""
+    if not current_user: raise HTTPException(status_code=401, detail="Not authenticated")
+    profile = current_user.profile
+    target_wake = (data.target_wake if data and data.target_wake else (profile.wake_up_time if profile and profile.wake_up_time else "07:00"))
+    title = (data.alarm_title if data and data.alarm_title else "Morning Alarm")
+    mins = (data.minutes_until if data and data.minutes_until else 15)
+    ok = send_wake_up_reminder(current_user.id, alarm_title=title, minutes_until=mins, target_wake=target_wake, fcm_token=current_user.fcm_token)
+    return {"success": ok, "message": f"Wake-up reminder for '{title}' at {target_wake} triggered"}
+
+
+class HabitAlertSchema(BaseModel):
+    alert_type: Optional[str] = "Streak Warning"
+    message: Optional[str] = "Wake up on time to protect your morning consistency streak!"
+
+
+@router.post("/notifications/alerts/habit", response_class=JSONResponse)
+@router.post("/notifications/alerts/habit-warning", response_class=JSONResponse)
+@router.post("/notifications/reminders/habit-alert", response_class=JSONResponse)
+def trigger_habit_alert_endpoint(
+    data: Optional[HabitAlertSchema] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(auth.get_current_user)
+):
+    """Habit alert: sends critical warnings regarding broken streak risks or snooze penalties."""
+    if not current_user: raise HTTPException(status_code=401, detail="Not authenticated")
+    atype = (data.alert_type if data and data.alert_type else "Streak Warning")
+    msg = (data.message if data and data.message else "Wake up on time to protect your morning consistency streak!")
+    ok = send_habit_alert(current_user.id, atype, msg, current_user.fcm_token)
+    return {"success": ok, "message": f"Habit alert '{atype}' dispatched"}
+
+
 class AnnouncementBroadcastSchema(BaseModel):
     title: str = Field(..., min_length=3)
     content: str = Field(..., min_length=5)
@@ -565,7 +629,8 @@ async def admin_broadcast(
         content=str(content),
         target_role=str(target_role),
         priority=str(priority),
-        admin_id=current_admin.id
+        admin_id=current_admin.id,
+        db=db
     )
     return JSONResponse(content=result)
 
@@ -604,7 +669,7 @@ def list_announcements(
 @router.get("/reports/export")
 def export_report_unified(
     format: str = Query("pdf", pattern="^(pdf|excel|xlsx|csv)$"),
-    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep)$"),
+    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep|habits|wakeup|challenges|wake)$"),
     user_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
@@ -617,7 +682,7 @@ def export_report_unified(
 
 @router.get("/reports/export/pdf")
 def export_pdf_report(
-    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep)$"),
+    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep|habits|wakeup|challenges|wake)$"),
     user_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)
@@ -641,8 +706,9 @@ def export_pdf_report(
 
 
 @router.get("/reports/export/excel")
+@router.get("/reports/export/xlsx")
 def export_excel_report(
-    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep)$"),
+    report_type: str = Query("all", pattern="^(all|habit|wake_up|challenge|productivity|sleep|habits|wakeup|challenges|wake)$"),
     user_id: Optional[int] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(auth.get_current_user)

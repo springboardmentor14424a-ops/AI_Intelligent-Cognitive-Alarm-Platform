@@ -11,6 +11,7 @@ from alarm_scheduler import get_scheduler_status, apply_smart_adaptive_rules, is
 from challenge_generator import generate_cognitive_challenge, verify_challenge_answer
 
 router = APIRouter()
+challenge_router = APIRouter()
 
 # ==============================================================================
 # ==============================================================================
@@ -579,26 +580,43 @@ def calculate_adapted_difficulty(user_id: int, challenge_type: str, base_difficu
 
 
 
-@router.get("/challenges/generate", response_class=JSONResponse)
-@router.get("/api/challenges/generate", response_class=JSONResponse)
+@challenge_router.get("/challenges/generate", response_class=JSONResponse)
+@challenge_router.get("/api/challenges/generate", response_class=JSONResponse)
 def get_generated_challenge(
     type: str = "Math Problems",
     difficulty: str = "Medium",
     alarm_id: Optional[int] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(auth.get_current_user)
+    current_user: Optional[User] = Depends(auth.get_current_user)
 ):
     """GET /api/challenges/generate — Generates a personalized cognitive challenge based on user performance history."""
-    base_diff = difficulty
+    clean_type = type.strip() if type else "Math Problems"
+    if ":" in clean_type:
+        clean_type = clean_type.split(":")[-1].strip()
+    
+    valid_types = [
+        "Math Problems", "Logic Puzzles", "Memory Challenges",
+        "Word Games", "Pattern Recognition", "Riddles", "Quick Quizzes"
+    ]
+    if clean_type not in valid_types:
+        clean_type = "Math Problems"
+
+    base_diff = difficulty or "Medium"
     if alarm_id:
         alarm = db.query(Alarm).filter(Alarm.id == alarm_id).first()
         if alarm and alarm.difficulty_level:
             base_diff = alarm.difficulty_level
             
-    adapted_difficulty = calculate_adapted_difficulty(current_user.id, type, base_diff, db)
+    user_id = current_user.id if current_user else 1
+    adapted_difficulty = calculate_adapted_difficulty(user_id, clean_type, base_diff, db)
 
-    challenge = generate_cognitive_challenge(challenge_type=type, difficulty=adapted_difficulty)
+    challenge = generate_cognitive_challenge(challenge_type=clean_type, difficulty=adapted_difficulty)
+    if not challenge or not challenge.get("question") or str(challenge.get("question")).strip().lower() in ("none", ""):
+        from challenge_generator import generate_math_problem
+        challenge = generate_math_problem(adapted_difficulty)
+
     challenge["difficulty"] = adapted_difficulty
+    challenge["challenge_type"] = clean_type
     return challenge
 
 
@@ -606,8 +624,8 @@ class ChallengeVerifySchema(BaseModel):
     expected: str
     user_answer: str
 
-@router.post("/challenges/verify", response_class=JSONResponse)
-@router.post("/api/challenges/verify", response_class=JSONResponse)
+@challenge_router.post("/challenges/verify", response_class=JSONResponse)
+@challenge_router.post("/api/challenges/verify", response_class=JSONResponse)
 def verify_challenge(
     data: ChallengeVerifySchema,
     current_user: User = Depends(auth.get_current_user)
@@ -627,8 +645,8 @@ class ChallengeSubmitSchema(BaseModel):
     failed_attempts: int = 0
     time_limit_exceeded: bool = False
 
-@router.post("/challenges/submit", response_class=JSONResponse)
-@router.post("/api/challenges/submit", response_class=JSONResponse)
+@challenge_router.post("/challenges/submit", response_class=JSONResponse)
+@challenge_router.post("/api/challenges/submit", response_class=JSONResponse)
 def submit_challenge(
     data: ChallengeSubmitSchema,
     db: Session = Depends(get_db),
@@ -720,8 +738,8 @@ def submit_challenge(
     }
 
 
-@router.post("/user/weekly-preference", response_class=JSONResponse)
-@router.post("/api/user/weekly-preference", response_class=JSONResponse)
+@challenge_router.post("/user/weekly-preference", response_class=JSONResponse)
+@challenge_router.post("/api/user/weekly-preference", response_class=JSONResponse)
 def set_weekly_preference(
     challenge_type: str = Form(...),
     db: Session = Depends(get_db),
@@ -745,4 +763,7 @@ def set_weekly_preference(
         "message": f"Weekly puzzle preference set to '{challenge_type}'!",
         "challenge_preference": challenge_type
     }
+
+# Include challenge_router into main alarm router so /alarms/... and /api/alarm/... also retain challenge routes
+router.include_router(challenge_router)
 

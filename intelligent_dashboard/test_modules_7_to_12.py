@@ -301,20 +301,44 @@ class TestRecommendationEngine:
 class TestNotificationAndAnnouncements:
 
     def test_10_reminder_apis(self):
+        """Module 11: All reminder and alert types (Bedtime, Wake-Up, Habit Alerts, Challenge, Progress)."""
         token = get_auth_token()
         headers = {"Authorization": f"Bearer {token}"}
 
-        for path in [
-            "/api/notifications/reminders/bedtime",
-            "/api/notifications/reminders/habit",
-            "/api/notifications/reminders/challenge",
-            "/api/notifications/reminders/progress"
-        ]:
-            res = client.post(path, headers=headers)
-            assert res.status_code == 200
-            assert res.json()["success"] is True
+        # 1. Bedtime reminder
+        res_bed = client.post("/api/notifications/reminders/bedtime", headers=headers)
+        assert res_bed.status_code == 200
+        assert res_bed.json()["success"] is True
+
+        # 2. Wake-up reminder
+        res_wake = client.post("/api/notifications/reminders/wake-up", json={
+            "alarm_title": "Early Rise Alarm",
+            "minutes_until": 15,
+            "target_wake": "06:30"
+        }, headers=headers)
+        assert res_wake.status_code == 200
+        assert res_wake.json()["success"] is True
+
+        # 3. Habit alert
+        res_alert = client.post("/api/notifications/alerts/habit", json={
+            "alert_type": "Streak Warning",
+            "message": "Consistent wake-ups keep your 5-day streak alive!"
+        }, headers=headers)
+        assert res_alert.status_code == 200
+        assert res_alert.json()["success"] is True
+
+        # 4. Challenge reminder
+        res_chal = client.post("/api/notifications/reminders/challenge?challenge_type=Logic+Puzzles", headers=headers)
+        assert res_chal.status_code == 200
+        assert res_chal.json()["success"] is True
+
+        # 5. Progress notification
+        res_prog = client.post("/api/notifications/reminders/progress", headers=headers)
+        assert res_prog.status_code == 200
+        assert res_prog.json()["success"] is True
 
     def test_11_admin_broadcast_announcement(self):
+        """Module 11: Platform Announcements Broadcast & User retrieval."""
         admin_token = get_auth_token("m7admin@cognitive.com", "administrator")
         headers = {"Authorization": f"Bearer {admin_token}"}
 
@@ -327,28 +351,43 @@ class TestNotificationAndAnnouncements:
         assert broadcast_res.status_code == 200
         assert broadcast_res.json()["success"] is True
 
+        # Verify announcements list
+        user_token = get_auth_token()
+        user_headers = {"Authorization": f"Bearer {user_token}"}
+        res_ann = client.get("/api/announcements", headers=user_headers)
+        assert res_ann.status_code == 200
+        anns = res_ann.json()
+        assert len(anns) >= 1
+        assert anns[0]["title"] == "Platform Update v2.5"
+
 # ==============================================================================
 # 5. REPORT GENERATION & EXPORT TESTS (PDF & EXCEL)
 # ==============================================================================
 class TestReportExports:
 
-    def test_12_export_pdf_report(self):
+    def test_12_export_pdf_reports_all_types(self):
+        """Module 12: PDF export for all 5 report categories + unified master report."""
         token = get_auth_token()
         headers = {"Authorization": f"Bearer {token}"}
 
-        res = client.get("/api/reports/export/pdf?report_type=all", headers=headers)
-        assert res.status_code == 200
-        assert res.headers["content-type"] == "application/pdf"
-        assert len(res.content) > 100
+        report_categories = ["habit", "wake_up", "challenge", "productivity", "sleep", "all"]
+        for cat in report_categories:
+            res = client.get(f"/api/reports/export/pdf?report_type={cat}", headers=headers)
+            assert res.status_code == 200, f"Failed PDF export for category: {cat}"
+            assert res.headers["content-type"] == "application/pdf"
+            assert len(res.content) > 500
 
-    def test_13_export_excel_report(self):
+    def test_13_export_excel_reports_all_types(self):
+        """Module 12: Excel (.xlsx) export for all 5 report categories + unified master workbook."""
         token = get_auth_token()
         headers = {"Authorization": f"Bearer {token}"}
 
-        res = client.get("/api/reports/export/excel?report_type=all", headers=headers)
-        assert res.status_code == 200
-        assert "spreadsheetml" in res.headers["content-type"]
-        assert len(res.content) > 100
+        report_categories = ["habit", "wake_up", "challenge", "productivity", "sleep", "all"]
+        for cat in report_categories:
+            res = client.get(f"/api/reports/export/excel?report_type={cat}", headers=headers)
+            assert res.status_code == 200, f"Failed Excel export for category: {cat}"
+            assert "spreadsheetml" in res.headers["content-type"]
+            assert len(res.content) > 500
 
     def test_14_adaptive_rating_scale_compensation(self):
         """Feature 1: If user gets question wrong, +1 compensation question is added."""
@@ -537,4 +576,20 @@ class TestReportExports:
         adh_data = res_adh.json()
         assert adh_data["success"] is True
         assert len(adh_data["logs"]) >= 2
+
+    def test_21_coach_client_analytics(self):
+        """Module 10: Wellness Coach client analytics endpoint."""
+        admin_token = get_auth_token("m7admin@cognitive.com", "administrator")
+        headers = {"Authorization": f"Bearer {admin_token}"}
+        db = TestSession()
+        user = db.query(User).filter(User.email == "m7user@cognitive.com").first()
+        res = client.get(f"/coach/client/{user.id}/analytics", headers=headers)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["success"] is True
+        assert data["user_id"] == user.id
+        assert "habit_score" in data
+        assert "behavioral_insights" in data
+        db.close()
+
 
