@@ -18,10 +18,11 @@ from recommendation_engine import RecommendationEngine
 import auth
 from alarm_scheduler import start_scheduler, stop_scheduler, get_scheduler_status
 
-os.makedirs("static/css", exist_ok=True)
-os.makedirs("static/js", exist_ok=True)
-os.makedirs("static/images", exist_ok=True)
-os.makedirs("backups", exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+os.makedirs(os.path.join(BASE_DIR, "static", "css"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "static", "js"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "static", "images"), exist_ok=True)
+os.makedirs(os.path.join(BASE_DIR, "backups"), exist_ok=True)
 
 
 Base.metadata.create_all(bind=engine)
@@ -108,8 +109,8 @@ app = FastAPI(
 )
 
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["Auth APIs"])
 app.include_router(user_routes.router, prefix="/api/user", tags=["User Profile APIs"])

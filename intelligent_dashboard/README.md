@@ -96,11 +96,12 @@ Follow these steps to experience the complete platform lifecycle:
 
 ### Installation Steps
 
-1. **Clone the Repository**
+1. **Clone the Repository (Branch: Rachana-D-N)**
    ```bash
-   git clone https://github.com/springboardmentor14424a-ops/AI_Intelligent-Cognitive-Alarm-Platform.git
+   git clone -b Rachana-D-N https://github.com/springboardmentor14424a-ops/AI_Intelligent-Cognitive-Alarm-Platform.git
    cd AI_Intelligent-Cognitive-Alarm-Platform
    ```
+   Direct Branch Link: [github.com/.../tree/Rachana-D-N](https://github.com/springboardmentor14424a-ops/AI_Intelligent-Cognitive-Alarm-Platform/tree/Rachana-D-N)
 
 2. **Set Up Virtual Environment**
    ```bash
