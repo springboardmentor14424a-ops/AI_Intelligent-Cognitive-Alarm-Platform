@@ -91,19 +91,67 @@ let alarmQueue = [];
 
 let alarms = JSON.parse(localStorage.getItem("alarms")) || [];
 
-let stats = JSON.parse(localStorage.getItem("alarmStats")) || {
-
+let stats = JSON.parse(
+    localStorage.getItem("alarmStats")
+) || {
     totalRings: 0,
-
     successfulWakeups: 0,
-
     totalSnoozes: 0,
-
     wrongAnswers: 0,
-
     noSnoozeStreak: 0
-
 };
+
+// Make sure daily alarm history always exists
+if (!stats.dailyRings) {
+    stats.dailyRings = {};
+}
+
+localStorage.setItem(
+    "alarmStats",
+    JSON.stringify(stats)
+);
+
+// ==========================================
+// ALARM HISTORY
+// ==========================================
+
+function renderAlarmHistory() {
+
+    const historyList =
+        document.getElementById("alarmHistoryList");
+
+    if (!historyList) return;
+
+    if (alarms.length === 0) {
+
+        historyList.innerHTML =
+            "<p>No alarm history available.</p>";
+
+        return;
+    }
+
+    historyList.innerHTML = alarms.map((alarm, index) => {
+
+        const time =
+            alarm.time || "--:--";
+
+        const label =
+            alarm.label || `Alarm ${index + 1}`;
+
+        return `
+            <div class="history-item">
+
+                <span>⏰ ${time}</span>
+
+                <span>${label}</span>
+
+            </div>
+        `;
+
+    }).join("");
+}
+
+renderAlarmHistory();
 
 addAlarmBtn.addEventListener("click", () => {
 
@@ -122,6 +170,8 @@ addAlarmBtn.addEventListener("click", () => {
 saveAlarmBtn.addEventListener("click",()=>{
 
     const time=document.getElementById("alarmTime").value;
+
+    const bedtime =document.getElementById("bedtime").value;
 
     const label=document.getElementById("alarmLabel").value;
 
@@ -150,6 +200,8 @@ saveAlarmBtn.addEventListener("click",()=>{
     id: Date.now(),
 
     time,
+
+    bedtime,
 
     label,
 
@@ -382,12 +434,293 @@ function canRingToday(type){
 
 }
 
+// ==========================================
+// MODULE 11 - BEDTIME NOTIFICATION
+// ==========================================
+
+async function createBedtimeNotification(alarm) {
+
+    const userId =
+        Number(localStorage.getItem("userId")) || 1;
+
+    if (!alarm.bedtime) return;
+
+    try {
+
+        await fetch(
+            "http://localhost:5000/api/notifications",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    type: "bedtime",
+                    title: "🌙 Bedtime Reminder",
+                    message:
+                        `It's almost time to sleep. Your preferred bedtime is ${alarm.bedtime}. Get ready for a healthy night's rest.`
+                })
+            }
+        );
+
+        console.log("🔔 Bedtime notification created.");
+
+    } catch (error) {
+
+        console.error(
+            "❌ Bedtime notification error:",
+            error
+        );
+    }
+}
+
+// ==========================================
+// MODULE 11 - WAKE-UP NOTIFICATION
+// ==========================================
+
+async function createWakeupNotification(alarm) {
+
+    const userId =
+        Number(localStorage.getItem("userId")) || 1;
+
+    try {
+
+        await fetch(
+            "http://localhost:5000/api/notifications",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    type: "wake_up",
+                    title: "⏰ Wake-up Reminder",
+                    message:
+                        `Good morning! It's time to wake up and complete your ${alarm.label} routine.`
+                })
+            }
+        );
+
+        console.log("🔔 Wake-up notification created.");
+
+    } catch (error) {
+
+        console.error(
+            "❌ Wake-up notification error:",
+            error
+        );
+    }
+}
+
+// ==========================================
+// MODULE 11 - HABIT ALERT NOTIFICATION
+// ==========================================
+
+async function createHabitAlertNotification() {
+
+    const userId =
+        Number(localStorage.getItem("userId")) || 1;
+
+    try {
+
+        await fetch(
+            "http://localhost:5000/api/notifications",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    type: "habit_alert",
+                    title: "📊 Habit Alert",
+                    message:
+                        "Your recent habit performance needs attention. Stay consistent with your alarms, sleep schedule, and cognitive challenges."
+                })
+            }
+        );
+
+        console.log("🔔 Habit alert notification created.");
+
+    } catch (error) {
+
+        console.error(
+            "❌ Habit alert notification error:",
+            error
+        );
+    }
+}
+
+// ==========================================
+// MODULE 11 - CHALLENGE REMINDER
+// ==========================================
+
+async function createChallengeReminderNotification(alarm) {
+
+    const userId =
+        Number(localStorage.getItem("userId")) || 1;
+
+    try {
+
+        await fetch(
+            "http://localhost:5000/api/notifications",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    type: "challenge_reminder",
+                    title: "🧠 Challenge Reminder",
+                    message:
+                        `Complete your ${getChallengeName(alarm.challengeType)} to finish your wake-up verification.`
+                })
+            }
+        );
+
+        console.log(
+            "🔔 Challenge reminder notification created."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Challenge reminder notification error:",
+            error
+        );
+    }
+}
+
+// ==========================================
+// MODULE 11 - PROGRESS NOTIFICATION
+// ==========================================
+
+async function createProgressNotification(progressScore) {
+
+    const userId =
+        Number(localStorage.getItem("userId")) || 1;
+
+    try {
+
+        await fetch(
+            "http://localhost:5000/api/notifications",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify({
+                    user_id: userId,
+                    type: "progress",
+                    title: "📈 Progress Update",
+                    message:
+                        `Great work! Your current cognitive performance score is ${Math.round(progressScore)}%. Keep following your routine to improve further.`
+                })
+            }
+        );
+
+        console.log(
+            "🔔 Progress notification created."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Progress notification error:",
+            error
+        );
+    }
+}
+
+// ==========================================
+// CHECK HABIT SCORE FOR ALERT
+// ==========================================
+
+async function checkHabitAlert() {
+
+    const userId =
+        Number(localStorage.getItem("userId")) || 1;
+
+    try {
+
+        const response = await fetch(
+            `http://localhost:5000/api/habit-score/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error("Failed to load habit score");
+        }
+
+        const habitScore =
+            Number(data.scores?.overallScore) || 0;
+
+        console.log("📊 Habit Score:", habitScore);
+
+        // Create alert when habit score is low
+        if (habitScore < 50) {
+
+            await createHabitAlertNotification();
+
+            console.log(
+                "⚠ Habit Alert triggered because score is below 50."
+            );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "❌ Habit Alert Check Error:",
+            error
+        );
+    }
+}
+
 function checkAlarms() {
 
     const now = new Date();
 
     const currentTime =
         now.toTimeString().slice(0, 5);
+
+    // ==========================================
+// MODULE 11 - CHECK BEDTIME NOTIFICATION
+// ==========================================
+
+alarms.forEach(alarm => {
+
+    if (
+        alarm.enabled &&
+        alarm.bedtime &&
+        alarm.bedtime === currentTime &&
+        alarm.lastBedtimeNotificationDate !== getToday()
+    ) {
+
+        alarm.lastBedtimeNotificationDate = getToday();
+
+        localStorage.setItem(
+            "alarms",
+            JSON.stringify(alarms)
+        );
+
+        createBedtimeNotification(alarm);
+    }
+
+});
 
     alarms.forEach(alarm => {
 
@@ -439,8 +772,30 @@ function showNextAlarm() {
     activeAlarm =
     alarmQueue.shift();
 
+    // ==========================================
+// MODULE 11 - CREATE WAKE-UP NOTIFICATION
+// ==========================================
+
+createWakeupNotification(activeAlarm);
+
+// ==========================================
+// MODULE 11 - CREATE CHALLENGE REMINDER
+// ==========================================
+
+createChallengeReminderNotification(activeAlarm);
+
 // Count the alarm ring
 stats.totalRings++;
+
+// Save daily alarm ring history
+const today = getToday();
+
+if (!stats.dailyRings) {
+    stats.dailyRings = {};
+}
+
+stats.dailyRings[today] =
+    (stats.dailyRings[today] || 0) + 1;
 
 // Record behavioral event
 logBehaviorEvent("alarm_ring", {
@@ -611,15 +966,9 @@ logBehaviorEvent("alarm_dismiss", {
     if(activeAlarm){
         activeAlarm.lastTriggeredDate = getToday();
 
-        if(activeAlarm.type==="One-Time"){
-
-            alarms = alarms.filter(
-
-                alarm=>alarm.id!==activeAlarm.id
-
-            );
-
-        }
+        if (activeAlarm.type === "One-Time") {
+    activeAlarm.enabled = false;
+}
 
         localStorage.setItem(
 
@@ -1576,7 +1925,8 @@ async function savePerformanceToDatabase(performanceRecord) {
                 },
 
                 body: JSON.stringify({
-                    userId: 1,
+                    userId:
+    Number(localStorage.getItem("userId")) || 1,
                     challengeType: performanceRecord.challengeType,
                     difficulty: performanceRecord.difficulty,
                     correct: performanceRecord.correct,
@@ -1629,11 +1979,128 @@ async function loadBehaviorAnalytics() {
         const userId =
             Number(localStorage.getItem("userId")) || 1;
 
+            // ==========================================
+// MODULE 9 — GET SAVED SLEEP SCHEDULE
+// ==========================================
+
+const alarms =
+    JSON.parse(
+        localStorage.getItem("alarms") || "[]"
+    );
+
+const activeAlarm =
+    alarms.find(alarm => alarm.enabled !== false);
+
+const bedtime =
+    activeAlarm?.bedtime || "";
+
+const wakeUpTime =
+    activeAlarm?.time || "";
+
         const response = await fetch(
             `http://localhost:5000/api/challenges/behavior/analytics/${userId}`
         );
 
         const data = await response.json();
+
+
+        // ==========================================
+// MODULE 9 — RECOMMENDATION ENGINE
+// ==========================================
+
+let recommendationData = null;
+
+try {
+
+    const recommendationResponse =
+        await fetch(
+            `http://localhost:5000/api/recommendations/${userId}?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`
+        );
+
+    recommendationData =
+        await recommendationResponse.json();
+
+    console.log(
+        "🤖 Recommendations:",
+        recommendationData
+    );
+
+} catch (error) {
+
+    console.error(
+        "❌ Recommendation Engine Error:",
+        error
+    );
+
+}
+
+// ==========================================
+// DISPLAY MODULE 9 RECOMMENDATIONS
+// ==========================================
+
+if (
+    recommendationData &&
+    recommendationData.success &&
+    recommendationData.recommendations
+) {
+
+    const recommendations =
+        recommendationData.recommendations;
+
+    const container =
+        document.getElementById(
+            "recommendationsContent"
+        );
+
+    if (container) {
+
+        container.innerHTML = `
+
+            <div class="recommendation-item">
+                <span class="recommendation-icon">💤</span>
+                <div>
+                    <strong>Sleep Improvement</strong>
+                    <p>${recommendations.sleep}</p>
+                </div>
+            </div>
+
+            <div class="recommendation-item">
+                <span class="recommendation-icon">⏰</span>
+                <div>
+                    <strong>Wake-up Optimization</strong>
+                    <p>${recommendations.wakeUp}</p>
+                </div>
+            </div>
+
+            <div class="recommendation-item">
+                <span class="recommendation-icon">🎯</span>
+                <div>
+                    <strong>Habit Improvement</strong>
+                    <p>${recommendations.habit}</p>
+                </div>
+            </div>
+
+            <div class="recommendation-item">
+                <span class="recommendation-icon">📈</span>
+                <div>
+                    <strong>Productivity</strong>
+                    <p>${recommendations.productivity}</p>
+                </div>
+            </div>
+
+            <div class="recommendation-item">
+                <span class="recommendation-icon">🧠</span>
+                <div>
+                    <strong>Challenge Recommendation</strong>
+                    <p>${recommendations.challenge}</p>
+                </div>
+            </div>
+
+        `;
+
+    }
+
+}
 
         if (!response.ok || !data.success) {
             throw new Error(
@@ -1704,41 +2171,80 @@ if (alarmSuccessElement) {
         `${alarmSuccess}%`;
 }
 
-        // ==========================================
-        // 4. SLEEP SCHEDULE CONSISTENCY
-        // ==========================================
+    // ==========================================
+// 4. SLEEP SCHEDULE CONSISTENCY
+// ==========================================
 
-        const sleepVariation =
-            Number(
-                data.sleepPatterns.alarmTimeVariationMinutes
-            ) || 0;
+const sleepVariation =
+    Number(
+        data.sleepPatterns.alarmTimeVariationMinutes
+    );
 
-        let sleepConsistency = 0;
+const recordedDays =
+    Number(
+        data.sleepPatterns.recordedDays
+    ) || 0;
 
-        if (
-            data.sleepPatterns.recordedDays > 0
-        ) {
+let sleepConsistency = 0;
 
-            /*
-             * Lower variation = better consistency.
-             * 0 minutes variation = 100%.
-             */
+if (recordedDays === 1) {
 
-            sleepConsistency = Math.max(
-                0,
-                Math.min(
-                    100,
-                    100 - sleepVariation
-                )
-            );
-        }
+    // With only one recorded day,
+    // consistency cannot be meaningfully compared.
+    // Show 100% provisionally.
+    sleepConsistency = 100;
 
-        document.getElementById(
-            "sleepPrediction"
-        ).innerText =
-            `${Math.round(sleepConsistency)}%`;
+} else if (
+    recordedDays > 1 &&
+    Number.isFinite(sleepVariation)
+) {
 
+    /*
+     * Convert alarm-time variation into
+     * a consistency score.
+     *
+     * 0 min variation  -> 100%
+     * 30 min variation -> 90%
+     * 60 min variation -> 80%
+     * 120 min variation -> 60%
+     * 180+ min          -> 40% or lower
+     */
 
+    sleepConsistency =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                100 - (sleepVariation / 3)
+            )
+        );
+
+} else {
+
+    sleepConsistency = 0;
+}
+
+const sleepElement =
+    document.getElementById(
+        "sleepPrediction"
+    );
+
+if (sleepElement) {
+
+    sleepElement.innerText =
+        `${Math.round(sleepConsistency)}%`;
+}
+
+console.log(
+    "😴 Sleep Schedule Consistency:",
+    sleepConsistency,
+    "%",
+    "Variation:",
+    sleepVariation,
+    "minutes",
+    "Recorded Days:",
+    recordedDays
+);
         // ==========================================
         // 5. COGNITIVE PERFORMANCE
         // ==========================================
@@ -1748,10 +2254,49 @@ if (alarmSuccessElement) {
                 data.challengePerformance.averageScore
             ) || 0;
 
+        // ==========================================
+// MODULE 11 - PROGRESS NOTIFICATION
+// ==========================================
+
+const previousProgress =
+    Number(localStorage.getItem("previousProgressScore"));
+
+if (
+    previousProgress > 0 &&
+    cognitivePerformance > previousProgress
+) {
+
+    await createProgressNotification(
+        cognitivePerformance
+    );
+
+    console.log(
+        "📈 Progress notification triggered."
+    );
+}
+
+localStorage.setItem(
+    "previousProgressScore",
+    cognitivePerformance
+);
+
         document.getElementById(
             "productivityScore"
         ).innerText =
             `${Math.round(cognitivePerformance)}%`;
+
+
+// ==========================================
+// UPDATE PRODUCTIVITY KPI
+// ==========================================
+
+const productivityKpi =
+    document.getElementById("productivityKpi");
+
+if (productivityKpi) {
+    productivityKpi.innerText =
+        `${Math.round(cognitivePerformance)}%`;
+}
 
 
         console.log("✅ AI Analytics updated successfully.");
@@ -1771,9 +2316,7 @@ if (alarmSuccessElement) {
 // =====================================================
 
 async function loadSnoozePatternChart() {
-
     try {
-
         const userId =
             Number(localStorage.getItem("userId")) || 1;
 
@@ -1783,167 +2326,92 @@ async function loadSnoozePatternChart() {
 
         const data = await response.json();
 
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.message ||
-                "Failed to load snooze history."
-            );
+        if (!data.success) {
+            throw new Error("Failed to load snooze history");
         }
-
 
         const history = data.history || [];
 
+        const labels = history.map(item => item.date);
 
-        // ---------------------------------------------
-        // Prepare chart data
-        // ---------------------------------------------
-
-        const labels = history.map(
-            item => item.date
+        const snoozeData = history.map(item =>
+            Number(item.snoozes) || 0
         );
-
-        const snoozeData = history.map(
-            item => Number(item.snoozes) || 0
-        );
-
-
-        // ---------------------------------------------
-        // Find chart canvas
-        // ---------------------------------------------
 
         const canvas =
-            document.getElementById(
-                "snoozePatternChart"
-            );
+            document.getElementById("snoozePatternChart");
 
-        if (!canvas) {
-            console.error(
-                "❌ snoozePatternChart canvas not found."
-            );
-            return;
-        }
-
-
-        // ---------------------------------------------
-        // Create chart
-        // ---------------------------------------------
+        if (!canvas) return;
 
         new Chart(canvas, {
-
             type: "line",
 
             data: {
-
                 labels: labels,
 
-                datasets: [
-
-                    {
-                        label: "Snoozes",
-
-                        data: snoozeData,
-
-                        tension: 0.3,
-
-                        fill: false,
-                        borderWidth: 3,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-
-                    }
-
-                ]
-
+                datasets: [{
+                    label: "Number of Snoozes",
+                    data: snoozeData,
+                    borderWidth: 4,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    tension: 0.3
+                }]
             },
 
             options: {
-
                 responsive: true,
-
                 maintainAspectRatio: false,
 
                 scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Date"
+                        }
+                    },
 
                     y: {
-
                         beginAtZero: true,
-
                         ticks: {
-
                             stepSize: 1
-
                         },
 
                         title: {
-
                             display: true,
-
-                            text: "Number of Snoozes"
-
+                            text: "Snooze Count"
                         }
-
-                    },
-
-                    x: {
-
-                        title: {
-
-                            display: true,
-
-                            text: "Date"
-
-                        }
-
                     }
-
                 },
 
                 plugins: {
-
                     legend: {
-
                         display: true
-
                     },
 
                     tooltip: {
-
                         callbacks: {
-
                             label: function(context) {
-
-                                return (
-                                    " Snoozes: " +
-                                    context.parsed.y
-                                );
-
+                                return " Snoozes: " +
+                                    context.parsed.y;
                             }
-
                         }
-
                     }
-
                 }
-
             }
-
         });
 
-
         console.log(
-            "✅ Snooze Pattern Chart loaded."
+            "✅ Snooze Pattern Chart loaded:",
+            snoozeData
         );
 
-    }
-    catch (error) {
-
+    } catch (error) {
         console.error(
-            "❌ Snooze Pattern Chart Error:",
+            "❌ Snooze Pattern Error:",
             error
         );
-
     }
-
 }
 async function loadWakeUpBehaviorChart() {
     try {
@@ -1956,15 +2424,13 @@ async function loadWakeUpBehaviorChart() {
 
         const data = await response.json();
 
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.message ||
-                "Failed to load wake-up history."
-            );
+        if (!data.success) {
+            throw new Error("Failed to load wake-up history");
         }
 
-        // Only use dates where wake-up data actually exists
-        const validHistory = (data.history || []).filter(
+        const history = data.history || [];
+
+        const validHistory = history.filter(
             item =>
                 item.wakeUpSuccess !== null &&
                 item.wakeUpSuccess !== undefined
@@ -1979,113 +2445,79 @@ async function loadWakeUpBehaviorChart() {
         );
 
         const canvas =
-            document.getElementById(
-                "wakeUpBehaviorChart"
-            );
+            document.getElementById("wakeUpBehaviorChart");
 
-        if (!canvas) {
-            console.error(
-                "❌ wakeUpBehaviorChart canvas not found."
-            );
-            return;
-        }
+        if (!canvas) return;
 
-        // Destroy previous chart if it already exists
-        if (window.wakeUpBehaviorChartInstance) {
-            window.wakeUpBehaviorChartInstance.destroy();
-        }
+        new Chart(canvas, {
+            type: "line",
 
-        window.wakeUpBehaviorChartInstance =
-            new Chart(canvas, {
-                type: "line",
+            data: {
+                labels: labels,
 
-                data: {
-                    labels: labels,
+                datasets: [{
+                    label: "Wake-up Success (%)",
+                    data: wakeUpData,
+                    borderWidth: 4,
+                    pointRadius: 8,
+                    pointHoverRadius: 10,
+                    tension: 0.3
+                }]
+            },
 
-                    datasets: [
-                        {
-                            
-    label: "Wake-up Success %",
-    data: wakeUpData,
-    tension: 0.3,
-    fill: false,
-    borderWidth: 3,
-    pointRadius: 5,
-    pointHoverRadius: 7
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
 
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: "Date"
                         }
-                    ]
+                    },
+
+                    y: {
+                        min: 0,
+                        max: 100,
+
+                        ticks: {
+                            stepSize: 10
+                        },
+
+                        title: {
+                            display: true,
+                            text: "Wake-up Success (%)"
+                        }
+                    }
                 },
 
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-
-                    layout: {
-                        padding: {
-                            top: 20,
-                            right: 20,
-                            bottom: 10,
-                            left: 10
-                        }
+                plugins: {
+                    legend: {
+                        display: true
                     },
 
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            min: 0,
-                            max: 100,
-
-                            ticks: {
-                                stepSize: 10,
-
-                                callback: function(value) {
-                                    return value + "%";
-                                }
-                            },
-
-                            title: {
-                                display: true,
-                                text: "Wake-up Success"
-                            }
-                        },
-
-                        x: {
-                            title: {
-                                display: true,
-                                text: "Date"
-                            }
-                        }
-                    },
-
-                    plugins: {
-                        legend: {
-                            display: true
-                        },
-
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return (
-                                        " Wake-up Success: " +
-                                        context.parsed.y +
-                                        "%"
-                                    );
-                                }
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return " Wake-up Success: " +
+                                    context.parsed.y +
+                                    "%";
                             }
                         }
                     }
                 }
-            });
+            }
+        });
 
         console.log(
-            "✅ Wake-up Behavior Chart loaded:",
-            validHistory
+            "✅ Wake-up Chart loaded:",
+            wakeUpData
         );
 
     } catch (error) {
         console.error(
-            "❌ Wake-up Behavior Chart Error:",
+            "❌ Wake-up Chart Error:",
             error
         );
     }
@@ -2232,45 +2664,32 @@ async function loadSleepScheduleChart() {
 
         const data = await response.json();
 
-        if (!response.ok || !data.success) {
+        if (!data.success) {
             throw new Error(
-                data.message ||
-                "Failed to load sleep schedule history."
+                "Failed to load sleep schedule history"
             );
         }
 
         const history = data.history || [];
 
-        const labels = history.map(
+        const validHistory = history.filter(
+            item =>
+                item.averageAlarmMinutes !== null &&
+                item.averageAlarmMinutes !== undefined
+        );
+
+        const labels = validHistory.map(
             item => item.date
         );
 
-        const alarmTimeData = history.map(
-            item => {
-                if (
-                    item.averageAlarmMinutes === null ||
-                    item.averageAlarmMinutes === undefined
-                ) {
-                    return null;
-                }
-
-                return Number(
-                    item.averageAlarmMinutes
-                );
-            }
+        const alarmData = validHistory.map(
+            item => Number(item.averageAlarmMinutes)
         );
 
         const canvas =
-            document.getElementById(
-                "sleepScheduleChart"
-            );
+            document.getElementById("sleepScheduleChart");
 
-        if (!canvas) {
-            console.error(
-                "❌ sleepScheduleChart canvas not found."
-            );
-            return;
-        }
+        if (!canvas) return;
 
         new Chart(canvas, {
             type: "line",
@@ -2278,17 +2697,14 @@ async function loadSleepScheduleChart() {
             data: {
                 labels: labels,
 
-                datasets: [
-                    {
-                        label: "Average Alarm Time",
-                        data: alarmTimeData,
-                        tension: 0.3,
-                        fill: false,
-                        borderWidth: 3,
-                        pointRadius: 5,
-                        pointHoverRadius: 7
-                    }
-                ]
+                datasets: [{
+                    label: "Average Alarm Time",
+                    data: alarmData,
+                    borderWidth: 4,
+                    pointRadius: 8,
+                    pointHoverRadius: 10,
+                    tension: 0.3
+                }]
             },
 
             options: {
@@ -2296,19 +2712,41 @@ async function loadSleepScheduleChart() {
                 maintainAspectRatio: false,
 
                 scales: {
-                    y: {
-                        beginAtZero: false,
-
-                        title: {
-                            display: true,
-                            text: "Alarm Time (Minutes)"
-                        }
-                    },
-
                     x: {
                         title: {
                             display: true,
                             text: "Date"
+                        }
+                    },
+
+                    y: {
+                        min: 0,
+                        max: 1440,
+
+                        ticks: {
+                            stepSize: 120,
+
+                            callback: function(value) {
+
+                                const hours =
+                                    Math.floor(value / 60);
+
+                                const minutes =
+                                    value % 60;
+
+                                return (
+                                    String(hours)
+                                        .padStart(2, "0") +
+                                    ":" +
+                                    String(minutes)
+                                        .padStart(2, "0")
+                                );
+                            }
+                        },
+
+                        title: {
+                            display: true,
+                            text: "Average Alarm Time"
                         }
                     }
                 },
@@ -2335,14 +2773,13 @@ async function loadSleepScheduleChart() {
                                 const minutes =
                                     totalMinutes % 60;
 
-                                const formattedTime =
-                                    String(hours).padStart(2, "0") +
-                                    ":" +
-                                    String(minutes).padStart(2, "0");
-
                                 return (
                                     " Alarm Time: " +
-                                    formattedTime
+                                    String(hours)
+                                        .padStart(2, "0") +
+                                    ":" +
+                                    String(minutes)
+                                        .padStart(2, "0")
                                 );
                             }
                         }
@@ -2352,18 +2789,17 @@ async function loadSleepScheduleChart() {
         });
 
         console.log(
-            "✅ Sleep Schedule Chart loaded."
+            "✅ Sleep Schedule Chart loaded:",
+            alarmData
         );
 
     } catch (error) {
-
         console.error(
-            "❌ Sleep Schedule Chart Error:",
+            "❌ Sleep Schedule Error:",
             error
         );
     }
 }
-
 async function loadProductivityCorrelationChart() {
     try {
         const userId =
@@ -2375,10 +2811,9 @@ async function loadProductivityCorrelationChart() {
 
         const data = await response.json();
 
-        if (!response.ok || !data.success) {
+        if (!data.success) {
             throw new Error(
-                data.message ||
-                "Failed to load productivity history."
+                "Failed to load productivity data"
             );
         }
 
@@ -2386,14 +2821,13 @@ async function loadProductivityCorrelationChart() {
 
         const correlationData = history
             .filter(item =>
-                Number(item.snoozes) >= 0 &&
-                item.averageScore !== null &&
-                item.averageScore !== undefined
+                item.totalChallenges > 0 &&
+                item.snoozes !== null &&
+                item.averageScore !== null
             )
             .map(item => ({
-                x: Number(item.snoozes) || 0,
-                y: Number(item.averageScore) || 0,
-                date: item.date
+                x: Number(item.snoozes),
+                y: Number(item.averageScore)
             }));
 
         const canvas =
@@ -2401,25 +2835,18 @@ async function loadProductivityCorrelationChart() {
                 "productivityCorrelationChart"
             );
 
-        if (!canvas) {
-            console.error(
-                "❌ productivityCorrelationChart canvas not found."
-            );
-            return;
-        }
+        if (!canvas) return;
 
         new Chart(canvas, {
             type: "scatter",
 
             data: {
-                datasets: [
-                    {
-                        label: "Cognitive Performance",
-                        data: correlationData,
-                        pointRadius: 7,
-                        pointHoverRadius: 9
-                    }
-                ]
+                datasets: [{
+                    label: "Cognitive Performance",
+                    data: correlationData,
+                    pointRadius: 8,
+                    pointHoverRadius: 10
+                }]
             },
 
             options: {
@@ -2430,13 +2857,13 @@ async function loadProductivityCorrelationChart() {
                     x: {
                         beginAtZero: true,
 
+                        ticks: {
+                            stepSize: 1
+                        },
+
                         title: {
                             display: true,
                             text: "Number of Snoozes"
-                        },
-
-                        ticks: {
-                            stepSize: 1
                         }
                     },
 
@@ -2446,7 +2873,7 @@ async function loadProductivityCorrelationChart() {
 
                         title: {
                             display: true,
-                            text: "Average Cognitive Score"
+                            text: "Average Cognitive Score (%)"
                         }
                     }
                 },
@@ -2460,18 +2887,13 @@ async function loadProductivityCorrelationChart() {
                         callbacks: {
                             label: function(context) {
 
-                                const point =
-                                    context.raw;
-
                                 return [
                                     " Snoozes: " +
-                                    point.x,
+                                    context.parsed.x,
 
                                     " Cognitive Score: " +
-                                    point.y,
-
-                                    " Date: " +
-                                    point.date
+                                    context.parsed.y +
+                                    "%"
                                 ];
                             }
                         }
@@ -2481,18 +2903,17 @@ async function loadProductivityCorrelationChart() {
         });
 
         console.log(
-            "✅ Productivity Correlation Chart loaded."
+            "Productivity correlation points:",
+            correlationData
         );
 
     } catch (error) {
-
         console.error(
-            "❌ Productivity Correlation Chart Error:",
+            "❌ Productivity Correlation Error:",
             error
         );
     }
 }
-
 // =====================================================
 // BEHAVIORAL ANALYTICS EVENT LOGGER
 // =====================================================
@@ -3051,7 +3472,36 @@ logBehaviorEvent("wake_verified", {
     // ------------------------------------------
     // Final verification information
     // ------------------------------------------
+// ==========================================
+// SAVE COGNITIVE PERFORMANCE TO POSTGRESQL
+// ==========================================
 
+const verificationPerformance = {
+    challengeType: currentChallengeType,
+    difficulty: currentDifficulty,
+    correct: true,
+    timeTaken: verificationTime,
+    attempts: wakeUpVerification.totalQuestions,
+    completionStatus: "completed",
+    score: accuracy,
+    timestamp: new Date().toISOString()
+};
+
+challengeHistory.push(verificationPerformance);
+
+localStorage.setItem(
+    "challengeHistory",
+    JSON.stringify(challengeHistory)
+);
+
+savePerformanceToDatabase(
+    verificationPerformance
+);
+
+console.log(
+    "📊 Cognitive performance saved:",
+    verificationPerformance
+);
     console.log(
         "🎉 WAKE-UP VERIFICATION PASSED"
     );
@@ -3195,11 +3645,54 @@ logBehaviorEvent("wake_verified", {
     // STOP ALARM
     // ==========================================
 
-    setTimeout(() => {
+    // ==========================================
+// VERIFICATION PASSED
+// ALLOW SNOOZE / DISMISS
+// ==========================================
 
-        dismissAlarm();
+const snoozeBtn =
+    document.getElementById("snoozeBtn");
 
-    }, 1000);
+const dismissBtn =
+    document.getElementById("dismissBtn");
+
+const submitAnswerBtn =
+    document.getElementById("submitAnswerBtn");
+
+// Challenge is finished
+if (submitAnswerBtn) {
+    submitAnswerBtn.disabled = true;
+}
+
+// Enable Snooze
+if (snoozeBtn) {
+    snoozeBtn.disabled = false;
+    snoozeBtn.style.display = "block";
+}
+
+// Enable Dismiss
+if (dismissBtn) {
+    dismissBtn.disabled = false;
+    dismissBtn.style.display = "block";
+}
+
+// Update success message
+if (result) {
+
+    result.innerText =
+        "🎉 Wake-up verification successful!\n" +
+        "You can now Snooze or Dismiss the alarm.";
+
+    result.style.display = "block";
+}
+
+console.log(
+    "✅ Verification complete."
+);
+
+console.log(
+    "😴 Snooze is now available."
+);
 
 }
     // Normalize answers
@@ -3484,49 +3977,68 @@ function updateDashboardStats(){
     const noSnooze =
         document.getElementById("noSnooze");
 
-    if (todayAlarms) {
+
+// ==========================================
+// TODAY'S ALARM
+// ==========================================
+
+if (todayAlarms) {
 
     const today = getToday();
 
-    const todayTriggeredAlarms = alarms.filter(
-        alarm => alarm.lastTriggeredDate === today
-    ).length;
+    const todayAlarmCount =
+        stats.dailyRings?.[today] || 0;
 
-    todayAlarms.innerText = todayTriggeredAlarms;
+    todayAlarms.innerText =
+        todayAlarmCount;
 }
 
+    // ==========================================
+    // WAKE ACCURACY
+    // ==========================================
 
-    if(wakeAccuracy){
+    if (wakeAccuracy){
 
         let accuracy = 0;
 
         if(stats.totalRings > 0){
 
             accuracy = Math.round(
-
-                (stats.successfulWakeups / stats.totalRings) * 100
-
+                (stats.successfulWakeups /
+                stats.totalRings) * 100
             );
-
         }
 
-        wakeAccuracy.innerText = accuracy + "%";
-
+        wakeAccuracy.innerText =
+            accuracy + "%";
     }
+
+
+    // ==========================================
+    // SUCCESSFUL WAKE-UPS
+    // ==========================================
 
     if(alarmSuccess){
 
-        alarmSuccess.innerText = stats.successfulWakeups;
-
+        alarmSuccess.innerText =
+            stats.successfulWakeups;
     }
+
+
+    // ==========================================
+    // NO SNOOZE STREAK
+    // ==========================================
 
     if(noSnooze){
 
-        noSnooze.innerText = stats.noSnoozeStreak;
-
+        noSnooze.innerText =
+            stats.noSnoozeStreak;
     }
 
 }
+
+// Load dashboard stats on page refresh
+updateDashboardStats();
 
 function updateCurrentDate() {
 
@@ -4070,6 +4582,14 @@ function startWakeUpVerification() {
 
     };
 
+    // Enable Submit Answer for the new alarm
+const submitAnswerBtn =
+    document.getElementById("submitAnswerBtn");
+
+if (submitAnswerBtn) {
+    submitAnswerBtn.disabled = false;
+}
+
     console.log(
         "🧠 Wake-up verification started"
     );
@@ -4398,14 +4918,523 @@ function getVerificationAccuracy() {
     );
 }
 
+// =====================================================
+//                 LOAD HABIT SCORE
+// =====================================================
+
+async function loadHabitScore() {
+
+    try {
+
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+        const response = await fetch(
+            `http://localhost:5000/api/habit-score/${userId}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.message ||
+                "Failed to load habit score."
+            );
+        }
+
+        console.log(
+            "🏆 Habit Score:",
+            data
+        );
+
+// =====================================================
+// UPDATE HABIT SCORE VISUALIZATION
+// =====================================================
+
+const scores = data.scores;
+
+
+// Overall score
+
+const habitScore =
+    Number(data.habitScore) || 0;
+
+const scoreCircle =
+    document.getElementById("habitScoreCircle");
+
+if (scoreCircle) {
+
+    scoreCircle.style.setProperty(
+        "--habit-score",
+        habitScore
+    );
+
+}
+
+
+// Helper function for progress bars
+
+function updateHabitBar(
+    value,
+    barId
+) {
+
+    const bar =
+        document.getElementById(barId);
+
+    if (!bar) return;
+
+    const percentage =
+        Math.max(
+            0,
+            Math.min(
+                100,
+                Number(value) || 0
+            )
+        );
+
+    bar.style.width =
+        `${percentage}%`;
+}
+
+
+// Individual metric bars
+
+updateHabitBar(
+    scores.wakeUpConsistency,
+    "habitWakeBar"
+);
+
+updateHabitBar(
+    scores.challengeCompletion,
+    "habitChallengeBar"
+);
+
+updateHabitBar(
+    scores.snoozeReduction,
+    "habitSnoozeBar"
+);
+
+updateHabitBar(
+    scores.sleepAdherence,
+    "habitSleepBar"
+);
+
+updateHabitBar(
+    scores.productivityScore,
+    "habitProductivityBar"
+);
+
+
+// Habit score message
+
+const message =
+    document.getElementById(
+        "habitScoreMessage"
+    );
+
+if (message) {
+
+    if (habitScore >= 90) {
+
+        message.innerText =
+            "Excellent! Your habits are highly consistent.";
+
+    } else if (habitScore >= 75) {
+
+        message.innerText =
+            "Great progress! Keep maintaining your routine.";
+
+    } else if (habitScore >= 60) {
+
+        message.innerText =
+            "You're making progress. Try to improve consistency.";
+
+    } else {
+
+        message.innerText =
+            "Focus on building stronger daily habits.";
+
+    }
+
+}
+        // Main Habit Score
+
+        document.getElementById(
+            "habitScoreValue"
+        ).innerText =
+            Number(data.habitScore).toFixed(2);
+
+
+        // Rating
+
+        document.getElementById(
+            "habitScoreRating"
+        ).innerText =
+            data.rating;
+
+
+        // Individual scores
+
+        document.getElementById(
+            "habitWakeScore"
+        ).innerText =
+            `${data.scores.wakeUpConsistency}%`;
+
+
+        document.getElementById(
+            "habitChallengeScore"
+        ).innerText =
+            `${data.scores.challengeCompletion}%`;
+
+
+        document.getElementById(
+            "habitSnoozeScore"
+        ).innerText =
+            `${data.scores.snoozeReduction}%`;
+
+
+        document.getElementById(
+            "habitSleepScore"
+        ).innerText =
+            `${data.scores.sleepAdherence}%`;
+
+
+        document.getElementById(
+            "habitProductivityScore"
+        ).innerText =
+            `${data.scores.productivityScore}%`;
+
+
+        console.log(
+            "✅ Habit Score dashboard updated."
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Habit Score Load Error:",
+            error
+        );
+
+    }
+}
+
+// =====================================================
+// MODULE 8 - HABIT SCORE HISTORY CHART
+// =====================================================
+
+async function loadHabitScoreHistoryChart() {
+
+    try {
+
+        const userId =
+            Number(localStorage.getItem("userId")) || 1;
+
+
+        const response = await fetch(
+            `http://localhost:5000/api/challenges/behavior/history/${userId}`
+        );
+
+
+        const data = await response.json();
+
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.message ||
+                "Failed to load habit score history."
+            );
+
+        }
+
+
+        const history =
+            data.history || [];
+
+
+        if (history.length === 0) {
+
+            console.log(
+                "ℹ️ No habit history available."
+            );
+
+            return;
+
+        }
+
+
+        // =================================================
+        // CALCULATE DAILY HABIT SCORES
+        // =================================================
+
+        const labels = [];
+
+        const habitScoreData = [];
+
+
+        history.forEach(item => {
+
+            const wakeScore =
+                item.wakeUpSuccess !== null
+                    ? Number(item.wakeUpSuccess)
+                    : 0;
+
+
+            const challengeScore =
+                item.challengeAccuracy !== null
+                    ? Number(item.challengeAccuracy)
+                    : 0;
+
+
+            // Snooze score
+            //
+            // 0 snoozes = 100
+            // 1 snooze  = 90
+            // 2 snoozes = 80
+            // etc.
+
+            const snoozeCount =
+                Number(item.snoozes) || 0;
+
+
+            const snoozeScore =
+                Math.max(
+                    0,
+                    Math.min(
+                        100,
+                        100 - (snoozeCount * 10)
+                    )
+                );
+
+
+            // Sleep adherence
+            //
+            // A successful wake-up means
+            // the day's routine was followed.
+
+            const sleepScore =
+                item.wakeUpSuccess !== null
+                    ? Number(item.wakeUpSuccess)
+                    : 0;
+
+
+            // =============================================
+            // WEIGHTED HABIT SCORE
+            // =============================================
+
+            const dailyHabitScore =
+
+                (wakeScore * 0.35) +
+
+                (challengeScore * 0.25) +
+
+                (snoozeScore * 0.20) +
+
+                (sleepScore * 0.20);
+
+
+            labels.push(item.date);
+
+
+            habitScoreData.push(
+                Number(
+                    dailyHabitScore.toFixed(2)
+                )
+            );
+
+        });
+
+
+        // =================================================
+        // CREATE GRAPH
+        // =================================================
+
+        const canvas =
+            document.getElementById(
+                "habitScoreHistoryChart"
+            );
+
+
+        if (!canvas) {
+
+            console.error(
+                "❌ Habit Score History canvas not found."
+            );
+
+            return;
+
+        }
+
+
+        new Chart(canvas, {
+
+            type: "line",
+
+
+            data: {
+
+                labels: labels,
+
+                datasets: [
+
+                    {
+
+                        label: "Habit Score",
+
+                        data: habitScoreData,
+
+                        borderWidth: 4,
+
+                        pointRadius: 6,
+
+                        pointHoverRadius: 9,
+
+                        tension: 0.3,
+
+                        fill: false
+
+                    }
+
+                ]
+
+            },
+
+
+            options: {
+
+                responsive: true,
+
+                maintainAspectRatio: false,
+
+
+                scales: {
+
+                    y: {
+
+                        min: 0,
+
+                        max: 100,
+
+                        ticks: {
+
+                            stepSize: 10
+
+                        },
+
+                        title: {
+
+                            display: true,
+
+                            text: "Habit Score (%)"
+
+                        }
+
+                    },
+
+
+                    x: {
+
+                        title: {
+
+                            display: true,
+
+                            text: "Date"
+
+                        }
+
+                    }
+
+                },
+
+
+                plugins: {
+
+                    legend: {
+
+                        display: true
+
+                    },
+
+
+                    tooltip: {
+
+                        callbacks: {
+
+                            label: function(context) {
+
+                                return (
+                                    " Habit Score: " +
+                                    context.parsed.y +
+                                    "%"
+                                );
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+        });
+
+
+        console.log(
+            "✅ Habit Score History loaded:",
+            habitScoreData
+        );
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "❌ Habit Score History Error:",
+            error
+        );
+
+    }
+
+}
+
+// ==========================================
+// MODULE 11 - CHECK HABIT ALERT
+// ==========================================
+
+const habitAlertDate =
+    localStorage.getItem("habitAlertDate");
+
+const todayHabitAlert =
+    new Date().toISOString().split("T")[0];
+
+if (habitAlertDate !== todayHabitAlert) {
+
+    checkHabitAlert();
+
+    localStorage.setItem(
+        "habitAlertDate",
+        todayHabitAlert
+    );
+}
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
         loadBehaviorAnalytics();
+        loadHabitScore();
+        loadHabitScoreHistoryChart();
         loadSnoozePatternChart();
         loadWakeUpBehaviorChart();
         loadChallengePerformanceChart();
         loadSleepScheduleChart();
         loadProductivityCorrelationChart();
+        loadAnalytics();
     }
 );

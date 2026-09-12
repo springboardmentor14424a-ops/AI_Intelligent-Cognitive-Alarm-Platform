@@ -21,7 +21,14 @@ const login = async (req, res) => {
 
         const user = result.rows[0];
 
+// Check if account is blocked
+if (user.status === "blocked") {
+    return res.status(403).json({
+        message: "Your account has been blocked by the administrator."
+    });
+}
         console.log("User found:", user.email);
+
         console.log("Stored hash:", user.password_hash);
 
         // Compare password
@@ -51,10 +58,11 @@ const login = async (req, res) => {
         );
 
         res.json({
-            message: "Login Successful",
-            token,
-            role: user.role
-        });
+    message: "Login successful",
+    token,
+    role: user.role,
+    userId: user.id
+});
 
     } catch (err) {
 

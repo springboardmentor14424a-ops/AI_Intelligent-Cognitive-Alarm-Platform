@@ -1,0 +1,19 @@
+$kind: http-request
+name: http://localhost:5000/api/notifications
+description: ""
+url: http://localhost:5000/api/notifications
+method: POST
+body:
+  type: json
+  content: "{\r
+
+    \    \"user_id\": 1,\r
+
+    \    \"type\": \"bedtime\",\r
+
+    \    \"title\": \"Bedtime Reminder\",\r
+
+    \    \"message\": \"It's almost time to sleep. Get ready for a healthy night's rest.\"\r
+
+    }"
+order: 3310681504671773

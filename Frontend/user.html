@@ -15,6 +15,52 @@ href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<style>
+/* ================= NOTIFICATION PANEL ================= */
+
+.notification-panel {
+    position: fixed;
+    top: 70px;
+    right: 25px;
+    width: 350px;
+    max-height: 450px;
+    overflow-y: auto;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    z-index: 9999;
+    padding: 15px;
+}
+
+.notification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.notification-header h3 {
+    margin: 0;
+}
+
+.notification-header button {
+    border: none;
+    background: transparent;
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.notification-item {
+    border-radius: 8px;
+    padding: 12px !important;
+    transition: background 0.2s;
+}
+
+.notification-item:hover {
+    background: #f3f4ff;
+}
+</style>
+
 </head>
     
 <body>
@@ -35,15 +81,32 @@ SIDEBAR
 
     <ul>
 
-        <li class="active">
+        <!-- ======================================
+     DASHBOARD SWITCHER
+====================================== -->
 
-            <i class="fa-solid fa-house"></i>
+<li id="adminDashboardLink" style="display:none;">
+    <a href="admin.html">
+        <i class="fa-solid fa-user-shield"></i>
+        Admin Dashboard
+    </a>
+</li>
 
-            Dashboard
+<li id="coachDashboardLink" style="display:none;">
+    <a href="coach.html">
+        <i class="fa-solid fa-user-doctor"></i>
+        Coach Dashboard
+    </a>
+</li>
 
-        </li>
+<li class="active">
+    <i class="fa-solid fa-house"></i>
+    User Dashboard
+</li>
 
-        <li>
+        
+
+       <li id="alarmNav">
 
             <i class="fa-solid fa-clock"></i>
 
@@ -51,7 +114,7 @@ SIDEBAR
 
         </li>
 
-        <li>
+        <li id="wellnessNav">
 
             <i class="fa-solid fa-heart-pulse"></i>
 
@@ -67,29 +130,18 @@ SIDEBAR
 
 </li>
 
+<li>
+    <a href="#" id="profileNav">
+        <i class="fa-solid fa-user"></i>
+        <span>Profile</span>
+    </a>
+</li>
         <li>
-
-            <i class="fa-solid fa-robot"></i>
-
-            AI Assistant
-
-        </li>
-
-        <li>
-
-            <i class="fa-solid fa-user"></i>
-
-            Profile
-
-        </li>
-
-        <li>
-
-            <i class="fa-solid fa-gear"></i>
-
-            Settings
-
-        </li>
+    <a href="#" id="settingsNav">
+        <i class="fa-solid fa-gear"></i>
+        <span>Settings</span>
+    </a>
+</li>
 
         <li onclick="logout()" style="cursor: pointer;">
     <i class="fa-solid fa-right-from-bracket"></i>
@@ -126,16 +178,41 @@ Good Evening, Narasimha 👋
 <div class="top-actions">
 
 <input
-type="text"
-placeholder="Search dashboard...">
+    type="text"
+    id="dashboardSearch"
+    placeholder="Search dashboard..."
+    autocomplete="off"
+>
 
-<i class="fa-regular fa-bell"></i>
+<span style="position:relative;">
+    <i
+        class="fa-regular fa-bell"
+        id="notificationBell"
+        style="cursor:pointer;"
+        title="Notifications">
+    </i>
 
+    <span
+        id="notificationBadge"
+        style="
+            display:none;
+            position:absolute;
+            top:-8px;
+            right:-10px;
+            min-width:18px;
+            height:18px;
+            padding:0 4px;
+            border-radius:10px;
+            background:#ef4444;
+            color:white;
+            font-size:11px;
+            font-weight:bold;
+            text-align:center;
+            line-height:18px;
+        ">
+    </span>
+</span>
 <i class="fa-solid fa-moon"></i>
-
-<img
-src="https://i.pravatar.cc/55"
-alt="profile">
 
 </div>
 
@@ -260,10 +337,8 @@ Productivity
 
 </h4>
 
-<h2>
-
-83%
-
+<h2 id="productivityKpi">
+    0%
 </h2>
 
 </div>
@@ -277,15 +352,32 @@ GRID STARTS
 <div class="dashboard-grid">
     
 
-<div class="box">
+<div class="alarm-manager-box" id="alarmSection">
 
     <h3>🔔 Alarm Manager</h3>
 
     <button id="addAlarmBtn">+ Add Alarm</button>
 
+    <div class="alarm-history">
+
+    <h3>📋 Alarm History</h3>
+
+    <div id="alarmHistoryList">
+        <p>No alarm history available.</p>
+    </div>
+
+</div>
+
     <div id="alarmForm" class="alarm-form" style="display:none;">
 
         <input type="time" id="alarmTime">
+
+        <label>Preferred Bedtime</label>
+
+<input
+    type="time"
+    id="bedtime"
+>
 
         <input
             type="text"
@@ -364,461 +456,6 @@ GRID STARTS
 
 </div>
 
-<!-- ======================================
-AI ASSISTANT
-====================================== -->
-
-<div class="box">
-
-<h3>
-
-🤖 AI Assistant
-
-</h3>
-
-<div class="assistant-card">
-
-<div class="assistant-icon">
-
-<i class="fa-solid fa-robot"></i>
-
-</div>
-
-<div>
-
-<h4>
-
-Good Morning!
-
-</h4>
-
-<p>
-
-Your sleep quality improved by
-
-<strong>
-
-6%
-
-</strong>
-
-compared to yesterday.
-
-</p>
-
-</div>
-
-</div>
-
-<div class="recommendations">
-
-<p>✔ Sleep before <strong>10:30 PM</strong></p>
-
-<p>✔ Drink <strong>2 more glasses</strong> of water</p>
-
-<p>✔ Complete <strong>8000 steps</strong></p>
-
-<p>✔ Meditation recommended today</p>
-
-</div>
-
-</div>
-
-<!-- ======================================
-HEALTH & WELLNESS
-====================================== -->
-
-<div class="box">
-
-<h3>
-
-❤️ Health & Wellness
-
-</h3>
-
-<div class="progress">
-
-<div class="progress-title">
-
-<span>
-
-Sleep Quality
-
-</span>
-
-<span>
-
-82%
-
-</span>
-
-</div>
-
-<div class="progress-bar">
-
-<div
-class="progress-fill"
-style="width:82%;">
-
-</div>
-
-</div>
-
-</div>
-
-<div class="progress">
-
-<div class="progress-title">
-
-<span>
-
-Hydration
-
-</span>
-
-<span>
-
-75%
-
-</span>
-
-</div>
-
-<div class="progress-bar">
-
-<div
-class="progress-fill"
-style="width:75%;">
-
-</div>
-
-</div>
-
-</div>
-
-<div class="progress">
-
-<div class="progress-title">
-
-<span>
-
-Daily Activity
-
-</span>
-
-<span>
-
-84%
-
-</span>
-
-</div>
-
-<div class="progress-bar">
-
-<div
-class="progress-fill"
-style="width:84%;">
-
-</div>
-
-</div>
-
-</div>
-
-<div class="progress">
-
-<div class="progress-title">
-
-<span>
-
-Stress Level
-
-</span>
-
-<span>22%</span>
-
-</div>
-
-<div class="progress-bar">
-
-<div
-class="progress-fill"
-style="width:22%;background:#22c55e;">
-
-</div>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- ======================================
-HEALTH METRICS
-====================================== -->
-
-<div class="box">
-
-<h3>
-
-💓 Health Metrics
-
-</h3>
-
-<div class="metric">
-
-<span>
-
-❤️ Heart Rate
-
-</span>
-
-<strong>
-
-74 BPM
-
-</strong>
-
-</div>
-
-<div class="metric">
-
-<span>
-
-🚶 Steps
-
-</span>
-
-<strong>
-
-8,214
-
-</strong>
-
-</div>
-
-<div class="metric">
-
-<span>
-
-💧 Water Intake
-
-</span>
-
-<strong>
-
-6 / 8 Glasses
-
-</strong>
-
-</div>
-
-<div class="metric">
-
-<span>
-
-🔥 Calories Burned
-
-</span>
-
-<strong>
-
-482 kcal
-
-</strong>
-
-</div>
-
-<div class="metric">
-
-<span>
-
-😊 Mood
-
-</span>
-
-<strong>
-
-Happy
-
-</strong>
-
-</div>
-
-</div>
-
-<!-- ======================================
-TODAY'S SCHEDULE
-====================================== -->
-
-<div class="box">
-
-<h3>
-
-📅 Today's Schedule
-
-</h3>
-
-<div class="schedule-item">
-
-<span>
-
-06:30 AM
-
-</span>
-
-<p>
-
-Wake Up Alarm
-
-</p>
-
-</div>
-
-<div class="schedule-item">
-
-<span>
-
-07:15 AM
-
-</span>
-
-<p>
-
-Morning Exercise
-
-</p>
-
-</div>
-
-<div class="schedule-item">
-
-<span>
-
-08:00 AM
-
-</span>
-
-<p>
-
-Healthy Breakfast
-
-</p>
-
-</div>
-
-<div class="schedule-item">
-
-<span>
-
-01:00 PM
-
-</span>
-
-<p>
-
-Drink Water Reminder
-
-</p>
-
-</div>
-
-<div class="schedule-item">
-
-<span>
-
-09:45 PM
-
-</span>
-
-<p>
-
-Prepare for Sleep
-
-</p>
-
-</div>
-
-</div>
-
-<!-- ======================================
-ACHIEVEMENTS
-====================================== -->
-
-<div class="box">
-
-<h3>
-
-🏆 Achievements
-
-</h3>
-
-<div class="badges">
-
-<div class="badge">
-
-🥇
-
-<p>
-
-9-Day Streak
-
-</p>
-
-</div>
-
-<div class="badge">
-
-🌙
-
-<p>
-
-Early Sleeper
-
-</p>
-
-</div>
-
-<div class="badge">
-
-💧
-
-<p>
-
-Hydration Hero
-
-</p>
-
-</div>
-
-<div class="badge">
-
-🧠
-
-<p>
-
-Brain Booster
-
-</p>
-
-</div>
-
-</div>
-
-</div>
-
-<!-- ======================================
-WEEKLY SLEEP ANALYSIS
-====================================== -->
-
-<div class="box">
-
-    <h3>📈 Weekly Sleep Analysis</h3>
-
-    <canvas id="sleepChart"></canvas>
-
-</div>
 
 <!-- ======================================
      MODULE 7 - SNOOZE PATTERN ANALYSIS
@@ -827,7 +464,7 @@ WEEKLY SLEEP ANALYSIS
 <div class="box">
     <h3>💤 Snooze Pattern Analysis</h3>
 
-    <div style="height: 400px;">
+    <div style="height: 350px;">
         <canvas id="snoozePatternChart"></canvas>
     </div>
 </div>
@@ -838,7 +475,7 @@ WEEKLY SLEEP ANALYSIS
 <div class="box">
     <h3>🌅 Wake-up Behavior Analysis</h3>
 
-    <div style="height: 800px;">
+    <div style="height: 350px;">
         <canvas id="wakeUpBehaviorChart"></canvas>
     </div>
 </div>
@@ -849,7 +486,7 @@ WEEKLY SLEEP ANALYSIS
 <div class="box">
     <h3>🧠 Challenge Performance</h3>
 
-    <div style="height: 800px;">
+    <div style="height: 350px;">
         <canvas id="challengePerformanceChart"></canvas>
     </div>
 </div>
@@ -860,7 +497,7 @@ WEEKLY SLEEP ANALYSIS
 <div class="box">
     <h3>😴 Sleep Schedule Consistency</h3>
 
-    <div style="height: 800px;">
+    <div style="height: 350px;">
         <canvas id="sleepScheduleChart"></canvas>
     </div>
 </div>
@@ -871,7 +508,7 @@ WEEKLY SLEEP ANALYSIS
 <div class="box">
     <h3>📊 Productivity / Cognitive Correlation</h3>
 
-    <div style="height: 800px;">
+    <div style="height: 350px;">
         <canvas id="productivityCorrelationChart"></canvas>
     </div>
 </div>
@@ -880,7 +517,7 @@ WEEKLY SLEEP ANALYSIS
 WELLNESS SCORE
 ====================================== -->
 
-<div class="box">
+<div class="box" id="wellnessSection">
 
     <h3>🍩 Overall Wellness Score</h3>
 
@@ -927,65 +564,267 @@ AI ANALYTICS
         </tr>
     </table>
 </div>
+
 <!-- ======================================
-RECENT NOTIFICATIONS
-====================================== -->
+     MODULE 8 - HABIT SCORE
+     ====================================== -->
 
-<div class="box">
+<div class="dashboard-card recommendation-card">
 
-<h3>
+    <h3>🤖 Personalized Recommendations</h3>
 
-🔔 Notifications
+    <div id="recommendationsContent">
 
-</h3>
+        <p class="recommendation-loading">
+            Loading personalized recommendations...
+        </p>
 
-<ul>
+    </div>
 
-<li>✅ Alarm dismissed successfully.</li>
+</div>
 
-<li>💧 Water intake reminder at 1 PM.</li>
+<div class="box habit-score-box">
 
-<li>🧠 AI recommends sleeping 30 mins earlier.</li>
+    <h3>🏆 Habit Score</h3>
 
-<li>🏆 Achievement unlocked: 9-Day Streak.</li>
+    <div class="habit-score-main">
 
-<li>📈 Sleep quality improved by 6%.</li>
+        <!-- LEFT: OVERALL SCORE -->
 
-</ul>
+        <div class="habit-score-left">
+
+            <div
+                class="habit-score-circle"
+                id="habitScoreCircle"
+            >
+                <span id="habitScoreValue">--</span>
+                <small>/ 100</small>
+            </div>
+
+            <div
+                class="habit-score-rating"
+                id="habitScoreRating"
+            >
+                Calculating...
+            </div>
+
+            <p class="habit-score-description">
+                Your overall habit performance
+            </p>
+
+        </div>
+
+
+        <!-- RIGHT: INDIVIDUAL SCORES -->
+
+        <div class="habit-score-metrics">
+
+
+            <!-- Wake-up -->
+
+            <div class="habit-metric">
+
+                <div class="habit-metric-header">
+
+                    <span class="habit-metric-name">
+                        🌅 Wake-up Consistency
+                    </span>
+
+                    <strong
+                        class="habit-metric-value"
+                        id="habitWakeScore"
+                    >
+                        --%
+                    </strong>
+
+                </div>
+
+                <div class="habit-metric-bar">
+
+                    <div
+                        class="habit-metric-fill habit-wake"
+                        id="habitWakeBar"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Challenge -->
+
+            <div class="habit-metric">
+
+                <div class="habit-metric-header">
+
+                    <span class="habit-metric-name">
+                        🧠 Challenge Completion
+                    </span>
+
+                    <strong
+                        class="habit-metric-value"
+                        id="habitChallengeScore"
+                    >
+                        --%
+                    </strong>
+
+                </div>
+
+                <div class="habit-metric-bar">
+
+                    <div
+                        class="habit-metric-fill habit-challenge"
+                        id="habitChallengeBar"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Snooze -->
+
+            <div class="habit-metric">
+
+                <div class="habit-metric-header">
+
+                    <span class="habit-metric-name">
+                        😴 Snooze Reduction
+                    </span>
+
+                    <strong
+                        class="habit-metric-value"
+                        id="habitSnoozeScore"
+                    >
+                        --%
+                    </strong>
+
+                </div>
+
+                <div class="habit-metric-bar">
+
+                    <div
+                        class="habit-metric-fill habit-snooze"
+                        id="habitSnoozeBar"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Sleep -->
+
+            <div class="habit-metric">
+
+                <div class="habit-metric-header">
+
+                    <span class="habit-metric-name">
+                        🌙 Sleep Adherence
+                    </span>
+
+                    <strong
+                        class="habit-metric-value"
+                        id="habitSleepScore"
+                    >
+                        --%
+                    </strong>
+
+                </div>
+
+                <div class="habit-metric-bar">
+
+                    <div
+                        class="habit-metric-fill habit-sleep"
+                        id="habitSleepBar"
+                    ></div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Productivity -->
+
+            <div class="habit-metric">
+
+                <div class="habit-metric-header">
+
+                    <span class="habit-metric-name">
+                        📊 Productivity
+                    </span>
+
+                    <strong
+                        class="habit-metric-value"
+                        id="habitProductivityScore"
+                    >
+                        --%
+                    </strong>
+
+                </div>
+
+                <div class="habit-metric-bar">
+
+                    <div
+                        class="habit-metric-fill habit-productivity"
+                        id="habitProductivityBar"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- MESSAGE -->
+
+    <div class="habit-score-message">
+
+        <div class="habit-score-message-icon">
+            💡
+        </div>
+
+        <div>
+
+            <strong id="habitScoreMessage">
+                Keep building your habits!
+            </strong>
+
+            <span>
+                Your score is calculated from your
+                wake-up, challenges, snoozing and
+                sleep routine.
+            </span>
+
+        </div>
+
+    </div>
 
 </div>
 
 <!-- ======================================
-WEATHER
-====================================== -->
+     MODULE 8 - HABIT SCORE HISTORY
+     ====================================== -->
 
-<div class="box">
+<div class="habit-history-section">
 
-<h3>
+    <h4>📈 Habit Score History</h4>
 
-🌤 Today's Weather
+    <p class="habit-history-description">
+        Track how your overall habit performance changes over time.
+    </p>
 
-</h3>
+    <div class="habit-history-chart-container">
 
-<h1>
+        <canvas id="habitScoreHistoryChart"></canvas>
 
-29°C
-
-</h1>
-
-<p>
-
-Sunny
-
-</p>
-
-<p>
-
-Perfect day for a morning walk.
-
-</p>
+    </div>
 
 </div>
+
 
 <!-- ======================================
 QUICK ACTIONS
@@ -1315,12 +1154,22 @@ position:'bottom'
 </script>
 
 <script src="js/auth.js"></script>
+
 <script>
 const role = localStorage.getItem("role");
 
-if (role !== "user") {
+// Only User and Admin can access User Dashboard
+if (role !== "user" && role !== "admin") {
     alert("Access Denied!");
-    window.location = "login.html";
+    window.location.href = "login.html";
+} else if (role === "admin") {
+    // Admin is allowed to view User Dashboard
+    // Hide dashboard links that should not be shown to admin here
+    const adminLink = document.getElementById("adminDashboardLink");
+    const coachLink = document.getElementById("coachDashboardLink");
+
+    if (adminLink) adminLink.style.display = "none";
+    if (coachLink) coachLink.style.display = "none";
 }
 </script>
 
@@ -1448,19 +1297,696 @@ if (analyticsMenu && analyticsSection) {
 
 </script>
 
+
 <script>
-    document.getElementById("logoutBtn").addEventListener("click", function () {
-
-        // Remove login information
-        localStorage.removeItem("token");
-        localStorage.removeItem("role");
-
-        // Redirect to login page
-        window.location.href = "login.html";
+document.getElementById("alarmNav").addEventListener("click", function () {
+    document.getElementById("alarmSection").scrollIntoView({
+        behavior: "smooth"
     });
+});
+</script>
+
+
+<script>
+document.getElementById("wellnessNav").addEventListener("click", function () {
+    document.getElementById("wellnessSection").scrollIntoView({
+        behavior: "smooth"
+    });
+});
+</script>
+<!-- ================= PROFILE MODAL ================= -->
+
+<!-- PROFILE MODAL -->
+<div id="profileModal" class="custom-modal">
+
+    <div class="custom-modal-content">
+
+      <button
+    class="modal-close"
+    onclick="closeProfileModal();"
+>
+    &times;
+</button>
+        <div class="profile-header">
+
+            <div class="profile-avatar">
+                <i class="fa-solid fa-user"></i>
+            </div>
+
+            <div>
+                <h2>My Profile</h2>
+                <p>Your account information</p>
+            </div>
+
+        </div>
+
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="profileName" readonly>
+        </div>
+
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="profileEmail" readonly>
+        </div>
+
+        <div class="form-group">
+            <label>Account Role</label>
+            <input type="text" id="profileRole" readonly>
+        </div>
+
+    </div>
+
+</div>
+<script>
+/* ================= PROFILE MANAGEMENT ================= */
+
+const API_URL = "http://localhost:5000/api";
+
+const profileNav = document.getElementById("profileNav");
+const profileModal = document.getElementById("profileModal");
+
+const profileName = document.getElementById("profileName");
+const profileEmail = document.getElementById("profileEmail");
+const profileRole = document.getElementById("profileRole");
+
+
+/* GET USER ID FROM JWT */
+
+function getUserIdFromToken() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+        return null;
+    }
+
+    try {
+
+        const payload = JSON.parse(
+            atob(token.split(".")[1])
+        );
+
+        return payload.id;
+
+    } catch (error) {
+
+        console.error("Invalid token:", error);
+        return null;
+
+    }
+}
+
+
+/* OPEN PROFILE */
+
+async function openProfile() {
+
+    profileModal.style.display = "flex";
+
+    const token = localStorage.getItem("token");
+    const userId = getUserIdFromToken();
+
+    if (!token || !userId) {
+
+        profileName.value = "Login required";
+        profileEmail.value = "";
+        profileRole.value = "";
+
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            `${API_URL}/users/${userId}`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.message || "Failed to load profile"
+            );
+
+        }
+
+        const user = data.user;
+
+        profileName.value = user.name || "";
+        profileEmail.value = user.email || "";
+        profileRole.value = user.role || "user";
+
+   } catch (error) {
+
+    console.error("Profile error:", error);
+
+    profileName.value = "ERROR";
+    profileEmail.value = error.message || "Unknown error";
+    profileRole.value = "";
+
+}
+}
+
+
+/* PROFILE BUTTON */
+
+profileNav.addEventListener("click", function(event) {
+
+    event.preventDefault();
+
+    openProfile();
+
+});
+
+
+/* CLOSE PROFILE */
+
+function closeProfileModal() {
+
+    profileModal.style.display = "none";
+
+}
+
+
+/* CLOSE WHEN CLICKING OUTSIDE */
+
+profileModal.addEventListener("click", function(event) {
+
+    if (event.target === profileModal) {
+
+        closeProfileModal();
+
+    }
+
+});
+
+</script>
+
+<!-- ================= SETTINGS MODAL ================= -->
+
+<div id="settingsModal" class="custom-modal">
+
+    <div class="custom-modal-content">
+
+        <button class="modal-close" id="closeSettings">
+            &times;
+        </button>
+
+        <div class="profile-header">
+
+            <div class="profile-avatar">
+                <i class="fa-solid fa-gear"></i>
+            </div>
+
+            <div>
+                <h2>Settings</h2>
+                <p>Manage your dashboard preferences</p>
+            </div>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label for="themeSelect">
+                Appearance
+            </label>
+
+            <select
+                id="themeSelect"
+                style="
+                    width:100%;
+                    padding:12px;
+                    border:1px solid #ddd;
+                    border-radius:10px;
+                "
+            >
+
+                <option value="default">
+                    Default
+                </option>
+
+                <option value="dark">
+                    Dark
+                </option>
+
+                <option value="light">
+                    Light
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="form-group">
+
+            <label>
+                Notifications
+            </label>
+
+            <label style="display:flex;align-items:center;gap:10px;">
+
+                <input
+                    type="checkbox"
+                    id="notificationToggle"
+                >
+
+                Enable notifications
+
+            </label>
+
+        </div>
+
+
+        <button
+            type="button"
+            class="save-profile-btn"
+            id="saveSettings"
+        >
+
+            <i class="fa-solid fa-save"></i>
+            Save Settings
+
+        </button>
+
+        <p
+            id="settingsMessage"
+            style="text-align:center;margin-top:15px;"
+        ></p>
+
+    </div>
+
+</div>
+
+<script>
+/* ================= SETTINGS ================= */
+
+const settingsNav =
+    document.getElementById("settingsNav");
+
+const settingsModal =
+    document.getElementById("settingsModal");
+
+const closeSettings =
+    document.getElementById("closeSettings");
+
+const themeSelect =
+    document.getElementById("themeSelect");
+
+const notificationToggle =
+    document.getElementById("notificationToggle");
+
+const saveSettings =
+    document.getElementById("saveSettings");
+
+const settingsMessage =
+    document.getElementById("settingsMessage");
+
+
+/* LOAD SAVED SETTINGS */
+
+const savedTheme =
+    localStorage.getItem("dashboardTheme") || "default";
+
+const savedNotifications =
+    localStorage.getItem("notificationsEnabled");
+
+
+themeSelect.value = savedTheme;
+
+notificationToggle.checked =
+    savedNotifications !== "false";
+
+
+/* OPEN SETTINGS */
+
+settingsNav.addEventListener("click", function(event) {
+
+    event.preventDefault();
+
+    settingsModal.style.display = "flex";
+
+});
+
+
+/* CLOSE SETTINGS */
+
+closeSettings.addEventListener("click", function() {
+
+    settingsModal.style.display = "none";
+
+});
+
+
+/* SAVE SETTINGS */
+
+saveSettings.addEventListener("click", function() {
+
+    const theme = themeSelect.value;
+
+    const notifications =
+        notificationToggle.checked;
+
+    localStorage.setItem(
+        "dashboardTheme",
+        theme
+    );
+
+    localStorage.setItem(
+        "notificationsEnabled",
+        notifications
+    );
+
+
+    settingsMessage.textContent =
+        "Settings saved successfully!";
+
+    settingsMessage.style.color = "green";
+
+
+    applyTheme(theme);
+
+});
+
+
+/* APPLY THEME */
+
+function applyTheme(theme) {
+
+    if (theme === "dark") {
+
+        document.body.style.background =
+            "#121212";
+
+        document.body.style.color =
+            "#ffffff";
+
+    } else if (theme === "light") {
+
+        document.body.style.background =
+            "#ffffff";
+
+        document.body.style.color =
+            "#222222";
+
+    } else {
+
+        document.body.style.background = "";
+
+        document.body.style.color = "";
+
+    }
+
+}
+
+
+/* APPLY SAVED THEME ON PAGE LOAD */
+
+applyTheme(savedTheme);
+
+</script>
+
+<script>
+/* ================= DASHBOARD SEARCH ================= */
+
+const dashboardSearch = document.getElementById("dashboardSearch");
+
+if (dashboardSearch) {
+
+    dashboardSearch.addEventListener("input", function () {
+
+        const searchText = this.value.toLowerCase().trim();
+
+        const sections = document.querySelectorAll(
+            "main section, .dashboard-card, .card, .analytics-card"
+        );
+
+        sections.forEach(section => {
+
+            const text = section.innerText.toLowerCase();
+
+            if (!searchText || text.includes(searchText)) {
+                section.style.display = "";
+            } else {
+                section.style.display = "none";
+            }
+
+        });
+
+    });
+
+}
+</script>
+
+<!-- ================= NOTIFICATION PANEL ================= -->
+
+<div id="notificationPanel" class="notification-panel" style="display:none;">
+
+    <div class="notification-header">
+        <h3>🔔 Notifications</h3>
+        <button id="closeNotifications">&times;</button>
+    </div>
+
+    <div id="notificationList">
+        <p>Loading notifications...</p>
+    </div>
+
+</div>
+
+
+<script>
+/* ================= NOTIFICATIONS ================= */
+
+const notificationBell =
+    document.getElementById("notificationBell");
+
+const notificationPanel =
+    document.getElementById("notificationPanel");
+
+const closeNotifications =
+    document.getElementById("closeNotifications");
+
+const notificationList =
+    document.getElementById("notificationList");
+
+const notificationBadge =
+    document.getElementById("notificationBadge");
+
+const notificationAPI =
+    "http://localhost:5000/api/notifications";
+
+
+/* GET USER ID */
+
+function getNotificationUserId() {
+
+    const token = localStorage.getItem("token");
+
+    if (!token) return null;
+
+    try {
+
+        const payload =
+            JSON.parse(atob(token.split(".")[1]));
+
+        return payload.id;
+
+    } catch (error) {
+
+        console.error(
+            "Failed to get user ID:",
+            error
+        );
+
+        return null;
+    }
+}
+
+
+/* LOAD NOTIFICATIONS */
+
+async function loadNotifications() {
+
+    const userId = getNotificationUserId();
+    const token = localStorage.getItem("token");
+
+    if (!userId || !token) {
+
+        notificationList.innerHTML =
+            "<p>Please login again.</p>";
+
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+            `${notificationAPI}/user/${userId}`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+
+            throw new Error(
+                data.message ||
+                "Failed to load notifications"
+            );
+        }
+
+
+const unreadCount =
+    data.notifications.filter(
+        notification => !notification.is_read
+    ).length;
+
+if (notificationBadge) {
+    notificationBadge.textContent =
+        unreadCount > 99 ? "99+" : unreadCount;
+
+    notificationBadge.style.display =
+        unreadCount > 0 ? "block" : "none";
+}
+
+if (data.notifications.length === 0) {
+
+    notificationList.innerHTML =
+        "<p>No notifications.</p>";
+
+    return;
+}
+
+        notificationList.innerHTML =
+            data.notifications.map(notification => `
+
+                <div
+                    class="notification-item"
+                    data-id="${notification.id}"
+                    style="
+                        padding:12px;
+                        margin-bottom:10px;
+                        border-bottom:1px solid #ddd;
+                        cursor:pointer;
+                    "
+                >
+
+                    <strong>
+                        ${notification.title}
+                    </strong>
+
+                    <p style="margin:5px 0;">
+                        ${notification.message}
+                    </p>
+
+                    <small>
+                        ${new Date(
+                            notification.created_at
+                        ).toLocaleString()}
+                    </small>
+
+                </div>
+
+            `).join("");
+
+
+    } catch (error) {
+
+        console.error(
+            "Notification error:",
+            error
+        );
+
+        notificationList.innerHTML =
+            "<p>Failed to load notifications.</p>";
+    }
+}
+
+/* MARK NOTIFICATION AS READ */
+
+notificationList.addEventListener("click", async function(event) {
+
+    const notification =
+        event.target.closest(".notification-item");
+
+    if (!notification) return;
+
+    const notificationId =
+        notification.dataset.id;
+
+    try {
+
+        const response = await fetch(
+            `${notificationAPI}/${notificationId}/read`,
+            {
+                method: "PATCH"
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message ||
+                "Failed to mark notification as read"
+            );
+        }
+
+        console.log("Notification marked as read");
+
+        loadNotifications();
+
+    } catch (error) {
+
+        console.error(
+            "Mark notification error:",
+            error
+        );
+
+    }
+
+});
+
+/* OPEN NOTIFICATIONS */
+
+notificationBell.addEventListener(
+    "click",
+    function () {
+
+        notificationPanel.style.display =
+            "block";
+
+        loadNotifications();
+
+    }
+);
+
+
+/* CLOSE NOTIFICATIONS */
+
+closeNotifications.addEventListener(
+    "click",
+    function () {
+
+        notificationPanel.style.display =
+            "none";
+
+    }
+);
 </script>
 
 </body>
 
 </html>
-

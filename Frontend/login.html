@@ -169,6 +169,7 @@ async function loginUser() {
             // Save JWT
             localStorage.setItem("token", data.token);
             localStorage.setItem("role", data.role);
+            localStorage.setItem("userId", data.userId);
 
 
             alert("Login Successful!");

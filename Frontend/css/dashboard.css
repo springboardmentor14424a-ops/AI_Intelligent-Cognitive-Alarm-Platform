@@ -1,4 +1,4 @@
-```css
+css
 /* ==========================================
    GOOGLE FONT
 ========================================== */
@@ -390,7 +390,7 @@ margin-bottom:15px;
 
 }
 
-```css
+css
 /* ==========================================
 ALARM
 ========================================== */
@@ -530,7 +530,7 @@ margin-top:12px;
 }
 ```
 
-```css
+css
 /* ==========================================
 CHARTS
 ========================================== */
@@ -1140,4 +1140,644 @@ background:#ececec;
         grid-template-columns: 1fr;
     }
 
+}
+/* =====================================================
+   MODULE 8 - HABIT SCORE
+   ===================================================== */
+
+.habit-score-box {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 28px;
+    margin-top: 20px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, #ffffff, #f8fbff);
+    box-shadow: 0 8px 25px rgba(50, 70, 120, 0.12);
+}
+
+.habit-score-box h3 {
+    margin: 0;
+    font-size: 22px;
+    color: #17233c;
+}
+
+.habit-score-main {
+    display: flex;
+    align-items: center;
+    gap: 45px;
+    margin-top: 25px;
+}
+
+
+/* =========================
+   LEFT SCORE
+   ========================= */
+
+.habit-score-left {
+    width: 260px;
+    min-width: 260px;
+    text-align: center;
+}
+
+.habit-score-circle {
+    width: 190px;
+    height: 190px;
+    margin: 0 auto 18px;
+
+    border-radius: 50%;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    background:
+        radial-gradient(
+            circle,
+            #ffffff 62%,
+            transparent 63%
+        ),
+        conic-gradient(
+            #32b96b 0deg,
+            #32b96b calc(var(--habit-score, 88.39) * 3.6deg),
+            #e7ebf1 calc(var(--habit-score, 88.39) * 3.6deg),
+            #e7ebf1 360deg
+        );
+
+    box-shadow: 0 8px 25px rgba(50, 70, 120, 0.12);
+}
+
+.habit-score-circle span {
+    font-size: 42px;
+    font-weight: 700;
+    color: #17233c;
+}
+
+.habit-score-circle small {
+    font-size: 16px;
+    color: #718096;
+    margin-top: 3px;
+}
+
+.habit-score-rating {
+    display: inline-block;
+    min-width: 150px;
+    padding: 10px 28px;
+    border-radius: 30px;
+
+    background: #dcf8e8;
+    color: #159447;
+
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.habit-score-description {
+    margin-top: 14px;
+    color: #718096;
+    line-height: 1.5;
+}
+
+
+/* =========================
+   RIGHT METRICS
+   ========================= */
+
+.habit-score-metrics {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+
+    border-left: 1px solid #e2e7ef;
+    padding-left: 40px;
+}
+
+.habit-metric {
+    width: 100%;
+}
+
+.habit-metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.habit-metric-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    font-size: 15px;
+    font-weight: 600;
+    color: #26344f;
+}
+
+.habit-metric-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #17233c;
+}
+
+.habit-metric-bar {
+    width: 100%;
+    height: 10px;
+
+    background: #e9edf3;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.habit-metric-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 20px;
+
+    transition: width 0.8s ease;
+}
+
+
+/* Different metric colors */
+
+.habit-wake {
+    background: #3498db;
+}
+
+.habit-challenge {
+    background: #ec4f87;
+}
+
+.habit-snooze {
+    background: #f5b400;
+}
+
+.habit-sleep {
+    background: #7656e8;
+}
+
+.habit-productivity {
+    background: #38b96d;
+}
+
+
+/* =========================
+   BOTTOM MESSAGE
+   ========================= */
+
+.habit-score-message {
+    margin-top: 25px;
+    padding: 18px 22px;
+
+    border-radius: 15px;
+    background: #f1f7ff;
+
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.habit-score-message-icon {
+    font-size: 28px;
+}
+
+.habit-score-message strong {
+    display: block;
+    color: #2176d2;
+    font-size: 17px;
+}
+
+.habit-score-message span {
+    display: block;
+    margin-top: 4px;
+    color: #718096;
+}
+
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width: 850px) {
+
+    .habit-score-main {
+        flex-direction: column;
+    }
+
+    .habit-score-metrics {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #e2e7ef;
+        padding-left: 0;
+        padding-top: 25px;
+    }
+
+}
+
+/* =====================================================
+   MODULE 8 - HABIT SCORE HISTORY
+   ===================================================== */
+
+.habit-history-section {
+    margin-top: 30px;
+    padding-top: 25px;
+    border-top: 1px solid #e4e8ef;
+}
+
+.habit-history-section h4 {
+    margin: 0;
+    font-size: 18px;
+    color: #17233c;
+}
+
+.habit-history-description {
+    margin: 8px 0 20px;
+    color: #718096;
+    font-size: 14px;
+}
+
+.habit-history-chart-container {
+    position: relative;
+    width: 100%;
+    height: 350px;
+}
+
+
+/* ==========================================
+   MODULE 9 - RECOMMENDATION ENGINE
+========================================== */
+
+.recommendation-card {
+    padding: 24px;
+}
+
+.recommendation-card h3 {
+    margin-bottom: 20px;
+    font-size: 20px;
+}
+
+.recommendation-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    background: #f7f8ff;
+    border: 1px solid #e8eaff;
+}
+
+.recommendation-icon {
+    font-size: 24px;
+    min-width: 30px;
+}
+
+.recommendation-item strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 16px;
+}
+
+.recommendation-item p {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #555;
+}
+
+.recommendation-loading {
+    color: #777;
+    font-size: 16px;
+}
+
+/* ==========================================
+   ALARM MANAGER - FULL WIDTH
+========================================== */
+
+.alarm-manager-box {
+    grid-column: 1 / -1;
+}
+
+
+/* ==========================================
+   DASHBOARD LAYOUT FIX
+========================================== */
+
+html,
+body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+.main {
+    min-width: 0;
+    width: calc(100% - 250px);
+    max-width: calc(100% - 250px);
+}
+
+.dashboard-grid {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px;
+}
+
+.dashboard-grid > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.box,
+.alarm-manager-box {
+    min-width: 0;
+    max-width: 100%;
+}
+
+canvas {
+    max-width: 100% !important;
+}
+
+.alarm-manager-box {
+    grid-column: 1 / -1;
+}
+
+.alarm-item {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.alarm-buttons {
+    display: flex;
+    width: 100%;
+    gap: 10px;
+}
+
+.alarm-buttons button {
+    min-width: 0;
+    flex: 1;
+}
+
+
+/* ==========================================
+   CHART SIZE
+========================================== */
+
+.dashboard-grid .box canvas {
+    max-height: 350px !important;
+}
+
+
+/* ==========================================
+   NORMAL FONT SIZE
+========================================== */
+
+body {
+    font-size: 15px;
+}
+
+.dashboard-grid h3 {
+    font-size: 20px;
+}
+
+.dashboard-grid p,
+.dashboard-grid td,
+.dashboard-grid th {
+    font-size: 15px;
+}
+
+
+/* ==========================================
+   DESKTOP
+========================================== */
+
+@media (min-width: 1101px) {
+
+    .main {
+        margin-left: 250px;
+        width: calc(100% - 250px);
+        max-width: calc(100% - 250px);
+    }
+
+}
+
+
+/* ==========================================
+   TABLET / MOBILE
+========================================== */
+
+@media (max-width: 800px) {
+
+    .main {
+        margin-left: 80px;
+        width: calc(100% - 80px);
+        max-width: calc(100% - 80px);
+        padding: 20px;
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Space between Welcome card and KPI cards */
+.cards {
+    margin-top: 22px;
+}
+
+#addAlarmBtn {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    margin: 15px 0;
+    
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+#addAlarmBtn:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+}
+
+#saveAlarmBtn {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    margin: 15px 0;
+
+    background: #4f46e5;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    font-size: 16px;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+#saveAlarmBtn:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+}
+
+.alarm-history {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.alarm-history h3 {
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+#alarmHistoryList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    border-radius: 8px;
+    background: #f8fafc;
+    font-size: 14px;
+}
+
+/* ================= PROFILE MODAL ================= */
+
+.custom-modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.custom-modal-content {
+    width: 90%;
+    max-width: 500px;
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 30px;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.modal-close {
+    position: absolute;
+    right: 18px;
+    top: 12px;
+    border: none;
+    background: transparent;
+    font-size: 30px;
+    cursor: pointer;
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.profile-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #667eea;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 25px;
+}
+
+.profile-header h2 {
+    margin: 0;
+}
+
+.profile-header p {
+    margin: 5px 0 0;
+    color: #777;
+}
+
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 600;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.save-profile-btn {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 10px;
+    background: #667eea;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.save-profile-btn:hover {
+    opacity: 0.9;
+}
+
+#profileMessage {
+    text-align: center;
+    margin-top: 15px;
+    font-weight: 600;
+}
+
+/* Profile and Settings sidebar links */
+.sidebar ul li a {
+    color: white;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+}
+
+.sidebar ul li a:hover {
+    color: white;
+    text-decoration: none;
 }

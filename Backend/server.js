@@ -13,8 +13,14 @@ require("./config/db");
 
 const authRoutes = require("./routes/auth");
 const challengeRoutes = require("./routes/Challenge");
+const usersRoutes = require("./routes/users");
+const habitScoreRoutes = require("./routes/habitScore");
+const recommendationRoutes =require("./routes/recommendation");
+const notificationRoutes = require("./routes/notifications");
 
 const app = express();
+
+const adminRoutes = require("./routes/adminRoutes");
 
 // Middleware
 app.use(cors());
@@ -37,9 +43,14 @@ app.get("/", (req, res) => {
 });
 
 // Routes
+app.use("/api/admin", adminRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/auth", googleRoutes);
 app.use("/api/challenges", challengeRoutes);
+app.use("/api/users", usersRoutes);
+app.use("/api/habit-score",habitScoreRoutes);
+app.use("/api/recommendations",recommendationRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Server
 const PORT = process.env.PORT || 5000;
