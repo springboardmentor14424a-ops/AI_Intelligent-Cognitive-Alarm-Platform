@@ -8,3 +8,4 @@ Backend/.env
 
 # Logs
 *.log
+.vercel
