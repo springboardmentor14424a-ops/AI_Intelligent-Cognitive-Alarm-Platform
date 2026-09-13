@@ -1,10 +1,28 @@
 const express = require("express");
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
+const auth = require("../middleware/auth");
 
 const router = express.Router();
 
+// ===============================
+// ADMIN SECURITY
+// ===============================
 
+const adminOnly = (req, res, next) => {
+    if (req.user?.role !== "admin") {
+        return res.status(403).json({
+            success: false,
+            message: "Admin access required"
+        });
+    }
+
+    next();
+};
+
+// Protect ALL admin routes
+router.use(auth);
+router.use(adminOnly);
 // ===============================
 // ADMIN TEST
 // ===============================
@@ -925,6 +943,282 @@ router.post("/users", async (req, res) => {
 
     }
 
+});
+
+// =====================================================
+// MODULE 12 - REPORTS
+// =====================================================
+
+router.get("/reports", async (req, res) => {
+    try {
+
+        // ---------------------------------------------
+        // HABIT REPORT
+        // ---------------------------------------------
+
+        const habitResult = await pool.query(`
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS successful_wakeups,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'snooze'
+                ) AS total_snoozes,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'alarm_ring'
+                ) AS total_alarms
+            FROM behavioral_events
+        `);
+
+        const habitData = habitResult.rows[0];
+
+        const totalAlarms =
+            Number(habitData.total_alarms) || 0;
+
+        const successfulWakeups =
+            Number(habitData.successful_wakeups) || 0;
+
+        const totalSnoozes =
+            Number(habitData.total_snoozes) || 0;
+
+        const wakeUpRate =
+            totalAlarms > 0
+                ? Math.round(
+                    (successfulWakeups / totalAlarms) * 100
+                )
+                : 0;
+
+        const snoozeRate =
+            totalAlarms > 0
+                ? Math.round(
+                    (totalSnoozes / totalAlarms) * 100
+                )
+                : 0;
+
+
+        // ---------------------------------------------
+        // CHALLENGE PERFORMANCE REPORT
+        // ---------------------------------------------
+
+        const challengeResult = await pool.query(`
+            SELECT
+                COUNT(*) AS total_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = true
+                ) AS correct_challenges,
+
+                COUNT(*) FILTER (
+                    WHERE correct = false
+                ) AS incorrect_challenges,
+
+                ROUND(
+                    AVG(score)::numeric,
+                    2
+                ) AS average_score,
+
+                ROUND(
+                    AVG(time_taken)::numeric,
+                    2
+                ) AS average_time
+            FROM challenge_performance
+        `);
+
+        const challengeData =
+            challengeResult.rows[0];
+
+
+        const totalChallenges =
+            Number(challengeData.total_challenges) || 0;
+
+        const correctChallenges =
+            Number(challengeData.correct_challenges) || 0;
+
+        const challengeAccuracy =
+            totalChallenges > 0
+                ? Math.round(
+                    (correctChallenges / totalChallenges) * 100
+                )
+                : 0;
+
+
+        // ---------------------------------------------
+        // PRODUCTIVITY REPORT
+        // ---------------------------------------------
+
+        const productivityResult = await pool.query(`
+            SELECT
+                COUNT(*) AS total_events,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS completed_activities
+            FROM behavioral_events
+        `);
+
+        const productivityData =
+            productivityResult.rows[0];
+
+        const totalEvents =
+            Number(productivityData.total_events) || 0;
+
+        const completedActivities =
+            Number(productivityData.completed_activities) || 0;
+
+        const productivityScore =
+            totalEvents > 0
+                ? Math.round(
+                    (completedActivities / totalEvents) * 100
+                )
+                : 0;
+
+
+        // ---------------------------------------------
+        // WAKE-UP REPORT
+        // ---------------------------------------------
+
+        const wakeupResult = await pool.query(`
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE event_type = 'alarm_ring'
+                ) AS alarms,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS verified,
+
+                COUNT(*) FILTER (
+                    WHERE event_type = 'snooze'
+                ) AS snoozes,
+
+                ROUND(
+                    AVG(
+                        CASE
+                            WHEN event_type = 'wake_verified'
+                            THEN
+                                (metadata->>'wakefulnessRating')::numeric
+                        END
+                    )::numeric,
+                    2
+                ) AS average_wakefulness
+            FROM behavioral_events
+        `);
+
+        const wakeupData =
+            wakeupResult.rows[0];
+
+
+        // ---------------------------------------------
+        // SLEEP REPORT
+        // ---------------------------------------------
+
+        const sleepResult = await pool.query(`
+            SELECT
+                COUNT(*) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS sleep_related_records,
+
+                COUNT(
+                    DISTINCT DATE(event_time)
+                ) FILTER (
+                    WHERE event_type = 'wake_verified'
+                ) AS active_sleep_days
+            FROM behavioral_events
+        `);
+
+        const sleepData =
+            sleepResult.rows[0];
+
+
+        // ---------------------------------------------
+        // FINAL REPORT
+        // ---------------------------------------------
+
+        res.json({
+
+            success: true,
+
+            habitReport: {
+                totalAlarms,
+                successfulWakeups,
+                totalSnoozes,
+                wakeUpRate,
+                snoozeRate
+            },
+
+            wakeupReport: {
+                alarms:
+                    Number(wakeupData.alarms) || 0,
+
+                verified:
+                    Number(wakeupData.verified) || 0,
+
+                snoozes:
+                    Number(wakeupData.snoozes) || 0,
+
+                averageWakefulness:
+                    Number(
+                        wakeupData.average_wakefulness
+                    ) || 0
+            },
+
+            challengeReport: {
+                totalChallenges,
+                correctChallenges,
+
+                incorrectChallenges:
+                    Number(
+                        challengeData.incorrect_challenges
+                    ) || 0,
+
+                accuracy:
+                    challengeAccuracy,
+
+                averageScore:
+                    Number(
+                        challengeData.average_score
+                    ) || 0,
+
+                averageTime:
+                    Number(
+                        challengeData.average_time
+                    ) || 0
+            },
+
+            productivityReport: {
+                totalEvents,
+                completedActivities,
+                productivityScore
+            },
+
+            sleepReport: {
+                sleepRelatedRecords:
+                    Number(
+                        sleepData.sleep_related_records
+                    ) || 0,
+
+                activeSleepDays:
+                    Number(
+                        sleepData.active_sleep_days
+                    ) || 0
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "Reports error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to generate reports"
+        });
+    }
 });
 
 module.exports = router;

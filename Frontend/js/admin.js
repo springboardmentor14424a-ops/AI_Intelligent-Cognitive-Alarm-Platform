@@ -1,4 +1,9 @@
-const API = "http://localhost:5000/api";
+const API = API_BASE;
+const authToken = localStorage.getItem("token");
+
+const authHeaders = {
+    "Authorization": `Bearer ${authToken}`
+};
 
 
 // ========================================
@@ -10,7 +15,12 @@ async function loadAdminUsers(filter = currentAdminFilter) {
 
     try {
 
-        const response = await fetch(`${API}/admin/users`);
+        const response = await fetch(
+    `${API}/admin/users`,
+    {
+        headers: authHeaders
+    }
+);
         const data = await response.json();
 
         console.log("Admin users:", data);
@@ -145,19 +155,20 @@ async function toggleUserStatus(userId, currentStatus) {
     try {
 
         const response = await fetch(
-            `${API}/admin/users/${userId}/status`,
-            {
-                method: "PATCH",
+    `${API}/admin/users/${userId}/status`,
+    {
+        method: "PATCH",
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders
+        },
 
-                body: JSON.stringify({
-                    status: newStatus
-                })
-            }
-        );
+        body: JSON.stringify({
+            status: newStatus
+        })
+    }
+);
 
 
         const data = await response.json();
@@ -199,8 +210,11 @@ async function loadPlatformAnalytics() {
     try {
 
         const response = await fetch(
-            `${API}/admin/analytics`
-        );
+    `${API}/admin/analytics`,
+    {
+        headers: authHeaders
+    }
+);
 
         const data = await response.json();
 
@@ -340,9 +354,11 @@ async function loadRecommendationMonitoring() {
     try {
 
         const response = await fetch(
-            `${API}/admin/recommendations-monitoring`
-        );
-
+    `${API}/admin/recommendations-monitoring`,
+    {
+        headers: authHeaders
+    }
+);
         const data = await response.json();
 
         console.log(
@@ -511,9 +527,11 @@ async function loadSystemReport() {
     try {
 
         const response = await fetch(
-            `${API}/admin/system-report`
-        );
-
+    `${API}/admin/system-report`,
+    {
+        headers: authHeaders
+    }
+);
         const data = await response.json();
 
         console.log(
@@ -822,25 +840,23 @@ async function createAdminAccount(event) {
     try {
 
         const response = await fetch(
-            `${API}/admin/users`,
-            {
-                method: "POST",
+    `${API}/admin/users`,
+    {
+        method: "POST",
 
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders
+        },
 
-                body: JSON.stringify({
-
-                    name,
-                    email,
-                    password,
-                    role
-
-                })
-            }
-        );
+        body: JSON.stringify({
+            name,
+            email,
+            password,
+            role
+        })
+    }
+);
 
 
         const data =
@@ -1130,7 +1146,7 @@ if (sendAnnouncementBtn) {
                     "Sending announcement...";
 
                 const response = await fetch(
-                    "http://localhost:5000/api/notifications/announcement",
+    `${API_BASE}/notifications/announcement`,
                     {
                         method: "POST",
 
@@ -1179,6 +1195,544 @@ if (sendAnnouncementBtn) {
             }
         }
     );
+}
+
+// =====================================================
+// MODULE 12 - REPORTS
+// =====================================================
+
+async function loadAdminReports() {
+
+    try {
+
+        const token = localStorage.getItem("token");
+
+        const response = await fetch(
+            `${API}/admin/reports`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || "Failed to load reports"
+            );
+        }
+
+        // ---------------------------------------------
+        // HABIT REPORT
+        // ---------------------------------------------
+
+        document.getElementById("habitReportValue").textContent =
+            `${data.habitReport.wakeUpRate}% Wake-up Rate`;
+
+
+        // ---------------------------------------------
+        // WAKE-UP REPORT
+        // ---------------------------------------------
+
+        document.getElementById("wakeupReportValue").textContent =
+            `${data.wakeupReport.verified} Verified Wake-ups`;
+
+
+        // ---------------------------------------------
+        // CHALLENGE REPORT
+        // ---------------------------------------------
+
+        document.getElementById("challengeReportValue").textContent =
+            `${data.challengeReport.accuracy}% Accuracy`;
+
+
+        // ---------------------------------------------
+        // PRODUCTIVITY REPORT
+        // ---------------------------------------------
+
+        document.getElementById("productivityReportValue").textContent =
+            `${data.productivityReport.productivityScore}% Productivity`;
+
+
+        // ---------------------------------------------
+        // SLEEP REPORT
+        // ---------------------------------------------
+
+        document.getElementById("sleepReportValue").textContent =
+            `${data.sleepReport.activeSleepDays} Active Sleep Days`;
+
+
+        console.log(
+            "📊 Admin reports loaded:",
+            data
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Reports error:",
+            error
+        );
+
+        const reportElements = [
+            "habitReportValue",
+            "wakeupReportValue",
+            "challengeReportValue",
+            "productivityReportValue",
+            "sleepReportValue"
+        ];
+
+        reportElements.forEach(id => {
+
+            const element =
+                document.getElementById(id);
+
+            if (element) {
+                element.textContent =
+                    "Unable to load";
+            }
+
+        });
+    }
+}
+
+// =====================================================
+// EXPORT REPORTS TO EXCEL
+// =====================================================
+
+async function exportReportsToExcel() {
+
+    try {
+
+        const token = localStorage.getItem("token");
+
+        const response = await fetch(
+            `${API}/admin/reports`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || "Failed to load report data"
+            );
+        }
+
+        // Create Excel rows
+        const reportData = [
+
+            ["AI Cognitive Alarm Platform - Reports"],
+            [""],
+
+            ["HABIT REPORT"],
+            ["Total Alarms", data.habitReport.totalAlarms],
+            ["Successful Wake-ups", data.habitReport.successfulWakeups],
+            ["Total Snoozes", data.habitReport.totalSnoozes],
+            ["Wake-up Rate", `${data.habitReport.wakeUpRate}%`],
+            ["Snooze Rate", `${data.habitReport.snoozeRate}%`],
+            [""],
+
+            ["WAKE-UP REPORT"],
+            ["Alarms", data.wakeupReport.alarms],
+            ["Verified Wake-ups", data.wakeupReport.verified],
+            ["Snoozes", data.wakeupReport.snoozes],
+            ["Average Wakefulness", data.wakeupReport.averageWakefulness],
+            [""],
+
+            ["CHALLENGE PERFORMANCE REPORT"],
+            ["Total Challenges", data.challengeReport.totalChallenges],
+            ["Correct Challenges", data.challengeReport.correctChallenges],
+            ["Incorrect Challenges", data.challengeReport.incorrectChallenges],
+            ["Accuracy", `${data.challengeReport.accuracy}%`],
+            ["Average Score", data.challengeReport.averageScore],
+            ["Average Time (seconds)", data.challengeReport.averageTime],
+            [""],
+
+            ["PRODUCTIVITY REPORT"],
+            ["Total Events", data.productivityReport.totalEvents],
+            ["Completed Activities", data.productivityReport.completedActivities],
+            ["Productivity Score", `${data.productivityReport.productivityScore}%`],
+            [""],
+
+            ["SLEEP ANALYTICS REPORT"],
+            ["Sleep-related Records", data.sleepReport.sleepRelatedRecords],
+            ["Active Sleep Days", data.sleepReport.activeSleepDays]
+
+        ];
+
+        // Create worksheet
+        const worksheet =
+            XLSX.utils.aoa_to_sheet(reportData);
+
+        // Set column widths
+        worksheet["!cols"] = [
+            { wch: 30 },
+            { wch: 25 }
+        ];
+
+        // Create workbook
+        const workbook =
+            XLSX.utils.book_new();
+
+        XLSX.utils.book_append_sheet(
+            workbook,
+            worksheet,
+            "Reports"
+        );
+
+        // Download Excel file
+        XLSX.writeFile(
+            workbook,
+            "AI_Cognitive_Alarm_Reports.xlsx"
+        );
+
+        console.log(
+            "📊 Excel report exported successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ Excel export error:",
+            error
+        );
+
+        alert(
+            "Failed to export Excel report."
+        );
+    }
+}
+
+
+// Connect Excel button
+const exportExcelBtn =
+    document.getElementById("exportExcelBtn");
+
+if (exportExcelBtn) {
+
+    exportExcelBtn.addEventListener(
+        "click",
+        exportReportsToExcel
+    );
+
+}
+
+// Load reports when Admin Dashboard opens
+loadAdminReports();
+
+// =====================================================
+// EXPORT REPORTS TO PDF
+// =====================================================
+
+async function exportReportsToPDF() {
+
+    try {
+
+        const token = localStorage.getItem("token");
+
+        const response = await fetch(
+            `${API}/admin/reports`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || "Failed to load report data"
+            );
+        }
+
+        const { jsPDF } = window.jspdf;
+
+        const doc = new jsPDF();
+
+        let y = 20;
+
+        // ---------------------------------------------
+        // TITLE
+        // ---------------------------------------------
+
+        doc.setFontSize(20);
+        doc.setFont(undefined, "bold");
+
+        doc.text(
+            "AI Cognitive Alarm Platform",
+            20,
+            y
+        );
+
+        y += 10;
+
+        doc.setFontSize(15);
+
+        doc.text(
+            "Reports & Analytics",
+            20,
+            y
+        );
+
+        y += 8;
+
+        doc.setFontSize(10);
+        doc.setFont(undefined, "normal");
+
+        doc.text(
+            `Generated: ${new Date().toLocaleString()}`,
+            20,
+            y
+        );
+
+        y += 15;
+
+
+        // ---------------------------------------------
+        // HELPER FUNCTION
+        // ---------------------------------------------
+
+        function addSection(title, rows) {
+
+            if (y > 260) {
+                doc.addPage();
+                y = 20;
+            }
+
+            doc.setFontSize(14);
+            doc.setFont(undefined, "bold");
+
+            doc.text(
+                title,
+                20,
+                y
+            );
+
+            y += 8;
+
+            doc.setFontSize(11);
+            doc.setFont(undefined, "normal");
+
+            rows.forEach(row => {
+
+                if (y > 275) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.text(
+                    `${row[0]}: ${row[1]}`,
+                    25,
+                    y
+                );
+
+                y += 7;
+            });
+
+            y += 8;
+        }
+
+
+        // ---------------------------------------------
+        // HABIT REPORT
+        // ---------------------------------------------
+
+        addSection(
+            "Habit Report",
+            [
+                [
+                    "Total Alarms",
+                    data.habitReport.totalAlarms
+                ],
+                [
+                    "Successful Wake-ups",
+                    data.habitReport.successfulWakeups
+                ],
+                [
+                    "Total Snoozes",
+                    data.habitReport.totalSnoozes
+                ],
+                [
+                    "Wake-up Rate",
+                    `${data.habitReport.wakeUpRate}%`
+                ],
+                [
+                    "Snooze Rate",
+                    `${data.habitReport.snoozeRate}%`
+                ]
+            ]
+        );
+
+
+        // ---------------------------------------------
+        // WAKE-UP REPORT
+        // ---------------------------------------------
+
+        addSection(
+            "Wake-up Report",
+            [
+                [
+                    "Alarms",
+                    data.wakeupReport.alarms
+                ],
+                [
+                    "Verified Wake-ups",
+                    data.wakeupReport.verified
+                ],
+                [
+                    "Snoozes",
+                    data.wakeupReport.snoozes
+                ],
+                [
+                    "Average Wakefulness",
+                    data.wakeupReport.averageWakefulness
+                ]
+            ]
+        );
+
+
+        // ---------------------------------------------
+        // CHALLENGE REPORT
+        // ---------------------------------------------
+
+        addSection(
+            "Challenge Performance Report",
+            [
+                [
+                    "Total Challenges",
+                    data.challengeReport.totalChallenges
+                ],
+                [
+                    "Correct Challenges",
+                    data.challengeReport.correctChallenges
+                ],
+                [
+                    "Incorrect Challenges",
+                    data.challengeReport.incorrectChallenges
+                ],
+                [
+                    "Accuracy",
+                    `${data.challengeReport.accuracy}%`
+                ],
+                [
+                    "Average Score",
+                    data.challengeReport.averageScore
+                ],
+                [
+                    "Average Time",
+                    `${data.challengeReport.averageTime} seconds`
+                ]
+            ]
+        );
+
+
+        // ---------------------------------------------
+        // PRODUCTIVITY REPORT
+        // ---------------------------------------------
+
+        addSection(
+            "Productivity Report",
+            [
+                [
+                    "Total Events",
+                    data.productivityReport.totalEvents
+                ],
+                [
+                    "Completed Activities",
+                    data.productivityReport.completedActivities
+                ],
+                [
+                    "Productivity Score",
+                    `${data.productivityReport.productivityScore}%`
+                ]
+            ]
+        );
+
+
+        // ---------------------------------------------
+        // SLEEP REPORT
+        // ---------------------------------------------
+
+        addSection(
+            "Sleep Analytics Report",
+            [
+                [
+                    "Sleep-related Records",
+                    data.sleepReport.sleepRelatedRecords
+                ],
+                [
+                    "Active Sleep Days",
+                    data.sleepReport.activeSleepDays
+                ]
+            ]
+        );
+
+
+        // ---------------------------------------------
+        // FOOTER
+        // ---------------------------------------------
+
+        if (y > 270) {
+            doc.addPage();
+            y = 20;
+        }
+
+        doc.setFontSize(9);
+        doc.setFont(undefined, "italic");
+
+        doc.text(
+            "Generated by AI Cognitive Alarm Platform",
+            20,
+            285
+        );
+
+
+        // ---------------------------------------------
+        // DOWNLOAD
+        // ---------------------------------------------
+
+        doc.save(
+            "AI_Cognitive_Alarm_Reports.pdf"
+        );
+
+        console.log(
+            "📄 PDF report exported successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ PDF export error:",
+            error
+        );
+
+        alert(
+            "Failed to export PDF report."
+        );
+    }
+}
+
+
+// Connect PDF button
+const exportPdfBtn =
+    document.getElementById("exportPdfBtn");
+
+if (exportPdfBtn) {
+
+    exportPdfBtn.addEventListener(
+        "click",
+        exportReportsToPDF
+    );
+
 }
 
 // ========================================

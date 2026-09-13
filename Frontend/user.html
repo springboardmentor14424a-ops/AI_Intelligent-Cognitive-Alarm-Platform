@@ -165,10 +165,8 @@ TOP BAR
 
 <div>
 
-<h2>
-
-Good Evening, Narasimha 👋
-
+<h2 id="dashboardGreeting">
+    Good Morning 👋
 </h2>
 
 <p id="currentDate"></p>
@@ -1272,6 +1270,7 @@ if (role !== "user" && role !== "admin") {
 
 </div>
 
+<script src="js/config.js"></script>
 <script src="js/dashboard.js"></script>
 
 <script>
@@ -1361,7 +1360,7 @@ document.getElementById("wellnessNav").addEventListener("click", function () {
 <script>
 /* ================= PROFILE MANAGEMENT ================= */
 
-const API_URL = "http://localhost:5000/api";
+const API_URL = API_BASE;
 
 const profileNav = document.getElementById("profileNav");
 const profileModal = document.getElementById("profileModal");
@@ -1781,9 +1780,8 @@ const notificationBadge =
     document.getElementById("notificationBadge");
 
 const notificationAPI =
-    "http://localhost:5000/api/notifications";
-
-
+    `${API_BASE}/notifications`;
+    
 /* GET USER ID */
 
 function getNotificationUserId() {

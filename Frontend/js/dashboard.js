@@ -1,5 +1,43 @@
+const authToken = localStorage.getItem("token");
 const question = document.getElementById("question");
 const answerInput = document.getElementById("answerInput");
+const API = API_BASE;
+
+// ==========================================
+// USER-SPECIFIC STORAGE
+// ==========================================
+
+let habitScoreHistoryChartInstance = null;
+let currentUserId = localStorage.getItem("userId");
+
+// Fallback: get user ID directly from JWT
+if (!currentUserId && authToken) {
+    try {
+        const payload = JSON.parse(
+    atob(authToken.split(".")[1])
+);
+
+        currentUserId = payload.id;
+        localStorage.setItem("userId", currentUserId);
+
+    } catch (error) {
+        console.error("Failed to read user ID from token:", error);
+    }
+}
+
+if (!currentUserId) {
+    alert("User session not found. Please login again.");
+    window.location.href = "login.html";
+}
+
+const ALARMS_KEY =
+    `alarms_${currentUserId}`;
+
+const ALARM_STATS_KEY =
+    `alarmStats_${currentUserId}`;
+
+const CHALLENGE_HISTORY_KEY =
+    `challengeHistory_${currentUserId}`;
 
 let wrongAttempts = 0;
 let snoozeCount = 0;
@@ -53,7 +91,9 @@ let wakeUpVerification = {
 // ==========================================
 
 let challengeHistory =
-    JSON.parse(localStorage.getItem("challengeHistory")) || [];
+    JSON.parse(
+        localStorage.getItem(CHALLENGE_HISTORY_KEY)
+    ) || [];
 
 let challengeStartTime = null;
 
@@ -89,10 +129,13 @@ const popupLabel = document.getElementById("popupLabel");
 let activeAlarm = null;
 let alarmQueue = [];
 
-let alarms = JSON.parse(localStorage.getItem("alarms")) || [];
+let alarms =
+    JSON.parse(
+        localStorage.getItem(ALARMS_KEY)
+    ) || [];
 
 let stats = JSON.parse(
-    localStorage.getItem("alarmStats")
+    localStorage.getItem(ALARM_STATS_KEY)
 ) || {
     totalRings: 0,
     successfulWakeups: 0,
@@ -107,7 +150,7 @@ if (!stats.dailyRings) {
 }
 
 localStorage.setItem(
-    "alarmStats",
+    ALARM_STATS_KEY,
     JSON.stringify(stats)
 );
 
@@ -230,7 +273,7 @@ saveAlarmBtn.addEventListener("click",()=>{
 
     alarms.push(alarm);
 
-    localStorage.setItem("alarms",JSON.stringify(alarms));
+    localStorage.setItem(ALARMS_KEY, JSON.stringify(alarms));
 
     displayAlarms();
 
@@ -309,8 +352,7 @@ function deleteAlarm(id){
 
     alarms = alarms.filter(alarm => alarm.id !== id);
 
-    localStorage.setItem("alarms", JSON.stringify(alarms));
-
+    localStorage.setItem(ALARMS_KEY, JSON.stringify(alarms));
     displayAlarms();
 
 }
@@ -329,7 +371,7 @@ function toggleAlarm(id){
 
     });
 
-    localStorage.setItem("alarms", JSON.stringify(alarms));
+    localStorage.setItem(ALARMS_KEY, JSON.stringify(alarms));
 
     displayAlarms();
 
@@ -397,7 +439,7 @@ function editAlarm(id){
     alarm.vibration =
     vibrationInput.toUpperCase() === "ON";
 
-    localStorage.setItem("alarms", JSON.stringify(alarms));
+    localStorage.setItem(ALARMS_KEY, JSON.stringify(alarms));
 
     displayAlarms();
 
@@ -448,7 +490,7 @@ async function createBedtimeNotification(alarm) {
     try {
 
         await fetch(
-            "http://localhost:5000/api/notifications",
+            `${API}/notifications`,
             {
                 method: "POST",
 
@@ -489,7 +531,7 @@ async function createWakeupNotification(alarm) {
     try {
 
         await fetch(
-            "http://localhost:5000/api/notifications",
+            `${API}/notifications`,
             {
                 method: "POST",
 
@@ -530,7 +572,7 @@ async function createHabitAlertNotification() {
     try {
 
         await fetch(
-            "http://localhost:5000/api/notifications",
+            `${API}/notifications`,
             {
                 method: "POST",
 
@@ -571,7 +613,7 @@ async function createChallengeReminderNotification(alarm) {
     try {
 
         await fetch(
-            "http://localhost:5000/api/notifications",
+            `${API}/notifications`,
             {
                 method: "POST",
 
@@ -614,7 +656,7 @@ async function createProgressNotification(progressScore) {
     try {
 
         await fetch(
-            "http://localhost:5000/api/notifications",
+            `${API}/notifications`,
             {
                 method: "POST",
 
@@ -657,7 +699,7 @@ async function checkHabitAlert() {
     try {
 
         const response = await fetch(
-            `http://localhost:5000/api/habit-score/${userId}`
+            `${API}/habit-score/${userId}`
         );
 
         const data = await response.json();
@@ -713,10 +755,9 @@ alarms.forEach(alarm => {
         alarm.lastBedtimeNotificationDate = getToday();
 
         localStorage.setItem(
-            "alarms",
-            JSON.stringify(alarms)
-        );
-
+    ALARMS_KEY,
+    JSON.stringify(alarms)
+);
         createBedtimeNotification(alarm);
     }
 
@@ -806,9 +847,9 @@ logBehaviorEvent("alarm_ring", {
 });
 
     localStorage.setItem(
-        "alarmStats",
-        JSON.stringify(stats)
-    );
+    ALARM_STATS_KEY,
+    JSON.stringify(stats)
+);
 
     updateDashboardStats();
 
@@ -970,14 +1011,10 @@ logBehaviorEvent("alarm_dismiss", {
     activeAlarm.enabled = false;
 }
 
-        localStorage.setItem(
-
-            "alarms",
-
-            JSON.stringify(alarms)
-
-        );
-
+localStorage.setItem(
+    ALARMS_KEY,
+    JSON.stringify(alarms)
+);
         displayAlarms();
 
         activeAlarm=null;
@@ -1022,7 +1059,7 @@ logBehaviorEvent("snooze_attempt_blocked", {
 });
 
 localStorage.setItem(
-    "alarmStats",
+    ALARM_STATS_KEY,
     JSON.stringify(stats)
 );
 
@@ -1050,13 +1087,10 @@ updateDashboardStats();
 
     activeAlarm.lastTriggeredDate = null;
 
-    localStorage.setItem(
-
-        "alarms",
-
-        JSON.stringify(alarms)
-
-    );
+localStorage.setItem(
+    ALARMS_KEY,
+    JSON.stringify(alarms)
+);
 
     displayAlarms();
 
@@ -1104,7 +1138,7 @@ async function generateQuestion(challengeType, difficulty) {
         answerInput.value = "";
 
         const response = await fetch(
-            "http://localhost:5000/api/challenges/generate",
+            `${API}/challenges/generate`,
             {
                 method: "POST",
 
@@ -1196,7 +1230,7 @@ async function generatePersonalizedQuestion(challengeType) {
         answerInput.value = "";
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/personalized/1?challengeType=${encodeURIComponent(challengeType)}`,
+            `${API}/challenges/personalized/${currentUserId}?challengeType=${encodeURIComponent(challengeType)}`,
             {
                 method: "GET"
             }
@@ -1291,7 +1325,7 @@ async function generatePersonalizedQuestion(challengeType) {
         answerInput.value = "";
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/personalized/1?challengeType=${encodeURIComponent(challengeType)}`,
+            `${API}/challenges/personalized/${currentUserId}?challengeType=${encodeURIComponent(challengeType)}`,
             {
                 method: "GET"
             }
@@ -1916,7 +1950,7 @@ async function savePerformanceToDatabase(performanceRecord) {
     try {
 
         const response = await fetch(
-            "http://localhost:5000/api/challenges/performance",
+            `${API}/challenges/performance`,
             {
                 method: "POST",
 
@@ -1985,7 +2019,7 @@ async function loadBehaviorAnalytics() {
 
 const alarms =
     JSON.parse(
-        localStorage.getItem("alarms") || "[]"
+        localStorage.getItem(ALARMS_KEY) || "[]"
     );
 
 const activeAlarm =
@@ -1998,9 +2032,13 @@ const wakeUpTime =
     activeAlarm?.time || "";
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/analytics/${userId}`
-        );
-
+    `${API}/challenges/behavior/analytics/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
         const data = await response.json();
 
 
@@ -2014,7 +2052,7 @@ try {
 
     const recommendationResponse =
         await fetch(
-            `http://localhost:5000/api/recommendations/${userId}?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`
+            `${API}/recommendations/${userId}?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`
         );
 
     recommendationData =
@@ -2321,9 +2359,13 @@ async function loadSnoozePatternChart() {
             Number(localStorage.getItem("userId")) || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/history/${userId}`
-        );
-
+    `${API}/challenges/behavior/history/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
         const data = await response.json();
 
         if (!data.success) {
@@ -2419,8 +2461,13 @@ async function loadWakeUpBehaviorChart() {
             Number(localStorage.getItem("userId")) || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/history/${userId}`
-        );
+    `${API}/challenges/behavior/history/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
 
         const data = await response.json();
 
@@ -2529,8 +2576,13 @@ async function loadChallengePerformanceChart() {
             Number(localStorage.getItem("userId")) || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/history/${userId}`
-        );
+    `${API}/challenges/behavior/history/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
 
         const data = await response.json();
 
@@ -2659,8 +2711,13 @@ async function loadSleepScheduleChart() {
             Number(localStorage.getItem("userId")) || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/history/${userId}`
-        );
+    `${API}/challenges/behavior/history/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
 
         const data = await response.json();
 
@@ -2806,8 +2863,13 @@ async function loadProductivityCorrelationChart() {
             Number(localStorage.getItem("userId")) || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/history/${userId}`
-        );
+    `${API}/challenges/behavior/history/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
 
         const data = await response.json();
 
@@ -2929,7 +2991,7 @@ async function logBehaviorEvent(eventType, metadata = {}) {
             activeAlarm?.id ?? null;
 
         const response = await fetch(
-            "http://localhost:5000/api/challenges/behavior/event",
+            `${API}/challenges/behavior/event`,
             {
                 method: "POST",
 
@@ -3490,10 +3552,9 @@ const verificationPerformance = {
 challengeHistory.push(verificationPerformance);
 
 localStorage.setItem(
-    "challengeHistory",
+    CHALLENGE_HISTORY_KEY,
     JSON.stringify(challengeHistory)
 );
-
 savePerformanceToDatabase(
     verificationPerformance
 );
@@ -3545,7 +3606,7 @@ console.log(
 
         const response =
             await fetch(
-                "http://localhost:5000/api/challenges/wake-up-verification",
+                `${API}/challenges/wake-up-verification`,
                 {
                     method: "POST",
 
@@ -3778,10 +3839,9 @@ console.log(
         );
 
         localStorage.setItem(
-            "challengeHistory",
-            JSON.stringify(challengeHistory)
-        );
-
+    CHALLENGE_HISTORY_KEY,
+    JSON.stringify(challengeHistory)
+);
         savePerformanceToDatabase(performanceRecord);
 
 
@@ -3832,9 +3892,9 @@ console.log(
         stats.wrongAnswers++;
 
         localStorage.setItem(
-            "alarmStats",
-            JSON.stringify(stats)
-        );
+    ALARM_STATS_KEY,
+    JSON.stringify(stats)
+);
 
         updateDashboardStats();
 
@@ -3899,9 +3959,9 @@ console.log(
             );
 
             localStorage.setItem(
-                "challengeHistory",
-                JSON.stringify(challengeHistory)
-            );
+    CHALLENGE_HISTORY_KEY,
+    JSON.stringify(challengeHistory)
+);
 
             savePerformanceToDatabase(performanceRecord);
 
@@ -3953,9 +4013,9 @@ function increaseDifficulty(){
     }
 
     localStorage.setItem(
-        "alarms",
-        JSON.stringify(alarms)
-    );
+    ALARMS_KEY,
+    JSON.stringify(alarms)
+);
 
     displayAlarms();
 
@@ -4084,8 +4144,13 @@ async function loadAnalytics() {
             localStorage.getItem("userId") || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/challenges/performance/analysis/${userId}`
-        );
+    `${API}/challenges/performance/analysis/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    }
+);
 
         const data = await response.json();
 
@@ -4930,7 +4995,7 @@ async function loadHabitScore() {
             Number(localStorage.getItem("userId")) || 1;
 
         const response = await fetch(
-            `http://localhost:5000/api/habit-score/${userId}`
+            `${API}/habit-score/${userId}`
         );
 
         const data = await response.json();
@@ -5135,10 +5200,16 @@ async function loadHabitScoreHistoryChart() {
             Number(localStorage.getItem("userId")) || 1;
 
 
-        const response = await fetch(
-            `http://localhost:5000/api/challenges/behavior/history/${userId}`
-        );
+const token = localStorage.getItem("token");
 
+const response = await fetch(
+    `${API}/challenges/behavior/history/${userId}`,
+    {
+        headers: {
+            "Authorization": `Bearer ${token}`
+        }
+    }
+);
 
         const data = await response.json();
 
@@ -5269,9 +5340,11 @@ async function loadHabitScoreHistoryChart() {
             return;
 
         }
+if (habitScoreHistoryChartInstance) {
+    habitScoreHistoryChartInstance.destroy();
+}
 
-
-        new Chart(canvas, {
+        habitScoreHistoryChartInstance = new Chart(canvas, {
 
             type: "line",
 
@@ -5423,6 +5496,83 @@ if (habitAlertDate !== todayHabitAlert) {
         todayHabitAlert
     );
 }
+
+// ==========================================
+// DYNAMIC USER GREETING
+// ==========================================
+
+async function loadDashboardGreeting() {
+
+    const greetingElement =
+        document.getElementById("dashboardGreeting");
+
+    if (!greetingElement) return;
+
+    const userId =
+        localStorage.getItem("userId");
+
+    const token =
+        localStorage.getItem("token");
+
+    if (!userId || !token) {
+        greetingElement.textContent =
+            "Good Morning 👋";
+        return;
+    }
+
+    try {
+
+        const response = await fetch(
+    `${API_BASE}/users/${userId}`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.message || "Failed to load user"
+            );
+        }
+
+        const userName =
+            data.user.name || "User";
+
+        const hour =
+            new Date().getHours();
+
+        let greeting;
+
+        if (hour >= 5 && hour < 12) {
+            greeting = "Good Morning";
+        }
+        else if (hour >= 12 && hour < 17) {
+            greeting = "Good Afternoon";
+        }
+        else {
+            greeting = "Good Evening";
+        }
+
+        greetingElement.textContent =
+            `${greeting}, ${userName} 👋`;
+
+    } catch (error) {
+
+        console.error(
+            "Greeting error:",
+            error
+        );
+
+        greetingElement.textContent =
+            "Welcome Back 👋";
+    }
+}
+
+loadDashboardGreeting();
 
 document.addEventListener(
     "DOMContentLoaded",

@@ -105,6 +105,7 @@
 
 </div>
 
+<script src="js/config.js"></script>
 <script>
     // Handle Google OAuth redirect
 const params = new URLSearchParams(window.location.search);
@@ -137,7 +138,7 @@ if (token) {
     function googleLogin() {
 
     window.location.href =
-        "http://localhost:5000/auth/google";
+        `${BACKEND_BASE}/auth/google`;
 
 }
 async function loginUser() {
@@ -147,7 +148,7 @@ async function loginUser() {
 
     try {
 
-        const response = await fetch("http://localhost:5000/api/auth/login", {
+        const response = await fetch(`${API_BASE}/auth/login`, {
 
             method: "POST",
 

@@ -1781,3 +1781,35 @@ body {
     color: white;
     text-decoration: none;
 }
+
+/* ==========================================
+   DISMISS ALARM BUTTON
+========================================== */
+
+#dismissBtn {
+    display: block;
+    width: 100%;
+    padding: 12px 20px;
+    margin-top: 15px;
+
+    background: #ef4444;
+    color: white;
+
+    border: none;
+    border-radius: 8px;
+
+    font-size: 15px;
+    font-weight: 600;
+
+    cursor: pointer;
+    text-align: center;
+
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+#dismissBtn:hover {
+    background: #dc2626;
+    transform: translateY(-1px);
+}
+
+

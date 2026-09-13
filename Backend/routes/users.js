@@ -9,7 +9,7 @@ const auth = require("../middleware/auth");
 // GET ALL USERS
 // =====================================================
 
-router.get("/", async (req, res) => {
+router.get("/", auth, async (req, res) => {
 
     try {
 

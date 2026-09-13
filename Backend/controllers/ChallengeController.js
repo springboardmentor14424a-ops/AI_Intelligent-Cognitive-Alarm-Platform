@@ -328,6 +328,17 @@ async function savePerformance(req, res) {
         } = req.body;
 
 
+        if (
+    req.user?.role === "user" &&
+    Number(req.user.id) !== Number(userId)
+) {
+    return res.status(403).json({
+        success: false,
+        message: "You can only save your own performance"
+    });
+}
+
+
         // Basic validation
         if (
             !challengeType ||
@@ -1388,6 +1399,16 @@ async function saveWakeUpVerification(req, res) {
             verificationStatus
         } = req.body;
 
+        if (
+    req.user?.role === "user" &&
+    Number(req.user.id) !== Number(userId)
+) {
+    return res.status(403).json({
+        success: false,
+        message: "You can only save your own wake-up verification"
+    });
+}
+
 
         // ---------------------------------------------
         // Validate required data
@@ -1518,6 +1539,18 @@ async function getBehaviorAnalytics(req, res) {
             return res.status(400).json({
                 success: false,
                 message: "Invalid user ID."
+            });
+        }
+
+
+                // Users can access only their own analytics
+        if (
+            req.user?.role === "user" &&
+            Number(req.user.id) !== userId
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only access your own analytics"
             });
         }
 
@@ -2001,6 +2034,16 @@ async function saveBehaviorEvent(req, res) {
             metadata
         } = req.body;
 
+        if (
+    req.user?.role === "user" &&
+    Number(req.user.id) !== Number(userId)
+) {
+    return res.status(403).json({
+        success: false,
+        message: "You can only save your own behavior events"
+    });
+}
+
 
         // Validate required fields
         if (!userId || !eventType) {
@@ -2076,6 +2119,23 @@ async function getBehaviorHistory(req, res) {
     try {
 
         const userId = Number(req.params.userId);
+
+        if (!userId) {
+    return res.status(400).json({
+        success: false,
+        message: "Invalid user ID."
+    });
+}
+
+if (
+    req.user?.role === "user" &&
+    Number(req.user.id) !== userId
+) {
+    return res.status(403).json({
+        success: false,
+        message: "You can only access your own history"
+    });
+}
 
         if (!userId) {
             return res.status(400).json({

@@ -1,5 +1,5 @@
-const API = "http://localhost:5000/api";
-
+const API = API_BASE;
+const authToken = localStorage.getItem("token");
 
 // =====================================================
 // SAFE NUMBER
@@ -172,7 +172,11 @@ async function loadCoachDashboard() {
         // =================================================
 
         const usersResponse =
-            await fetch(`${API}/users`);
+    await fetch(`${API}/users`, {
+        headers: {
+            "Authorization": `Bearer ${authToken}`
+        }
+    });
 
         const usersData =
             await usersResponse.json();
@@ -217,17 +221,26 @@ async function loadCoachDashboard() {
                     try {
 
                         const response =
-                            await fetch(
-                                `${API}/challenges/behavior/analytics/${user.id}`
-                            );
-
+    await fetch(
+        `${API}/challenges/behavior/analytics/${user.id}`,
+        {
+            headers: {
+                "Authorization": `Bearer ${authToken}`
+            }
+        }
+    );
 
                         const data =
                             await response.json();
                         
                         const habitResponse =
     await fetch(
-        `${API}/habit-score/${user.id}`
+        `${API}/habit-score/${user.id}`,
+        {
+            headers: {
+                "Authorization": `Bearer ${authToken}`
+            }
+        }
     );
 
 const habitData =
