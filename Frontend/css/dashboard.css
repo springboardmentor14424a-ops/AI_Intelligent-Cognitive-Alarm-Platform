@@ -27,6 +27,7 @@ body{
     position:fixed;
     left:0;
     top:0;
+    z-index:1000;
     background:linear-gradient(180deg,#4F46E5,#6D5DF6);
     color:#fff;
     padding:30px 20px;
@@ -212,7 +213,24 @@ pre{
 ========================================== */
 
 .progress{
-    margin:18px 0;
+    margin: 28px 0;
+}
+
+.progress-title{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:12px;
+    font-size:14px;
+    line-height:1.5;
+}
+
+.progress-bar{
+    width:100%;
+    height:10px;
+    background:#e5e7eb;
+    border-radius:20px;
+    overflow:hidden;
 }
 
 .progress-title{
@@ -981,8 +999,27 @@ background:#ececec;
    ===================================================== */
 
 .analytics-section {
+    width: 100%;
+    max-width: none;
     margin-top: 40px;
     padding: 30px;
+    box-sizing: border-box;
+}
+
+.analytics-section::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+footer {
+    width: 100%;
+    clear: both;
+    display: block;
+    margin-top: 40px;
+    padding: 20px;
+    text-align: center;
+    color: #666;
 }
 
 .analytics-section .section-header {
@@ -1002,8 +1039,9 @@ background:#ececec;
 /* KPI CARDS */
 
 .analytics-kpis {
+    width: 100%;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px;
     margin-bottom: 25px;
 }
@@ -1038,8 +1076,9 @@ background:#ececec;
 /* CHART GRID */
 
 .analytics-grid {
+    width: 100%;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 20px;
 }
 
@@ -1067,6 +1106,8 @@ background:#ececec;
 /* HISTORY */
 
 .analytics-history {
+    width: 100%;
+    box-sizing: border-box;
     margin-top: 25px;
     padding: 22px;
     border-radius: 14px;
@@ -1380,10 +1421,12 @@ background:#ececec;
 
 .habit-history-section {
     margin-top: 30px;
-    padding-top: 25px;
-    border-top: 1px solid #e4e8ef;
+    padding: 25px;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
+    border-top: none;
 }
-
 .habit-history-section h4 {
     margin: 0;
     font-size: 18px;
@@ -1408,7 +1451,10 @@ background:#ececec;
 ========================================== */
 
 .recommendation-card {
-    padding: 24px;
+    padding: 25px;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06);
 }
 
 .recommendation-card h3 {
@@ -1813,3 +1859,47 @@ body {
 }
 
 
+/* ==========================================
+   FULL WIDTH VISUAL ANALYTICS
+   ========================================== */
+
+.analytics-section {
+    grid-column: 1 / -1;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+/* Copyright must appear below the entire analytics section */
+footer {
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+    display: block;
+    text-align: center;
+    margin-top: 40px;
+    padding: 20px;
+}
+
+/* Coach Dashboard - Progress Spacing Fix */
+.progress {
+    margin-top: 35px !important;
+    margin-bottom: 35px !important;
+}
+
+.progress-title {
+    margin-bottom: 14px !important;
+    line-height: 1.6 !important;
+}
+
+/* ==========================================
+   COACH DASHBOARD - SECTION SPACING
+   ========================================== */
+
+.main > .box {
+    margin-bottom: 24px !important;
+}
+
+.main > .box:last-child {
+    margin-bottom: 0 !important;
+}

@@ -285,7 +285,7 @@ async function loadPlatformAnalytics() {
 
         const activeUsers =
             document.getElementById(
-                "adminActiveUsers"
+                "adminActiveAccounts"
             );
 
         if (activeUsers) {

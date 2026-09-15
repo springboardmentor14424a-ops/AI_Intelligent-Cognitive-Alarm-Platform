@@ -824,45 +824,6 @@ AI ANALYTICS
 </div>
 
 
-<!-- ======================================
-QUICK ACTIONS
-====================================== -->
-
-<div class="box">
-
-<h3>
-
-⚡ Quick Actions
-
-</h3>
-
-<button>
-
-Start Meditation
-
-</button>
-
-<button>
-
-View Sleep Report
-
-</button>
-
-<button>
-
-Edit Alarm
-
-</button>
-
-<button>
-
-Health Report
-
-</button>
-
-</div>
-
-</div>
 
 <!-- Dashboard Grid Ends -->
 
@@ -1089,65 +1050,7 @@ display:false
 
 });
 
-/* ==========================
-Wellness Doughnut
-========================== */
 
-const wellness=document.getElementById('wellnessChart');
-
-new Chart(wellness,{
-
-type:'doughnut',
-
-data:{
-
-labels:[
-
-'Sleep',
-
-'Fitness',
-
-'Hydration',
-
-'Stress'
-
-],
-
-datasets:[{
-
-data:[82,84,75,22],
-
-backgroundColor:[
-
-'#4F46E5',
-
-'#06B6D4',
-
-'#22C55E',
-
-'#F59E0B'
-
-]
-
-}]
-
-},
-
-options:{
-
-plugins:{
-
-legend:{
-
-position:'bottom'
-
-}
-
-}
-
-}
-
-});
 
 </script>
 

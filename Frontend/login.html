@@ -118,6 +118,20 @@ if (token) {
     localStorage.setItem("token", token);
     localStorage.setItem("role", role);
 
+    // Get user ID from Google JWT
+    try {
+        const payload = JSON.parse(
+            atob(token.split(".")[1])
+        );
+
+        localStorage.setItem("userId", payload.id);
+    } catch (error) {
+        console.error(
+            "Failed to read user ID from Google token:",
+            error
+        );
+    }
+
    
     if (role === "admin") {
 

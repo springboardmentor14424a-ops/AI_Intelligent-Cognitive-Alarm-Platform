@@ -1143,8 +1143,9 @@ async function generateQuestion(challengeType, difficulty) {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json"
-                },
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${authToken}`
+},
 
                 body: JSON.stringify({
                     challengeType: challengeType,
@@ -1955,8 +1956,9 @@ async function savePerformanceToDatabase(performanceRecord) {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json"
-                },
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${authToken}`
+},
 
                 body: JSON.stringify({
                     userId:
@@ -2051,9 +2053,9 @@ let recommendationData = null;
 try {
 
     const recommendationResponse =
-        await fetch(
-            `${API}/recommendations/${userId}?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`
-        );
+    await fetch(
+        `${API}/recommendations/${userId}?bedtime=${encodeURIComponent(bedtime)}&wakeUpTime=${encodeURIComponent(wakeUpTime)}`
+    );
 
     recommendationData =
         await recommendationResponse.json();
@@ -2996,8 +2998,9 @@ async function logBehaviorEvent(eventType, metadata = {}) {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json"
-                },
+    "Content-Type": "application/json",
+    "Authorization": `Bearer ${authToken}`
+}, 
 
                 body: JSON.stringify({
                     userId: userId,
@@ -5019,6 +5022,64 @@ async function loadHabitScore() {
 
 const scores = data.scores;
 
+// ==========================================
+// DYNAMIC WELLNESS DOUGHNUT
+// ==========================================
+
+const wellnessCanvas =
+    document.getElementById("wellnessChart");
+
+if (wellnessCanvas) {
+
+    // Prevent duplicate charts
+    const existingWellnessChart =
+    Chart.getChart(wellnessCanvas);
+
+if (existingWellnessChart) {
+    existingWellnessChart.destroy();
+}
+    window.wellnessChart = new Chart(
+        wellnessCanvas,
+        {
+            type: "doughnut",
+
+            data: {
+                labels: [
+                    "Sleep",
+                    "Productivity",
+                    "Wake-up Consistency",
+                    "Snooze Control"
+                ],
+
+                datasets: [{
+                    data: [
+                        Number(scores.sleepAdherence) || 0,
+                        Number(scores.productivityScore) || 0,
+                        Number(scores.wakeUpConsistency) || 0,
+                        Number(scores.snoozeReduction) || 0
+                    ],
+
+                    backgroundColor: [
+                        "#4F46E5",
+                        "#06B6D4",
+                        "#22C55E",
+                        "#F59E0B"
+                    ]
+                }]
+            },
+
+            options: {
+                responsive: true,
+
+                plugins: {
+                    legend: {
+                        position: "bottom"
+                    }
+                }
+            }
+        }
+    );
+}
 
 // Overall score
 

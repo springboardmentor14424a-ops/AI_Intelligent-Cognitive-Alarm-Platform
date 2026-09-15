@@ -16,7 +16,7 @@ router.get(
 router.get(
     "/google/callback",
     passport.authenticate("google", {
-        failureRedirect: "http://127.0.0.1:5500/Frontend/login.html",
+        failureRedirect: "https://frontend-phi-jade-33.vercel.app/login.html",
         session: false,
     }),
     (req, res) => {
@@ -34,7 +34,7 @@ router.get(
         );
 
         res.redirect(
-    `http://127.0.0.1:5500/Frontend/login.html?token=${token}&role=${req.user.role}`
+    `https://frontend-phi-jade-33.vercel.app/login.html?token=${token}&role=${req.user.role}`
 );
     }
 );

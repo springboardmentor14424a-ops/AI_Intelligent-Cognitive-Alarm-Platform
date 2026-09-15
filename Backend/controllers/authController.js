@@ -123,7 +123,7 @@ const forgotPassword = async (req, res) => {
 
         // Temporary development reset link
         const resetLink =
-    `http://127.0.0.1:5500/Frontend/reset-password.html?token=${resetToken}`;
+    `https://frontend-phi-jade-33.vercel.app/reset-password.html?token=${resetToken}`;
         console.log("=================================");
         console.log("PASSWORD RESET LINK:");
         console.log(resetLink);
