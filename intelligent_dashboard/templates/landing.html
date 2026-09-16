@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Intelligent Cognitive Alarm Platform</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: radial-gradient(ellipse at bottom, #1e293b 0%, #090d16 100%);
+        }
+        .hero {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 100px 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+        .badge-gradient {
+            padding: 6px 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            color: var(--primary);
+            border-radius: 9999px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -1.5px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        .features {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 60px 20px 100px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav style="max-width: 1200px; margin: 0 auto; padding: 24px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); display: flex; align-items: center; justify-content: center; font-weight: bold; color: #fff;">A</div>
+            <span style="font-weight: 700; fontSize: 20px;">CognitiveAlarm</span>
+        </div>
+        <div style="display: flex; gap: 16px;">
+            {% if user %}
+                <a href="/dashboard" class="btn btn-primary">Go to Dashboard</a>
+            {% else %}
+                <a href="/login" class="btn btn-secondary">Sign In</a>
+                <a href="/register" class="btn btn-primary">Get Started</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="badge-gradient">Circadian Sleep Optimization</div>
+        <h1>Waking up shouldn't be a battle. It should be a science.</h1>
+        <p>Engage your mind, solve cognitive puzzles, track sleep consistency, and collaborate with wellness coaches to optimize your morning routine.</p>
+        <div style="display: flex; gap: 16px; margin-top: 20px;">
+            <a href="/register" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px;">Create Free Account</a>
+            <a href="/login" class="btn btn-secondary" style="padding: 14px 28px; font-size: 16px;">Access Platform</a>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features">
+        <div class="glass-card" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: rgba(59, 130, 246, 0.1); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--primary); font-weight: bold; font-size: 20px;">🗠</div>
+            <h3>Cognitive Challenges</h3>
+            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">Choose from Math Puzzles, Shake to Wake, or memory sequences to deactivate alarms, forcing cortical engagement.</p>
+        </div>
+        <div class="glass-card" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: rgba(139, 92, 246, 0.1); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--accent); font-weight: bold; font-size: 20px;">⏰</div>
+            <h3>Smart Alarm Schedules</h3>
+            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">Dynamic repeat rules, customizable volume gradients, and vibration metrics tailored to your sleep cycles.</p>
+        </div>
+        <div class="glass-card" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="background: rgba(16, 185, 129, 0.1); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: var(--success); font-weight: bold; font-size: 20px;">💬</div>
+            <h3>Wellness Coaches</h3>
+            <p style="color: var(--text-secondary); font-size: 14px; line-height: 1.5;">Receive personalized sleep architecture advice, weekly goals and progress recommendations directly from experts.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 40px 20px; border-top: 1px solid var(--border-card); font-size: 13px; color: var(--text-secondary);">
+        © 2026 AI Intelligent Cognitive Alarm Platform. Developed for Advanced Mentorship. All Rights Reserved.
+    </footer>
+</body>
+</html>

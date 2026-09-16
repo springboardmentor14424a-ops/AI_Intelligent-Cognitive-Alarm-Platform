@@ -1,0 +1,199 @@
+{
+	"info": {
+		"_postman_id": "c3190aaf-alarm-system-v1",
+		"name": "Module 3 - Alarm Scheduling System API",
+		"description": "Complete Postman Collection for AI Cognitive Alarm Platform Module 3 REST APIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Alarms",
+			"item": [
+				{
+					"name": "1. Create Alarm (POST /alarms)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Morning Wakeup\",\n  \"alarm_time\": \"07:30 AM\",\n  \"alarm_type\": \"Smart Adaptive\",\n  \"repeat_days\": \"Mon,Tue,Wed,Thu,Fri\",\n  \"difficulty_level\": \"Medium\",\n  \"sound\": \"Chimes\",\n  \"vibration\": true,\n  \"challenge_required\": \"Math Puzzle\",\n  \"smart_alarm\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alarms/",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", ""]
+						}
+					}
+				},
+				{
+					"name": "2. Get All Alarms (GET /alarms)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", ""]
+						}
+					}
+				},
+				{
+					"name": "3. Get Single Alarm (GET /alarms/{id})",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/1",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "1"]
+						}
+					}
+				},
+				{
+					"name": "4. Update Alarm (PUT /alarms/{id})",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Morning Wakeup\",\n  \"alarm_time\": \"06:45 AM\",\n  \"difficulty_level\": \"Hard\",\n  \"sound\": \"Zen Bell\",\n  \"vibration\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alarms/1",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "1"]
+						}
+					}
+				},
+				{
+					"name": "5. Enable Alarm (PATCH /alarms/{id}/enable)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/1/enable",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "1", "enable"]
+						}
+					}
+				},
+				{
+					"name": "6. Disable Alarm (PATCH /alarms/{id}/disable)",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/1/disable",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "1", "disable"]
+						}
+					}
+				},
+				{
+					"name": "7. Get Today Alarms (GET /alarms/today)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/today",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "today"]
+						}
+					}
+				},
+				{
+					"name": "8. Get Upcoming Alarms (GET /alarms/upcoming)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/upcoming",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "upcoming"]
+						}
+					}
+				},
+				{
+					"name": "9. Check Next Alarm (POST /alarms/check-next)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/check-next",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "check-next"]
+						}
+					}
+				},
+				{
+					"name": "10. Delete Alarm (DELETE /alarms/{id})",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"url": {
+							"raw": "{{base_url}}/alarms/1",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "1"]
+						}
+					}
+				},
+				{
+					"name": "11. Register FCM Token (POST /alarms/fcm-token)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{jwt_token}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fcm_token\": \"sample_fcm_device_token_123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/alarms/fcm-token",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "fcm-token"]
+						}
+					}
+				},
+				{
+					"name": "12. Scheduler Status (GET /alarms/scheduler)",
+					"request": {
+						"method": "GET",
+						"url": {
+							"raw": "{{base_url}}/alarms/scheduler",
+							"host": ["{{base_url}}"],
+							"path": ["alarms", "scheduler"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{ "key": "base_url", "value": "http://127.0.0.1:8000" },
+		{ "key": "jwt_token", "value": "YOUR_JWT_ACCESS_TOKEN_HERE" }
+	]
+}
