@@ -1,10 +1,13 @@
-import hashlib
-import logging
 import math
+import hashlib
+import io
 import os
 import re
 import secrets
+import smtplib
+from collections import defaultdict
 from datetime import datetime, time, timedelta, timezone
+from email.message import EmailMessage
 from enum import Enum
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -13,24 +16,32 @@ from authlib.integrations.starlette_client import OAuth
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text as SQLText, Time, create_engine, func, select, text
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import inch
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, JSON, String, Text as SQLText, Time, UniqueConstraint, create_engine, func, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.requests import Request
 
-logger = logging.getLogger(__name__)
-
 try:
     from .alarm_service import next_occurrence
     from .gemini_service import get_gemini_service
+    from .fcm_service import get_fcm_service
 except ImportError:  # Supports `uvicorn main:app` when running from backend/.
     from alarm_service import next_occurrence
     from gemini_service import get_gemini_service
+    from fcm_service import get_fcm_service
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://postgres:postgres@localhost:5432/brainos")
@@ -39,6 +50,18 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 SESSION_SECRET = os.getenv("SESSION_SECRET", JWT_SECRET)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 USE_GEMINI_CHALLENGES = os.getenv("USE_GEMINI_CHALLENGES", "true").lower() == "true"
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USERNAME = os.getenv("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USERNAME)
+SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+ADMIN_BOOTSTRAP_EMAILS = {
+    email.strip().lower() for email in os.getenv("ADMIN_BOOTSTRAP_EMAILS", "").split(",") if email.strip()
+}
+RESET_CODE_TTL_MINUTES = 10
+RESET_RESEND_COOLDOWN_SECONDS = 60
+RESET_MAX_ATTEMPTS = 5
 ALGORITHM, EXPIRE_MINUTES = "HS256", 60 * 24
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
@@ -140,7 +163,6 @@ class Alarm(Base):
     wake_verification_mode: Mapped[str] = mapped_column(String(30), default="SINGLE")
     notification_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     last_fired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
@@ -152,6 +174,20 @@ class Alarm(Base):
     )
 
 
+class SnoozeEvent(Base):
+    """Immutable record of an accepted snooze action for behavioral analytics."""
+
+    __tablename__ = "snooze_events"
+
+    snooze_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    alarm_id: Mapped[int] = mapped_column(ForeignKey("alarms.alarm_id", ondelete="CASCADE"), index=True)
+    snooze_minutes: Mapped[int] = mapped_column(Integer)
+    snoozed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
 class Mission(Base):
     __tablename__ = "missions"
 
@@ -159,9 +195,15 @@ class Mission(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
     challenge_type: Mapped[str] = mapped_column(String(40))
     completed: Mapped[bool] = mapped_column(Boolean, default=False)
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     reward: Mapped[int] = mapped_column(Integer, default=180)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )
 
 class ChallengeAttempt(Base):
     """Server-side challenge state. The expected answer never leaves this table."""
@@ -217,6 +259,101 @@ class Analytics(Base):
     recorded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
 
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    notification_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    notification_type: Mapped[str] = mapped_column(String(40))
+    title: Mapped[str] = mapped_column(String(160))
+    message: Mapped[str] = mapped_column(SQLText)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class DeviceToken(Base):
+    """FCM push registration token for a user's browser/device."""
+
+    __tablename__ = "device_tokens"
+
+    device_token_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token: Mapped[str] = mapped_column(String(512), unique=True, index=True)
+    platform: Mapped[str] = mapped_column(String(20), default="WEB")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class CoachNote(Base):
+    """A private note a coach keeps about a member's progress."""
+
+    __tablename__ = "coach_notes"
+
+    note_id: Mapped[int] = mapped_column(primary_key=True)
+    coach_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    note: Mapped[str] = mapped_column(SQLText)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class CoachAssignment(Base):
+    """Links a wellness coach to the members they are responsible for."""
+
+    __tablename__ = "coach_assignments"
+    __table_args__ = (UniqueConstraint("coach_id", "member_id", name="uq_coach_assignment"),)
+
+    assignment_id: Mapped[int] = mapped_column(primary_key=True)
+    coach_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
+class CoachHelpMessage(Base):
+    """A single turn in the two-way help thread between a member and their assigned coach."""
+
+    __tablename__ = "coach_help_messages"
+
+    message_id: Mapped[int] = mapped_column(primary_key=True)
+    member_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    coach_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    sender_role: Mapped[str] = mapped_column(String(20))
+    content: Mapped[str] = mapped_column(SQLText)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class AssistantMessage(Base):
+    """A single turn in a user's ongoing conversation with the Gemini morning coach."""
+
+    __tablename__ = "assistant_messages"
+
+    message_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    role: Mapped[str] = mapped_column(String(20))
+    content: Mapped[str] = mapped_column(SQLText)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True
+    )
+
+
+class PasswordResetCode(Base):
+    __tablename__ = "password_reset_codes"
+
+    reset_id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    code_hash: Mapped[str] = mapped_column(String(255))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    used: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    sent_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+
+
 class RegisterInput(BaseModel):
     name: str = Field(min_length=2, max_length=120)
     email: EmailStr
@@ -226,6 +363,17 @@ class RegisterInput(BaseModel):
 class LoginInput(BaseModel):
     email: EmailStr
     password: str
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+    new_password: str = Field(min_length=8, max_length=128)
+    confirm_password: str = Field(min_length=8, max_length=128)
 
 
 class AlarmInput(BaseModel):
@@ -243,23 +391,6 @@ class AlarmInput(BaseModel):
     challenge_type: str = Field(default="AUTO", min_length=2, max_length=30)
     wake_verification_mode: str = Field(default="SINGLE", min_length=3, max_length=30)
     notification_enabled: bool = True
-
-
-class AlarmPatchInput(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=120)
-    alarm_time: str | None = None
-    alarm_type: str | None = None
-    repeat_days: str | None = None
-    difficulty: str | None = None
-    sound: str | None = Field(default=None, max_length=80)
-    vibration: bool | None = None
-    snooze_minutes: int | None = Field(default=None, ge=0, le=30)
-    status: str | None = None
-    daybreak_route_enabled: bool | None = None
-    wake_window_minutes: int | None = Field(default=None, ge=0, le=60)
-    challenge_type: str | None = Field(default=None, min_length=2, max_length=30)
-    wake_verification_mode: str | None = Field(default=None, min_length=3, max_length=30)
-    notification_enabled: bool | None = None
 
 
 class MissionInput(BaseModel):
@@ -287,6 +418,10 @@ class RoleUpdateInput(BaseModel):
     role: Role
 
 
+class CoachAssignmentInput(BaseModel):
+    member_id: int
+
+
 class ChallengeGenerateInput(BaseModel):
     # Omit this (or use AUTO) to get a server-selected challenge type.
     challenge_type: str | None = Field(default=None, min_length=2, max_length=40)
@@ -298,6 +433,29 @@ class ChallengeGenerateInput(BaseModel):
 
 class AssistantPromptInput(BaseModel):
     message: str = Field(min_length=1, max_length=500)
+
+
+class AnnouncementInput(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class DeviceTokenInput(BaseModel):
+    token: str = Field(min_length=10, max_length=512)
+    platform: str = Field(default="WEB", max_length=20)
+
+
+class CoachNoteInput(BaseModel):
+    note: str = Field(min_length=1, max_length=2000)
+
+
+class CoachMessageInput(BaseModel):
+    title: str = Field(min_length=1, max_length=160)
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class CoachHelpMessageInput(BaseModel):
+    message: str = Field(min_length=1, max_length=1000)
 
 
 class ChallengeCompletionInput(BaseModel):
@@ -321,16 +479,12 @@ CHALLENGE_TERMINAL_STATUSES = {"SOLVED", "FAILED", "TIMED_OUT"}
 CHALLENGE_ALIASES = {
     "MATH": "MATH",
     "MATH_PROBLEM": "MATH",
-    "MATH_PROBLEMS": "MATH",
     "LOGIC": "LOGIC",
     "LOGIC_PUZZLE": "LOGIC",
-    "LOGIC_PUZZLES": "LOGIC",
     "MEMORY": "MEMORY",
     "MEMORY_CHALLENGE": "MEMORY",
-    "MEMORY_CHALLENGES": "MEMORY",
     "WORD": "WORD",
     "WORD_GAME": "WORD",
-    "WORD_GAMES": "WORD",
     "PATTERN": "PATTERN",
     "PATTERN_RECOGNITION": "PATTERN",
     "RIDDLE": "RIDDLE",
@@ -338,8 +492,6 @@ CHALLENGE_ALIASES = {
     "QUIZ": "QUIZ",
     "QUICK_QUIZ": "QUIZ",
     "REACTION": "REACTION",
-    "REACTION_CHALLENGE": "REACTION",
-    "REACTION_CHALLENGES": "REACTION",
 }
 CHALLENGE_TYPES = ("MATH", "LOGIC", "MEMORY", "WORD", "PATTERN", "RIDDLE", "QUIZ", "REACTION")
 
@@ -351,12 +503,70 @@ def db_session():
         db.close()
 
 
+def apply_admin_bootstrap(user: User, db: Session) -> None:
+    """Promote a user to ADMIN on first sign-in if their email is listed in ADMIN_BOOTSTRAP_EMAILS.
+
+    Solves the chicken-and-egg problem: role changes normally require an existing
+    admin, so without this, the very first admin can only be created by hand in the DB.
+    """
+    if user.role != Role.ADMIN.value and user.email.lower() in ADMIN_BOOTSTRAP_EMAILS:
+        user.role = Role.ADMIN.value
+        db.commit()
+
+
 def issue_token(user: User):
     return jwt.encode(
         {"sub": str(user.id), "role": user.role, "exp": datetime.now(timezone.utc) + timedelta(minutes=EXPIRE_MINUTES)},
         JWT_SECRET,
         algorithm=ALGORITHM,
     )
+
+
+def smtp_configured() -> bool:
+    return bool(SMTP_HOST and SMTP_FROM)
+
+
+def send_password_reset_email(email: str, code: str) -> None:
+    if not smtp_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password recovery is unavailable until SMTP is configured.",
+        )
+
+    message = EmailMessage()
+    message["Subject"] = "Your BrainOS password reset code"
+    message["From"] = SMTP_FROM
+    message["To"] = email
+    message.set_content(
+        f"Your BrainOS password reset code is {code}. "
+        f"It expires in {RESET_CODE_TTL_MINUTES} minutes. "
+        "If you did not request this, you can ignore this email."
+    )
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
+            if SMTP_USE_TLS:
+                server.starttls()
+            if SMTP_USERNAME:
+                server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Password recovery email could not be delivered.",
+        ) from exc
+
+
+def validate_password_strength(password: str) -> None:
+    if (
+        len(password) < 8
+        or not re.search(r"[A-Z]", password)
+        or not re.search(r"[a-z]", password)
+        or not re.search(r"\d", password)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Password must be at least 8 characters and include uppercase, lowercase, and a number.",
+        )
 
 
 def current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(db_session)):
@@ -367,6 +577,8 @@ def current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(db_s
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if ADMIN_BOOTSTRAP_EMAILS:
+        apply_admin_bootstrap(user, db)
     return user
 
 
@@ -392,9 +604,6 @@ def owned_alarm(alarm_id: int, user: User, db: Session):
 def verify_wake_completion(alarm: Alarm, user: User, db: Session) -> ChallengeAttempt | None:
     """Evaluate the selected wake-verification policy against recent WAKE_UP attempts."""
     now = datetime.now(timezone.utc)
-    if alarm.last_fired_at is None:
-        return None
-    fired_at = as_utc(alarm.last_fired_at)
     recent = list(
         db.scalars(
             select(ChallengeAttempt)
@@ -404,7 +613,6 @@ def verify_wake_completion(alarm: Alarm, user: User, db: Session) -> ChallengeAt
                 ChallengeAttempt.intent == "WAKE_UP",
                 ChallengeAttempt.completed_at.is_not(None),
                 ChallengeAttempt.completed_at >= now - timedelta(minutes=20),
-                ChallengeAttempt.completed_at >= fired_at,
                 ChallengeAttempt.alarm_id == alarm.alarm_id,
             )
             .order_by(ChallengeAttempt.completed_at.desc())
@@ -443,6 +651,62 @@ def verify_wake_completion(alarm: Alarm, user: User, db: Session) -> ChallengeAt
     accuracy = sum(1 for challenge in window if challenge.is_correct) / len(window)
     return window[0] if accuracy >= 0.80 and window[0].verification_passed else None
 
+@app.post("/alarms/{alarm_id}/verify-wake")
+def verify_wake_alarm(
+    alarm_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
+    """Check whether the current wake protocol has been fully verified without completing the alarm."""
+    alarm = owned_alarm(alarm_id, user, db)
+
+    if alarm.status not in {"ACTIVE", "RINGING"}:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Alarm is not available for wake verification",
+        )
+
+    verified = verify_wake_completion(alarm, user, db)
+    required_by_mode = {
+        "SINGLE": 1,
+        "MULTI_STEP": 2,
+        "CONSECUTIVE": 2,
+        "TIMED": 1,
+        "ACCURACY": 3,
+    }
+    mode = normalize_wake_verification_mode(alarm.wake_verification_mode)
+    required = required_by_mode.get(mode, 1)
+
+    recent_attempts = list(
+        db.scalars(
+            select(ChallengeAttempt)
+            .where(
+                ChallengeAttempt.user_id == user.id,
+                ChallengeAttempt.alarm_id == alarm.alarm_id,
+                ChallengeAttempt.intent == "WAKE_UP",
+                ChallengeAttempt.completed.is_(True),
+                ChallengeAttempt.completed_at.is_not(None),
+                ChallengeAttempt.completed_at >= datetime.now(timezone.utc) - timedelta(minutes=20),
+            )
+            .order_by(ChallengeAttempt.completed_at.desc())
+            .limit(6)
+        ).all()
+    )
+    successful_count = sum(
+        1 for attempt in recent_attempts
+        if attempt.is_correct and attempt.verification_passed
+    )
+
+    return {
+        "alarm_id": alarm.alarm_id,
+        "verified": bool(verified),
+        "mode": mode,
+        "required_checkpoints": required,
+        "successful_checkpoints": successful_count,
+        "message": "Wake protocol verified. Choose dismiss or snooze." if verified else "Additional wake verification required.",
+    }
+
+
 @app.post("/alarms/{alarm_id}/complete-wake")
 def complete_wake_alarm(
     alarm_id: int,
@@ -451,10 +715,10 @@ def complete_wake_alarm(
 ):
     alarm = owned_alarm(alarm_id, user, db)
 
-    if alarm.status != "RINGING":
+    if alarm.status not in {"ACTIVE", "RINGING"}:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Alarm is not currently ringing",
+            detail="Alarm is not available for wake completion",
         )
 
     recent_wake = verify_wake_completion(alarm, user, db)
@@ -465,7 +729,6 @@ def complete_wake_alarm(
         )
 
     alarm.snoozed_until = None
-    alarm.last_completed_at = datetime.now(timezone.utc)
 
     alarm_type = str(alarm.alarm_type or "").upper()
 
@@ -477,17 +740,12 @@ def complete_wake_alarm(
 
         profile = ensure_profile(user, db)
         current_time = local_now(profile)
-        occurrence = scheduled_occurrence(
-            alarm,
-            latest_sleep_score(user.id, db),
+
+        next_at = next_occurrence(
+            alarm.alarm_time,
+            alarm.alarm_type,
+            alarm.repeat_days,
             current_time,
-            profile,
-            db,
-        )
-        next_at = (
-            occurrence.replace(tzinfo=safe_zone(profile.timezone)).astimezone(timezone.utc)
-            if occurrence
-            else None
         )
 
     db.commit()
@@ -657,6 +915,12 @@ def challenge_max_attempts(difficulty: str) -> int:
     }[difficulty]
 
 
+def max_snoozes_for_alarm(alarm: Alarm) -> int:
+    """Anti-snooze cap: reuse the same per-difficulty scale as challenge_max_attempts
+    so harder alarms are both harder to answer wrong and harder to keep deferring."""
+    return challenge_max_attempts(normalize_difficulty(alarm.difficulty))
+
+
 def as_utc(moment: datetime) -> datetime:
     return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
 
@@ -786,7 +1050,6 @@ def choose_challenge_difficulty(
         return baseline, f"Starting at your {baseline.lower()} preference until your route has performance history."
 
     metrics = challenge_metrics(recent)
-    rating = user_performance_rating(metrics)["score"]
     base_level = DIFFICULTY_LEVELS.index(baseline)
 
     is_fast = metrics["median_speed_ratio"] is not None and metrics["median_speed_ratio"] <= 0.70
@@ -796,7 +1059,6 @@ def choose_challenge_difficulty(
         and is_fast
         and metrics["average_failed_attempts"] <= 0.25
         and metrics["failure_streak"] == 0
-        and rating >= 4
     )
     is_struggling = (
         len(recent) >= 2
@@ -805,7 +1067,6 @@ def choose_challenge_difficulty(
             or (metrics["median_speed_ratio"] is not None and metrics["median_speed_ratio"] >= 0.90)
             or metrics["average_failed_attempts"] >= 1
             or metrics["failure_streak"] >= 2
-            or rating <= 2
         )
     )
 
@@ -998,13 +1259,18 @@ def generate_challenge_with_gemini(
         Tuple of (prompt, expected_answer, instructions, source)
         where source is "GEMINI" or "DETERMINISTIC"
     """
-    if not USE_GEMINI_CHALLENGES:
-        # Fallback directly if Gemini is disabled
+    # WORD and QUIZ challenges always use the deterministic generator: across
+    # repeated sampling, Gemini reliably produced self-referential letter or
+    # logic puzzles whose own stated answer contradicted its own rules (wrong
+    # compass-turn math, anagram answers using letters not in the source
+    # word, invented non-words) - unsolvable even by a correctly-reasoning
+    # user because the "correct" answer itself was wrong.
+    if not USE_GEMINI_CHALLENGES or challenge_type in {"WORD", "QUIZ"}:
         prompt, answer, instructions = deterministic_challenge(
             challenge_type, difficulty, intent, secrets.token_urlsafe(12)
         )
         return prompt, answer, instructions, "DETERMINISTIC"
-    
+
     gemini_service = get_gemini_service()
     prompt, answer, instructions, source = gemini_service.generate_challenge_with_fallback(
         challenge_type,
@@ -1016,32 +1282,9 @@ def generate_challenge_with_gemini(
     return prompt, answer, instructions, source
 
 
-def valid_generated_challenge(prompt: str, answer: str, instructions: str) -> bool:
-    """Reject malformed AI output before it can become a persisted challenge."""
-    return (
-        bool(str(prompt or "").strip())
-        and bool(normalize_answer(answer))
-        and bool(str(instructions or "").strip())
-        and len(str(prompt)) <= 4000
-        and len(str(answer)) <= 255
-        and len(str(instructions)) <= 1000
-    )
-
-
 def latest_sleep_score(user_id: int, db: Session) -> int | None:
-    recent_sleep = db.scalar(
-        select(SleepLog.quality)
-        .where(SleepLog.user_id == user_id)
-        .order_by(SleepLog.wake_time.desc())
-        .limit(1)
-    )
-    if recent_sleep is not None:
-        return round(float(recent_sleep))
     return db.scalar(
-        select(Analytics.sleep_score)
-        .where(Analytics.user_id == user_id)
-        .order_by(Analytics.recorded_at.desc())
-        .limit(1)
+        select(Analytics.sleep_score).where(Analytics.user_id == user_id).order_by(Analytics.recorded_at.desc()).limit(1)
     )
 
 
@@ -1049,69 +1292,36 @@ def local_now(profile: UserProfile) -> datetime:
     return datetime.now(timezone.utc).astimezone(safe_zone(profile.timezone)).replace(tzinfo=None, second=0, microsecond=0)
 
 
-def smart_adaptive_offset_minutes(
-    alarm: Alarm,
-    profile: UserProfile | None,
-    db: Session | None,
-    sleep_score: int | None,
-) -> int:
-    """Deterministically tune a Smart Adaptive alarm without pretending to use ML."""
-    offset = 0
-    if sleep_score is not None:
-        offset += 15 if sleep_score < 50 else 5 if sleep_score < 70 else 0
-
-    if profile and profile.target_sleep_duration_minutes and profile.target_sleep_duration_minutes >= 540:
-        # A user who explicitly prioritizes a longer sleep target gets a small
-        # recovery buffer only when their recorded recovery is below target.
-        if sleep_score is not None and sleep_score < 70:
-            offset += 2
-
-    if db is not None:
-        wake_attempts = list(
-            db.scalars(
-                select(ChallengeAttempt)
-                .where(
-                    ChallengeAttempt.user_id == alarm.user_id,
-                    ChallengeAttempt.intent == "WAKE_UP",
-                    ChallengeAttempt.completed.is_(True),
-                )
-                .order_by(ChallengeAttempt.completed_at.desc(), ChallengeAttempt.created_at.desc())
-                .limit(8)
-            ).all()
-        )
-        if wake_attempts:
-            metrics = challenge_metrics(wake_attempts)
-            if metrics["accuracy"] < 0.50 or metrics["failure_streak"] >= 2:
-                offset += 5
-            elif metrics["accuracy"] >= 0.85 and metrics["failure_streak"] == 0:
-                offset -= 2
-            if alarm.difficulty in {"HARD", "EXPERT"} and metrics["accuracy"] < 0.65:
-                offset += 3
-
-    return max(-5, min(20, offset))
-
-
 def scheduled_occurrence(
     alarm: Alarm,
     sleep_score: int | None,
     current_time: datetime,
-    profile: UserProfile | None = None,
-    db: Session | None = None,
 ) -> datetime | None:
-    alarm_type = normalize_alarm_type(alarm.alarm_type)
-    alarm_time = alarm.alarm_time
-    if alarm_type == "SMART_ADAPTIVE":
-        offset = smart_adaptive_offset_minutes(alarm, profile, db, sleep_score)
-        alarm_time = (
-            datetime.combine(current_time.date(), alarm_time) + timedelta(minutes=offset)
-        ).time()
-    return next_occurrence(
-        alarm_time,
-        alarm_type,
+    occurrence = next_occurrence(
+        alarm.alarm_time,
+        alarm.alarm_type,
         alarm.repeat_days,
-        None,
         current_time,
     )
+    if not occurrence:
+        return None
+
+    if alarm.alarm_type != "SMART_ADAPTIVE":
+        return occurrence
+
+    # Rule-based Smart Adaptive Alarm:
+    # poorer recovery gently shifts the wake checkpoint later, capped at 15 minutes.
+    if sleep_score is None:
+        return occurrence
+
+    if sleep_score < 50:
+        offset = 15
+    elif sleep_score < 70:
+        offset = 5
+    else:
+        offset = 0
+
+    return occurrence + timedelta(minutes=offset)
 
 
 def next_alarm_options(
@@ -1132,9 +1342,8 @@ def next_alarm_options(
 
     options: list[tuple[Alarm, datetime]] = []
 
+    current_utc = datetime.now(timezone.utc)
     zone = safe_zone(profile.timezone)
-    current_utc = current_time.replace(tzinfo=zone).astimezone(timezone.utc)
-    changed = False
 
     for alarm in active:
         snoozed_until = alarm.snoozed_until
@@ -1145,35 +1354,87 @@ def next_alarm_options(
                 options.append((alarm, snooze_utc))
                 continue
 
-            # A snooze is a one-off occurrence. Once it is past, never make a
-            # stale browser reopen it as a fresh ringing alarm.
+            # Snooze has expired; normal scheduling resumes.
             alarm.snoozed_until = None
-            changed = True
-            if alarm.alarm_type == "ONE_TIME":
-                alarm.status = "COMPLETED"
-                continue
 
         occurrence = scheduled_occurrence(
             alarm,
             score,
             current_time,
-            profile,
-            db,
         )
 
         if occurrence:
             occurrence_utc = occurrence.replace(tzinfo=zone).astimezone(timezone.utc)
             options.append((alarm, occurrence_utc))
-        elif alarm.alarm_type == "ONE_TIME":
-            # A one-time occurrence that is already past is complete, not a
-            # dormant alarm waiting to be resurrected on the next app load.
-            alarm.status = "COMPLETED"
-            changed = True
 
-    if changed:
+    if any(alarm.snoozed_until is None for alarm, _ in options):
         db.commit()
 
     return profile, current_time, options
+
+def snooze_pattern_metrics(user_id: int, db: Session, now: datetime | None = None) -> dict:
+    """Return reliable snooze-pattern metrics for one authenticated user."""
+    current = as_utc(now or datetime.now(timezone.utc))
+    events = list(
+        db.scalars(
+            select(SnoozeEvent)
+            .where(SnoozeEvent.user_id == user_id)
+            .order_by(SnoozeEvent.snoozed_at.desc())
+        ).all()
+    )
+
+    durations = [int(event.snooze_minutes) for event in events if event.snooze_minutes is not None]
+    counts_by_duration: dict[int, int] = {}
+    for minutes in durations:
+        counts_by_duration[minutes] = counts_by_duration.get(minutes, 0) + 1
+
+    cutoff = current - timedelta(days=7)
+    recent_events = [event for event in events if as_utc(event.snoozed_at) >= cutoff]
+    recent_active_days = {as_utc(event.snoozed_at).date() for event in recent_events}
+
+    # Snoozes per wake and the snooze rate are normalized against the same
+    # wake-session grouping wake_behavior_metrics uses, so a multi-step
+    # verification isn't miscounted as multiple wakes.
+    wake_attempts = list(
+        db.scalars(
+            select(ChallengeAttempt)
+            .where(
+                ChallengeAttempt.user_id == user_id,
+                ChallengeAttempt.intent == "WAKE_UP",
+                ChallengeAttempt.completed.is_(True),
+                ChallengeAttempt.completed_at.is_not(None),
+                ChallengeAttempt.completed_at >= cutoff,
+            )
+            .order_by(ChallengeAttempt.completed_at.asc())
+        ).all()
+    )
+    sessions = _group_wake_sessions(wake_attempts)
+    successful_wake_days = {
+        _analytics_day(session[-1].completed_at)
+        for session in sessions
+        if session and any(attempt.is_correct and attempt.verification_passed for attempt in session)
+        and _analytics_day(session[-1].completed_at) is not None
+    }
+    successful_wake_count = sum(
+        1 for session in sessions if any(attempt.is_correct and attempt.verification_passed for attempt in session)
+    )
+    snoozes_per_wake = round(len(recent_events) / successful_wake_count, 2) if successful_wake_count else None
+    snoozed_wake_days = recent_active_days & successful_wake_days
+    recent_7_day_snooze_rate = (
+        round((len(snoozed_wake_days) / len(successful_wake_days)) * 100) if successful_wake_days else None
+    )
+
+    return {
+        "total_snoozes": len(events),
+        "average_snooze_minutes": round(sum(durations) / len(durations), 2) if durations else None,
+        "most_common_snooze_minutes": max(counts_by_duration, key=counts_by_duration.get) if counts_by_duration else None,
+        "recent_7_day_snoozes": len(recent_events),
+        "recent_7_day_active_days": len(recent_active_days),
+        "snoozes_per_wake": snoozes_per_wake,
+        "recent_7_day_snooze_rate": recent_7_day_snooze_rate,
+        "data_window_days": 7,
+    }
+
 
 @app.post("/alarms/{alarm_id}/snooze")
 def snooze_alarm(
@@ -1181,7 +1442,14 @@ def snooze_alarm(
     user: User = Depends(current_user),
     db: Session = Depends(db_session),
 ):
-    alarm = owned_alarm(alarm_id, user, db)
+    # Lock the row so two nearly-simultaneous snooze clicks cannot create duplicate events.
+    alarm = db.scalar(
+        select(Alarm)
+        .where(Alarm.alarm_id == alarm_id, Alarm.user_id == user.id)
+        .with_for_update()
+    )
+    if alarm is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Alarm not found")
 
     if alarm.status != "RINGING":
         if alarm.snoozed_until and as_utc(alarm.snoozed_until) > datetime.now(timezone.utc):
@@ -1195,16 +1463,36 @@ def snooze_alarm(
         )
 
     minutes = max(0, int(alarm.snooze_minutes or 0))
-
     if minutes <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Snooze is disabled for this alarm",
         )
 
+    # Anti-snooze: cap how many times this ring cycle can be deferred before
+    # the wake challenge must be completed.
+    max_snoozes = max_snoozes_for_alarm(alarm)
+    snooze_count_query = select(func.count(SnoozeEvent.snooze_id)).where(SnoozeEvent.alarm_id == alarm.alarm_id)
+    if alarm.last_fired_at:
+        snooze_count_query = snooze_count_query.where(SnoozeEvent.snoozed_at >= as_utc(alarm.last_fired_at))
+    snoozes_this_cycle = db.scalar(snooze_count_query) or 0
+    if snoozes_this_cycle >= max_snoozes:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Maximum snoozes ({max_snoozes}) reached for this wake cycle. Complete the challenge to dismiss.",
+        )
+
     now = datetime.now(timezone.utc)
     alarm.snoozed_until = now + timedelta(minutes=minutes)
     alarm.status = "ACTIVE"
+    db.add(
+        SnoozeEvent(
+            user_id=user.id,
+            alarm_id=alarm.alarm_id,
+            snooze_minutes=minutes,
+            snoozed_at=now,
+        )
+    )
 
     db.commit()
     db.refresh(alarm)
@@ -1218,7 +1506,6 @@ def snooze_alarm(
 
 @app.get("/alarms/notifications/due")
 def due_alarm_notifications(user: User = Depends(current_user), db: Session = Depends(db_session)):
-    now_utc = datetime.now(timezone.utc)
     ringing = db.scalars(
         select(Alarm)
         .where(
@@ -1228,21 +1515,6 @@ def due_alarm_notifications(user: User = Depends(current_user), db: Session = De
         )
         .order_by(Alarm.last_fired_at.desc())
     ).all()
-    fresh = []
-    changed = False
-    for alarm in ringing:
-        if alarm.last_fired_at is None:
-            alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
-            changed = True
-            continue
-        age = now_utc - as_utc(alarm.last_fired_at)
-        if timedelta(0) <= age <= timedelta(minutes=RINGING_STALE_MINUTES):
-            fresh.append(alarm)
-        else:
-            alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
-            changed = True
-    if changed:
-        db.commit()
     return [
         {
             "alarm_id": alarm.alarm_id,
@@ -1252,92 +1524,64 @@ def due_alarm_notifications(user: User = Depends(current_user), db: Session = De
             "vibration": alarm.vibration,
             "fired_at": alarm.last_fired_at,
         }
-        for alarm in fresh
+        for alarm in ringing
     ]
 
 
-RINGING_STALE_MINUTES = 15
-SCHEDULER_LATE_GRACE_SECONDS = 65
+def fire_due_alarms():
+    """Dispatch only alarms whose recurrence resolves to this local minute for each user."""
 
-
-def due_within_scheduler_window(due_at: datetime, now_utc: datetime) -> bool:
-    """Return true only for an occurrence the ten-second scheduler can safely fire."""
-    age_seconds = (now_utc - due_at).total_seconds()
-    return 0 <= age_seconds <= SCHEDULER_LATE_GRACE_SECONDS
-
-
-def fire_due_alarms(now: datetime | None = None):
-    """Dispatch a scheduled or snoozed occurrence once, preserving user timezones."""
-    now_utc = as_utc(now or datetime.now(timezone.utc))
+    now_utc = datetime.now(timezone.utc).replace(second=0, microsecond=0)
     with SessionLocal() as db:
-        # PostgreSQL workers cannot claim the same active alarm; SQLite safely
-        # ignores the lock clause in local/test environments.
-        active_alarms = db.scalars(
-            select(Alarm)
-            .where(Alarm.status == "ACTIVE")
-            .with_for_update(skip_locked=True)
-        ).all()
+        active_alarms = db.scalars(select(Alarm).where(Alarm.status == "ACTIVE")).all()
         profile_cache: dict[int, UserProfile] = {}
         score_cache: dict[int, int | None] = {}
-        changed = False
-
+        fired = False
         for alarm in active_alarms:
             if alarm.user_id not in profile_cache:
-                profile_cache[alarm.user_id] = db.scalar(
-                    select(UserProfile).where(UserProfile.user_id == alarm.user_id)
-                ) or UserProfile(user_id=alarm.user_id)
+                profile_cache[alarm.user_id] = db.scalar(select(UserProfile).where(UserProfile.user_id == alarm.user_id)) or UserProfile(
+                    user_id=alarm.user_id
+                )
             if alarm.user_id not in score_cache:
                 score_cache[alarm.user_id] = latest_sleep_score(alarm.user_id, db)
-
             profile = profile_cache[alarm.user_id]
             zone = safe_zone(profile.timezone)
-            snoozed_until = alarm.snoozed_until
-            if snoozed_until is not None:
-                snooze_utc = as_utc(snoozed_until).astimezone(timezone.utc)
-                if snooze_utc > now_utc:
-                    continue
-                if due_within_scheduler_window(snooze_utc, now_utc):
-                    alarm.last_fired_at = now_utc
-                    alarm.snoozed_until = None
-                    alarm.status = "RINGING"
-                    logger.info("BrainOS snoozed alarm fired: user=%s alarm=%s", alarm.user_id, alarm.alarm_id)
-                    changed = True
-                    continue
-                # Never re-ring a snooze that was missed while the backend was
-                # down. A recurring signal returns to its normal next slot.
-                alarm.snoozed_until = None
-                changed = True
-                if alarm.alarm_type == "ONE_TIME":
-                    alarm.status = "COMPLETED"
-                    continue
-
-            current_local = now_utc.astimezone(zone).replace(tzinfo=None, second=0, microsecond=0)
+            current_local = now_utc.astimezone(zone).replace(tzinfo=None)
+            current_local = current_local.replace(second=0, microsecond=0)
             due_local = scheduled_occurrence(
                 alarm,
                 score_cache[alarm.user_id],
                 current_local - timedelta(minutes=1),
-                profile,
-                db,
             )
-            if due_local is None:
-                if alarm.alarm_type == "ONE_TIME":
-                    alarm.status = "COMPLETED"
-                    changed = True
+            if due_local != current_local:
                 continue
-
-            due_utc = due_local.replace(tzinfo=zone).astimezone(timezone.utc)
-            if not due_within_scheduler_window(due_utc, now_utc):
-                continue
-            if alarm.last_fired_at and as_utc(alarm.last_fired_at).replace(second=0, microsecond=0) == due_utc.replace(second=0, microsecond=0):
-                continue
-
+            due_utc = due_local.replace(tzinfo=zone).astimezone(timezone.utc).replace(second=0, microsecond=0)
+            if alarm.last_fired_at:
+                previous = alarm.last_fired_at
+                if previous.tzinfo is None:
+                    previous = previous.replace(tzinfo=timezone.utc)
+                if previous.astimezone(timezone.utc).replace(second=0, microsecond=0) == due_utc:
+                    continue
+            print(f"BrainOS alarm fired: user={alarm.user_id}, alarm={alarm.alarm_id}, title={alarm.title}")
             alarm.last_fired_at = now_utc
             alarm.snoozed_until = None
             alarm.status = "RINGING"
-            logger.info("BrainOS alarm fired: user=%s alarm=%s", alarm.user_id, alarm.alarm_id)
-            changed = True
-
-        if changed:
+            db.add(Notification(
+                user_id=alarm.user_id,
+                notification_type="WAKE_REMINDER",
+                title=alarm.title or "Wake mission",
+                message="Your alarm is ringing. Complete the cognitive challenge to dismiss it.",
+            ))
+            tokens = user_device_tokens(alarm.user_id, db)
+            if tokens:
+                get_fcm_service().send(
+                    tokens,
+                    title=alarm.title or "Wake mission",
+                    body="Your alarm is ringing. Complete the cognitive challenge to dismiss it.",
+                    data={"type": "WAKE_REMINDER", "alarm_id": alarm.alarm_id},
+                )
+            fired = True
+        if fired:
             db.commit()
 
 
@@ -1355,7 +1599,6 @@ def create_tables():
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS daybreak_route_enabled BOOLEAN DEFAULT TRUE",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS wake_window_minutes INTEGER DEFAULT 15",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS last_fired_at TIMESTAMPTZ",
-            "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS last_completed_at TIMESTAMPTZ",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS snoozed_until TIMESTAMPTZ",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS challenge_type VARCHAR(30) DEFAULT 'AUTO'",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS wake_verification_mode VARCHAR(30) DEFAULT 'SINGLE'",
@@ -1369,6 +1612,14 @@ def create_tables():
             "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS time_limit_seconds INTEGER DEFAULT 75",
             "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
             "ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS verification_passed BOOLEAN DEFAULT FALSE",
+            "CREATE TABLE IF NOT EXISTS snooze_events (snooze_id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, alarm_id INTEGER NOT NULL REFERENCES alarms(alarm_id) ON DELETE CASCADE, snooze_minutes INTEGER NOT NULL, snoozed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            "CREATE INDEX IF NOT EXISTS idx_snooze_events_user_snoozed_at ON snooze_events(user_id, snoozed_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_snooze_events_alarm_snoozed_at ON snooze_events(alarm_id, snoozed_at DESC)",
+            "CREATE TABLE IF NOT EXISTS notifications (notification_id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, notification_type VARCHAR(40) NOT NULL, title VARCHAR(160) NOT NULL, message TEXT NOT NULL, read BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            "CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC)",
+            "CREATE TABLE IF NOT EXISTS password_reset_codes (reset_id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, email VARCHAR(255) NOT NULL, code_hash VARCHAR(255) NOT NULL, expires_at TIMESTAMPTZ NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, used BOOLEAN NOT NULL DEFAULT FALSE, sent_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)",
+            "CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_sent ON password_reset_codes(user_id, sent_at DESC)",
+            "CREATE INDEX IF NOT EXISTS idx_password_reset_codes_email ON password_reset_codes(email, used, expires_at)",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
             "ALTER TABLE alarms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP",
         ]
@@ -1391,6 +1642,25 @@ def health():
     return {"status": "neural core online"}
 
 
+ASSISTANT_HISTORY_LIMIT = 12
+
+
+@app.get("/assistant/messages")
+def list_assistant_messages(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    messages = db.scalars(
+        select(AssistantMessage).where(AssistantMessage.user_id == user.id).order_by(AssistantMessage.created_at)
+    ).all()
+    return {"messages": [{"role": m.role, "content": m.content, "created_at": m.created_at} for m in messages]}
+
+
+@app.delete("/assistant/messages", status_code=status.HTTP_204_NO_CONTENT)
+def clear_assistant_messages(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    for message in db.scalars(select(AssistantMessage).where(AssistantMessage.user_id == user.id)).all():
+        db.delete(message)
+    db.commit()
+    return None
+
+
 @app.post("/assistant/help")
 def assistant_help(data: AssistantPromptInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
     profile_record = ensure_profile(user, db)
@@ -1399,14 +1669,86 @@ def assistant_help(data: AssistantPromptInput, user: User = Depends(current_user
         "productivity_goal": profile_record.productivity_goal or "focus better in the morning",
         "habit_preferences": profile_record.habit_preferences or [],
     }
-    service = get_gemini_service()
-    reply = service.generate_assistant_reply(data.message, user_profile)
-    return {"reply": reply, "source": service.last_response_source}
+    recent_messages = db.scalars(
+        select(AssistantMessage)
+        .where(AssistantMessage.user_id == user.id)
+        .order_by(AssistantMessage.created_at.desc())
+        .limit(ASSISTANT_HISTORY_LIMIT)
+    ).all()
+    history = [{"role": message.role, "content": message.content} for message in reversed(recent_messages)]
+
+    user_message = data.message.strip()
+    db.add(AssistantMessage(user_id=user.id, role="USER", content=user_message))
+    db.commit()
+
+    reply = get_gemini_service().generate_assistant_reply(user_message, user_profile, history)
+    source = get_gemini_service().last_response_source
+
+    assistant_message = AssistantMessage(user_id=user.id, role="ASSISTANT", content=reply)
+    db.add(assistant_message)
+    db.commit()
+    db.refresh(assistant_message)
+
+    return {"reply": reply, "source": source, "created_at": assistant_message.created_at}
+
+
+def _serialize_help_message(message: "CoachHelpMessage") -> dict:
+    return {
+        "message_id": message.message_id,
+        "sender": message.sender_role,
+        "content": message.content,
+        "created_at": message.created_at,
+    }
+
+
+@app.get("/coach/help/messages")
+def list_own_coach_help_messages(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    assignment = db.scalar(select(CoachAssignment).where(CoachAssignment.member_id == user.id))
+    if not assignment:
+        return {"coach_assigned": False, "coach_name": None, "messages": []}
+    messages = db.scalars(
+        select(CoachHelpMessage).where(CoachHelpMessage.member_id == user.id).order_by(CoachHelpMessage.created_at)
+    ).all()
+    unread = [m for m in messages if m.sender_role == "COACH" and not m.read]
+    for message in unread:
+        message.read = True
+    if unread:
+        db.commit()
+    coach = db.get(User, assignment.coach_id)
+    return {
+        "coach_assigned": True,
+        "coach_name": coach.name if coach else "Coach",
+        "messages": [_serialize_help_message(m) for m in messages],
+    }
+
+
+@app.post("/coach/help/messages", status_code=status.HTTP_201_CREATED)
+def send_own_coach_help_message(
+    data: CoachHelpMessageInput, user: User = Depends(current_user), db: Session = Depends(db_session)
+):
+    assignment = db.scalar(select(CoachAssignment).where(CoachAssignment.member_id == user.id))
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="You don't have a coach assigned yet.")
+    content = data.message.strip()
+    record = CoachHelpMessage(member_id=user.id, coach_id=assignment.coach_id, sender_role="USER", content=content)
+    db.add(record)
+    db.add(Notification(
+        user_id=assignment.coach_id,
+        notification_type="COACH_HELP_REQUEST",
+        title=f"{user.name} needs help",
+        message=content,
+    ))
+    db.commit()
+    db.refresh(record)
+    tokens = user_device_tokens(assignment.coach_id, db)
+    get_fcm_service().send(tokens, title=f"{user.name} needs help", body=content, data={"type": "COACH_HELP_REQUEST"})
+    return _serialize_help_message(record)
 
 
 @app.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @app.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 def register(data: RegisterInput, db: Session = Depends(db_session)):
+    validate_password_strength(data.password)
     if db.scalar(select(User).where(User.email == data.email.lower())):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="An account with this email already exists.")
     user = User(name=data.name.strip(), email=data.email.lower(), password=pwd_context.hash(data.password), provider="LOCAL")
@@ -1415,6 +1757,7 @@ def register(data: RegisterInput, db: Session = Depends(db_session)):
     db.refresh(user)
     db.add(UserProfile(user_id=user.id))
     db.commit()
+    apply_admin_bootstrap(user, db)
     return {"access_token": issue_token(user)}
 
 
@@ -1424,7 +1767,92 @@ def login(data: LoginInput, db: Session = Depends(db_session)):
     user = db.scalar(select(User).where(User.email == data.email.lower()))
     if not user or not user.password or not pwd_context.verify(data.password, user.password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Email or password is incorrect.")
+    apply_admin_bootstrap(user, db)
     return {"access_token": issue_token(user)}
+
+
+def issue_password_reset_code(email: str, db: Session) -> None:
+    normalized_email = email.lower()
+    user = db.scalar(select(User).where(User.email == normalized_email))
+    if not user:
+        return
+
+    now = datetime.now(timezone.utc)
+    latest = db.scalar(
+        select(PasswordResetCode)
+        .where(
+            PasswordResetCode.user_id == user.id,
+            PasswordResetCode.used.is_(False),
+        )
+        .order_by(PasswordResetCode.sent_at.desc())
+    )
+    if latest and (now - as_utc(latest.sent_at)).total_seconds() < RESET_RESEND_COOLDOWN_SECONDS:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Please wait before requesting another reset code.",
+        )
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    send_password_reset_email(normalized_email, code)
+    db.add(
+        PasswordResetCode(
+            user_id=user.id,
+            email=normalized_email,
+            code_hash=pwd_context.hash(code),
+            expires_at=now + timedelta(minutes=RESET_CODE_TTL_MINUTES),
+            sent_at=now,
+        )
+    )
+    db.commit()
+
+
+@app.post("/auth/password-reset/request")
+@app.post("/auth/password-reset/resend")
+def request_password_reset(data: PasswordResetRequest, db: Session = Depends(db_session)):
+    if not smtp_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Password recovery is unavailable until SMTP is configured.",
+        )
+    issue_password_reset_code(data.email, db)
+    return {"message": "If an account exists, a reset code has been sent."}
+
+
+@app.post("/auth/password-reset/confirm")
+def confirm_password_reset(data: PasswordResetConfirm, db: Session = Depends(db_session)):
+    if data.new_password != data.confirm_password:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Passwords do not match.")
+    validate_password_strength(data.new_password)
+
+    normalized_email = data.email.lower()
+    user = db.scalar(select(User).where(User.email == normalized_email))
+    reset = (
+        db.scalar(
+            select(PasswordResetCode)
+            .where(
+                PasswordResetCode.email == normalized_email,
+                PasswordResetCode.used.is_(False),
+            )
+            .order_by(PasswordResetCode.sent_at.desc())
+        )
+        if user
+        else None
+    )
+    now = datetime.now(timezone.utc)
+    if not reset or reset.user_id != user.id or now >= as_utc(reset.expires_at):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset code is invalid or expired.")
+    if reset.attempts >= RESET_MAX_ATTEMPTS:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many invalid reset attempts.")
+
+    reset.attempts += 1
+    if not pwd_context.verify(data.otp, reset.code_hash):
+        db.commit()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset code is invalid or expired.")
+
+    user.password = pwd_context.hash(data.new_password)
+    reset.used = True
+    db.commit()
+    return {"message": "Password reset successful. You can now sign in."}
 
 
 @app.get("/oauth/google")
@@ -1447,6 +1875,7 @@ async def google_callback(request: Request, db: Session = Depends(db_session)):
         db.refresh(user)
         db.add(UserProfile(user_id=user.id))
         db.commit()
+    apply_admin_bootstrap(user, db)
     return RedirectResponse(f"{FRONTEND_URL}?token={issue_token(user)}")
 
 
@@ -1525,6 +1954,63 @@ def set_user_role(
     return {"id": target.id, "email": target.email, "role": target.role}
 
 
+def get_coach_or_404(coach_id: int, db: Session) -> User:
+    coach = db.get(User, coach_id)
+    if not coach or coach.role != Role.WELLNESS_COACH.value:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Coach not found")
+    return coach
+
+
+@app.get("/admin/coaches/{coach_id}/members")
+def list_coach_members(
+    coach_id: int,
+    _: User = Depends(require_roles(Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    get_coach_or_404(coach_id, db)
+    member_ids = db.scalars(select(CoachAssignment.member_id).where(CoachAssignment.coach_id == coach_id)).all()
+    members = db.scalars(select(User).where(User.id.in_(member_ids))).all() if member_ids else []
+    return {"coach_id": coach_id, "members": [{"user_id": member.id, "name": member.name, "email": member.email} for member in members]}
+
+
+@app.post("/admin/coaches/{coach_id}/members", status_code=status.HTTP_201_CREATED)
+def assign_member_to_coach(
+    coach_id: int,
+    data: CoachAssignmentInput,
+    _: User = Depends(require_roles(Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    get_coach_or_404(coach_id, db)
+    member = db.get(User, data.member_id)
+    if not member or member.role != Role.USER.value:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    existing = db.scalar(
+        select(CoachAssignment).where(CoachAssignment.coach_id == coach_id, CoachAssignment.member_id == data.member_id)
+    )
+    if existing:
+        return {"coach_id": coach_id, "member_id": data.member_id, "already_assigned": True}
+    db.add(CoachAssignment(coach_id=coach_id, member_id=data.member_id))
+    db.commit()
+    return {"coach_id": coach_id, "member_id": data.member_id, "already_assigned": False}
+
+
+@app.delete("/admin/coaches/{coach_id}/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unassign_member_from_coach(
+    coach_id: int,
+    member_id: int,
+    _: User = Depends(require_roles(Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    assignment = db.scalar(
+        select(CoachAssignment).where(CoachAssignment.coach_id == coach_id, CoachAssignment.member_id == member_id)
+    )
+    if not assignment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Assignment not found")
+    db.delete(assignment)
+    db.commit()
+    return None
+
+
 def serialize_alarm(alarm: Alarm, db: Session, user: User, next_at: datetime | None = None) -> dict:
     if next_at is None and alarm.status == "ACTIVE":
         _, _, options = next_alarm_options(user, db)
@@ -1549,13 +2035,11 @@ def serialize_alarm(alarm: Alarm, db: Session, user: User, next_at: datetime | N
         "notification_enabled": alarm.notification_enabled,
         "snoozed_until": alarm.snoozed_until,
         "last_fired_at": alarm.last_fired_at,
-        "last_completed_at": alarm.last_completed_at,
         "next_at": next_at,
     }
 
 
-@app.post("/alarms", status_code=status.HTTP_201_CREATED)
-@app.post("/alarm", status_code=status.HTTP_201_CREATED, include_in_schema=False)
+@app.post("/alarm", status_code=status.HTTP_201_CREATED)
 def create_alarm(data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
     alarm_type = normalize_alarm_type(data.alarm_type)
     status_value = data.status.upper() if data.status.upper() in {"ACTIVE", "DISABLED"} else "ACTIVE"
@@ -1595,8 +2079,7 @@ def alarms(user: User = Depends(current_user), db: Session = Depends(db_session)
     return [serialize_alarm(alarm, db, user) for alarm in records]
 
 
-@app.put("/alarms/{alarm_id:int}")
-@app.patch("/alarm/{alarm_id:int}", include_in_schema=False)
+@app.patch("/alarm/{alarm_id}")
 def update_alarm(alarm_id: int, data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
     alarm = owned_alarm(alarm_id, user, db)
     alarm.alarm_time = parse_alarm_clock(data.alarm_time)
@@ -1624,83 +2107,47 @@ def update_alarm(alarm_id: int, data: AlarmInput, user: User = Depends(current_u
     return serialize_alarm(alarm, db, user)
 
 
-@app.patch("/alarms/{alarm_id:int}")
-def patch_alarm(
-    alarm_id: int,
-    data: AlarmPatchInput,
-    user: User = Depends(current_user),
-    db: Session = Depends(db_session),
-):
-    """Apply only supplied alarm fields; PUT remains the complete replacement API."""
-    alarm = owned_alarm(alarm_id, user, db)
-    supplied = data.model_fields_set
-    if not supplied:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Provide at least one alarm field")
-
-    if "title" in supplied:
-        if data.title is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="title cannot be null")
-        alarm.title = data.title.strip()
-    if "alarm_time" in supplied:
-        if data.alarm_time is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="alarm_time cannot be null")
-        alarm.alarm_time = parse_alarm_clock(data.alarm_time)
-    if "alarm_type" in supplied:
-        if data.alarm_type is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="alarm_type cannot be null")
-        alarm.alarm_type = normalize_alarm_type(data.alarm_type)
-    if "repeat_days" in supplied:
-        alarm.repeat_days = data.repeat_days
-    if "difficulty" in supplied:
-        if data.difficulty is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="difficulty cannot be null")
-        alarm.difficulty = normalize_difficulty(data.difficulty)
-    if "sound" in supplied:
-        if data.sound is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="sound cannot be null")
-        alarm.sound = data.sound.strip()
-    if "vibration" in supplied:
-        alarm.vibration = bool(data.vibration)
-    if "snooze_minutes" in supplied:
-        if data.snooze_minutes is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="snooze_minutes cannot be null")
-        alarm.snooze_minutes = data.snooze_minutes
-    if "daybreak_route_enabled" in supplied:
-        alarm.daybreak_route_enabled = bool(data.daybreak_route_enabled)
-    if "wake_window_minutes" in supplied:
-        if data.wake_window_minutes is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="wake_window_minutes cannot be null")
-        alarm.wake_window_minutes = data.wake_window_minutes
-    if "challenge_type" in supplied:
-        if data.challenge_type is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="challenge_type cannot be null")
-        alarm.challenge_type = "AUTO" if data.challenge_type.upper() == "AUTO" else normalize_challenge_type(data.challenge_type)
-    if "wake_verification_mode" in supplied:
-        if data.wake_verification_mode is None:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="wake_verification_mode cannot be null")
-        alarm.wake_verification_mode = normalize_wake_verification_mode(data.wake_verification_mode)
-    if "notification_enabled" in supplied:
-        alarm.notification_enabled = bool(data.notification_enabled)
-    if "status" in supplied:
-        requested_status = str(data.status or "").upper()
-        if requested_status not in {"ACTIVE", "DISABLED"}:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="status must be ACTIVE or DISABLED")
-        alarm.status = requested_status
-
-    if supplied.intersection({"alarm_time", "alarm_type", "repeat_days", "status", "snooze_minutes"}):
-        alarm.snoozed_until = None
-        if alarm.status != "RINGING":
-            alarm.last_fired_at = None
-    db.commit()
-    db.refresh(alarm)
-    return serialize_alarm(alarm, db, user)
-
-
-@app.delete("/alarms/{alarm_id:int}", status_code=status.HTTP_204_NO_CONTENT)
-@app.delete("/alarm/{alarm_id:int}", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
+@app.delete("/alarm/{alarm_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
     db.delete(owned_alarm(alarm_id, user, db))
     db.commit()
+
+
+@app.post("/alarms", status_code=status.HTTP_201_CREATED)
+def create_alarm_rest(data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    return create_alarm(data, user, db)
+
+
+@app.get("/alarms/today")
+def today_alarms(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    profile, current_time, options = next_alarm_options(user, db)
+    zone = safe_zone(profile.timezone)
+    return [serialize_alarm(alarm, db, user, occurrence) for alarm, occurrence in options if occurrence.astimezone(zone).date() == current_time.date()]
+
+
+@app.get("/alarms/upcoming")
+def upcoming_alarms(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    _, _, options = next_alarm_options(user, db)
+    return [
+        {"alarm": serialize_alarm(alarm, db, user, occurrence), "next_at": occurrence}
+        for alarm, occurrence in sorted(options, key=lambda item: item[1])
+    ]
+
+
+@app.get("/alarms/{alarm_id}")
+def get_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    return serialize_alarm(owned_alarm(alarm_id, user, db), db, user)
+
+
+@app.put("/alarms/{alarm_id}")
+def update_alarm_rest(alarm_id: int, data: AlarmInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    return update_alarm(alarm_id, data, user, db)
+
+
+@app.delete("/alarms/{alarm_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_alarm_rest(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    return delete_alarm(alarm_id, user, db)
+
 
 @app.patch("/alarms/{alarm_id}/enable")
 def enable_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
@@ -1722,20 +2169,22 @@ def disable_alarm(alarm_id: int, user: User = Depends(current_user), db: Session
     db.refresh(alarm)
     return serialize_alarm(alarm, db, user)
 
-@app.get("/alarms/today")
-def today_alarms(user: User = Depends(current_user), db: Session = Depends(db_session)):
-    profile, current_time, options = next_alarm_options(user, db)
-    zone = safe_zone(profile.timezone)
-    return [alarm for alarm, occurrence in options if occurrence.astimezone(zone).date() == current_time.date()]
+
+@app.patch("/alarms/{alarm_id}/{command}")
+def toggle_alarm(alarm_id: int, command: str, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    if command not in {"enable", "disable"}:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Use enable or disable")
+    alarm = owned_alarm(alarm_id, user, db)
+    alarm.status = "ACTIVE" if command == "enable" else "DISABLED"
+    alarm.snoozed_until = None
+    if command == "enable":
+        alarm.last_fired_at = None
+    db.commit()
+    db.refresh(alarm)
+    return serialize_alarm(alarm, db, user)
 
 
-@app.get("/alarms/upcoming")
-def upcoming_alarms(user: User = Depends(current_user), db: Session = Depends(db_session)):
-    _, _, options = next_alarm_options(user, db)
-    return [
-        {"alarm": alarm, "next_at": occurrence}
-        for alarm, occurrence in sorted(options, key=lambda item: item[1])
-    ]
+RINGING_STALE_MINUTES = 15
 
 @app.post("/alarms/check-next")
 def check_next_alarm(user: User = Depends(current_user), db: Session = Depends(db_session)):
@@ -1751,17 +2200,15 @@ def check_next_alarm(user: User = Depends(current_user), db: Session = Depends(d
         for alarm in ringing:
             fired_at = alarm.last_fired_at
             if fired_at is None:
-                alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
-                alarm.snoozed_until = None
                 continue
             if fired_at.tzinfo is None:
                 fired_at = fired_at.replace(tzinfo=timezone.utc)
             age = now_utc - fired_at.astimezone(timezone.utc)
-            if timedelta(0) <= age <= timedelta(minutes=RINGING_STALE_MINUTES):
+            if age <= timedelta(minutes=RINGING_STALE_MINUTES):
                 fresh.append((alarm, fired_at))
             else:
                 # Recover abandoned/stale ringing states after a browser/backend restart.
-                alarm.status = "COMPLETED" if alarm.alarm_type == "ONE_TIME" else "ACTIVE"
+                alarm.status = "ACTIVE"
                 alarm.snoozed_until = None
 
         if fresh:
@@ -1782,11 +2229,6 @@ def check_next_alarm(user: User = Depends(current_user), db: Session = Depends(d
 
     alarm, moment = min(options, key=lambda item: item[1])
     return {"next_alarm": serialize_alarm(alarm, db, user, next_at=moment), "next_at": moment, "state": "SCHEDULED"}
-
-
-@app.get("/alarms/{alarm_id:int}")
-def get_alarm(alarm_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
-    return serialize_alarm(owned_alarm(alarm_id, user, db), db, user)
 
 
 @app.get("/daybreak-route")
@@ -1861,18 +2303,37 @@ def missions(user: User = Depends(current_user), db: Session = Depends(db_sessio
 
 
 @app.patch("/mission/{mission_id}/complete")
-def complete_mission(mission_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
+def complete_mission(
+    mission_id: int,
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
     mission = db.get(Mission, mission_id)
     if not mission or mission.user_id != user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mission not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Mission not found",
+        )
+
     mission.completed = True
+    mission.completed_at = datetime.now(timezone.utc)
+
     db.commit()
-    return {"mission_id": mission_id, "completed": True, "reward": mission.reward}
+
+    return {
+        "mission_id": mission_id,
+        "completed": True,
+        "reward": mission.reward,
+    }
 
 
 @app.post("/challenge", status_code=status.HTTP_201_CREATED, include_in_schema=False)
 @app.post("/challenges/generate", status_code=status.HTTP_201_CREATED)
-def generate_challenge(data: ChallengeGenerateInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
+def generate_challenge(
+    data: ChallengeGenerateInput,
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
     """Build a time-bound challenge without ever exposing the expected answer. Uses Gemini for personalization if enabled."""
 
     profile_record = ensure_profile(user, db)
@@ -1893,26 +2354,17 @@ def generate_challenge(data: ChallengeGenerateInput, user: User = Depends(curren
     prompt, expected_answer, instructions, source = generate_challenge_with_gemini(
         challenge_type, difficulty, intent, user_profile
     )
-    if not valid_generated_challenge(prompt, expected_answer, instructions):
-        prompt, expected_answer, instructions = deterministic_challenge(
-            challenge_type,
-            difficulty,
-            intent,
-            secrets.token_urlsafe(12),
-        )
-        source = "DETERMINISTIC"
     options = challenge_options(challenge_type, normalize_answer(expected_answer), secrets.token_urlsafe(12), difficulty)
 
     created_at = datetime.now(timezone.utc)
     limit = challenge_time_limit(difficulty)
     if data.alarm_id is not None:
         alarm_for_challenge = owned_alarm(data.alarm_id, user, db)
-        if alarm_for_challenge.status != "RINGING":
+        if alarm_for_challenge.status not in {"ACTIVE", "RINGING"}:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Alarm is not currently ringing",
+                detail="Alarm is not available for a wake challenge",
             )
-        intent = "WAKE_UP"
 
     challenge = ChallengeAttempt(
         user_id=user.id,
@@ -2026,7 +2478,6 @@ def challenge_performance(user: User = Depends(current_user), db: Session = Depe
             select(ChallengeAttempt)
             .where(ChallengeAttempt.user_id == user.id, ChallengeAttempt.completed.is_(True))
             .order_by(ChallengeAttempt.completed_at.desc(), ChallengeAttempt.created_at.desc())
-            .limit(20)
         ).all()
     )
     profile_record = ensure_profile(user, db)
@@ -2038,12 +2489,8 @@ def challenge_performance(user: User = Depends(current_user), db: Session = Depe
         "correct_count": overall["correct"],
         "accuracy_percent": overall["accuracy_percent"],
         "average_completion_seconds": overall["average_completion_seconds"],
-        "median_speed_percent_of_limit": overall["median_speed_percent_of_limit"],
         "failed_attempts": overall["failed_attempts"],
         "failure_streak": overall["failure_streak"],
-        "user_rating": overall["user_rating"],
-        "user_rating_label": overall["user_rating_label"],
-        "user_rating_stars": overall["user_rating_stars"],
         "by_type": {challenge_type: performance_payload([attempt for attempt in attempts if attempt.challenge_type == challenge_type]) for challenge_type in CHALLENGE_TYPES},
         "by_difficulty": {difficulty: performance_payload([attempt for attempt in attempts if attempt.difficulty == difficulty]) for difficulty in DIFFICULTY_LEVELS},
         "recommendation": {
@@ -2065,20 +2512,1133 @@ def log_sleep(data: SleepInput, user: User = Depends(current_user), db: Session 
     return record
 
 
+
+def _analytics_day(moment: datetime | None) -> object | None:
+    if moment is None:
+        return None
+    try:
+        return as_utc(moment).date()
+    except (AttributeError, TypeError):
+        return None
+
+
+def _safe_correlation(pairs: list[tuple[float, float]]) -> float | None:
+    """Pearson correlation for small, real observed datasets; returns None when undefined."""
+    if len(pairs) < 3:
+        return None
+    xs = [float(x) for x, _ in pairs]
+    ys = [float(y) for _, y in pairs]
+    mean_x = sum(xs) / len(xs)
+    mean_y = sum(ys) / len(ys)
+    numerator = sum((x - mean_x) * (y - mean_y) for x, y in pairs)
+    denom_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
+    denom_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
+    if denom_x == 0 or denom_y == 0:
+        return None
+    return round(numerator / (denom_x * denom_y), 2)
+
+
+def _group_wake_sessions(attempts: list[ChallengeAttempt]) -> list[list[ChallengeAttempt]]:
+    """Group WAKE_UP attempts (ordered by completed_at ascending) into wake sessions:
+    consecutive attempts on the same alarm within 5 minutes of each other count as
+    one wake-up, so a multi-step or retried verification isn't miscounted as several."""
+    sessions: list[list[ChallengeAttempt]] = []
+
+    for attempt in attempts:
+        attempt_time = as_utc(attempt.completed_at)
+
+        if not sessions:
+            sessions.append([attempt])
+            continue
+
+        previous = sessions[-1][-1]
+        previous_time = as_utc(previous.completed_at)
+
+        same_alarm = (
+            attempt.alarm_id is not None
+            and previous.alarm_id == attempt.alarm_id
+        )
+
+        close_in_time = (
+            attempt_time is not None
+            and previous_time is not None
+            and attempt_time - previous_time <= timedelta(minutes=5)
+        )
+
+        if same_alarm and close_in_time:
+            sessions[-1].append(attempt)
+        else:
+            sessions.append([attempt])
+
+    return sessions
+
+
+def wake_behavior_metrics(
+    user_id: int,
+    db: Session,
+    now: datetime | None = None,
+) -> dict:
+    """Summarize wake behavior by grouping consecutive challenge attempts into wake sessions."""
+
+    current = as_utc(now or datetime.now(timezone.utc))
+    cutoff = current - timedelta(days=7)
+
+    wake_attempts = list(
+        db.scalars(
+            select(ChallengeAttempt)
+            .where(
+                ChallengeAttempt.user_id == user_id,
+                ChallengeAttempt.intent == "WAKE_UP",
+                ChallengeAttempt.completed.is_(True),
+                ChallengeAttempt.completed_at.is_not(None),
+                ChallengeAttempt.completed_at >= cutoff,
+            )
+            .order_by(ChallengeAttempt.completed_at.asc())
+        ).all()
+    )
+
+    sessions = _group_wake_sessions(wake_attempts)
+
+    successful_sessions = []
+    failed_sessions = []
+
+    for session in sessions:
+        if any(
+            bool(attempt.is_correct)
+            and bool(attempt.verification_passed)
+            for attempt in session
+        ):
+            successful_sessions.append(session)
+        else:
+            failed_sessions.append(session)
+
+    verification_times = []
+    challenge_attempt_counts = []
+
+    for session in successful_sessions:
+        elapsed_values = [
+            float(attempt.elapsed_seconds)
+            for attempt in session
+            if attempt.elapsed_seconds is not None
+        ]
+
+        if elapsed_values:
+            # For a multi-step wake, use total elapsed challenge time.
+            verification_times.append(sum(elapsed_values))
+
+        challenge_attempt_counts.append(
+            sum(max(1, int(attempt.attempt_count or 0)) for attempt in session)
+        )
+
+    successful_days = {
+        _analytics_day(session[-1].completed_at)
+        for session in successful_sessions
+        if session and _analytics_day(session[-1].completed_at) is not None
+    }
+
+    observed_days = {
+        _analytics_day(session[-1].completed_at)
+        for session in sessions
+        if session and _analytics_day(session[-1].completed_at) is not None
+    }
+    wake_success_rate = (
+    round((len(successful_sessions) / len(sessions)) * 100)
+    if sessions
+    else 0
+)
+    return {
+        "window_days": 7,
+        "successful_wakes": len(successful_sessions),
+        "wake_challenge_failures": len(failed_sessions),
+        "observed_wake_checks": len(sessions),
+        "observed_wake_sessions": len(sessions),
+        "average_verification_seconds": (
+            round(sum(verification_times) / len(verification_times), 2)
+            if verification_times
+            else None
+        ),
+        "average_challenge_attempts": (
+            round(
+                sum(challenge_attempt_counts)
+                / len(challenge_attempt_counts),
+                2,
+            )
+            if challenge_attempt_counts
+            else None
+        ),
+        "successful_wake_days": len(successful_days),
+        "observed_wake_days": len(observed_days),
+        "wake_consistency_percent": (
+    round((len(successful_sessions) / len(sessions)) * 100)
+    if sessions
+    else 0
+),
+        "wake_success_rate_percent": wake_success_rate,
+    }
+
+
+def habit_consistency_metrics(user_id: int, db: Session, now: datetime | None = None) -> dict:
+    """Use the existing Mission activity as the project's measurable routine/habit signal."""
+    current = as_utc(now or datetime.now(timezone.utc))
+    cutoff = current - timedelta(days=7)
+
+    missions = list(
+        db.scalars(
+            select(Mission)
+            .where(
+                Mission.user_id == user_id,
+                Mission.created_at.is_not(None),
+                Mission.created_at >= cutoff,
+            )
+            .order_by(Mission.created_at.asc())
+        ).all()
+    )
+
+    tracked_days = {
+        _analytics_day(mission.created_at)
+        for mission in missions
+        if _analytics_day(mission.created_at) is not None
+    }
+    completed_days = {
+        _analytics_day(mission.completed_at)
+        for mission in missions
+        if mission.completed and _analytics_day(mission.completed_at) is not None
+    }
+
+    completion_rate = (
+        round((sum(1 for mission in missions if mission.completed) / len(missions)) * 100)
+        if missions else 0
+    )
+
+    return {
+        "window_days": 7,
+        "missions_tracked": len(missions),
+        "missions_completed": sum(1 for mission in missions if mission.completed),
+        "tracked_days": len(tracked_days),
+        "consistent_days": len(completed_days),
+        "consistency_percent": round((len(completed_days) / len(tracked_days)) * 100) if tracked_days else 0,
+        "completion_rate_percent": completion_rate,
+        "basis": "completed missions across active routine days",
+    }
+
+
+def sleep_pattern_metrics(user_id: int, db: Session, now: datetime | None = None) -> dict:
+    """Analyze stored sleep logs for duration, quality, and regularity."""
+    current = as_utc(now or datetime.now(timezone.utc))
+    cutoff = current - timedelta(days=7)
+    profile = db.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
+
+    records = list(
+        db.scalars(
+            select(SleepLog)
+            .where(
+                SleepLog.user_id == user_id,
+                SleepLog.wake_time >= cutoff,
+            )
+            .order_by(SleepLog.wake_time.desc())
+            .limit(14)
+        ).all()
+    )
+
+    durations_minutes = []
+    qualities = []
+    bedtime_minutes = []
+    target_minutes = int(profile.target_sleep_duration_minutes or 480) if profile else 480
+
+    for record in records:
+        try:
+            duration = (as_utc(record.wake_time) - as_utc(record.sleep_time)).total_seconds() / 60
+        except (TypeError, AttributeError):
+            continue
+        if duration <= 0 or duration > 24 * 60:
+            continue
+        durations_minutes.append(duration)
+        qualities.append(float(record.quality))
+        local_sleep = as_utc(record.sleep_time)
+        bedtime_minutes.append(local_sleep.hour * 60 + local_sleep.minute)
+
+    if durations_minutes:
+        average_duration = sum(durations_minutes) / len(durations_minutes)
+        variance = sum((value - average_duration) ** 2 for value in durations_minutes) / len(durations_minutes)
+        duration_std = math.sqrt(variance)
+        on_target = sum(abs(value - target_minutes) <= 60 for value in durations_minutes)
+        duration_consistency = round((on_target / len(durations_minutes)) * 100)
+    else:
+        average_duration = duration_std = None
+        duration_consistency = 0
+
+    bedtime_std = None
+    if len(bedtime_minutes) >= 2:
+        bedtime_mean = sum(bedtime_minutes) / len(bedtime_minutes)
+        bedtime_std = round(
+            math.sqrt(
+                sum((value - bedtime_mean) ** 2 for value in bedtime_minutes) / len(bedtime_minutes)
+            ),
+            1,
+        )
+
+    return {
+        "window_days": 7,
+        "records": len(records),
+        "average_sleep_hours": round(average_duration / 60, 2) if average_duration is not None else None,
+        "average_sleep_quality": round(sum(qualities) / len(qualities), 1) if qualities else None,
+        "duration_std_minutes": round(duration_std, 1) if duration_std is not None else None,
+        "bedtime_variability_minutes": bedtime_std,
+        "target_sleep_hours": round(target_minutes / 60, 1),
+        "duration_consistency_percent": duration_consistency,
+        "latest_quality": round(qualities[0], 1) if qualities else None,
+    }
+
+
+def productivity_correlation_metrics(
+    user_id: int,
+    db: Session,
+    now: datetime | None = None,
+) -> dict:
+    """Measure observed daily relationships with the project's stored productivity/focus score."""
+    current = as_utc(now or datetime.now(timezone.utc))
+    cutoff = current - timedelta(days=30)
+
+    analytics_rows = list(
+        db.scalars(
+            select(Analytics)
+            .where(
+                Analytics.user_id == user_id,
+                Analytics.recorded_at >= cutoff,
+            )
+            .order_by(Analytics.recorded_at.asc())
+        ).all()
+    )
+    sleep_rows = list(
+        db.scalars(
+            select(SleepLog)
+            .where(
+                SleepLog.user_id == user_id,
+                SleepLog.wake_time >= cutoff,
+            ).order_by(SleepLog.wake_time.asc())
+        ).all()
+    )
+    snooze_rows = list(
+        db.scalars(
+            select(SnoozeEvent)
+            .where(
+                SnoozeEvent.user_id == user_id,
+                SnoozeEvent.snoozed_at >= cutoff,
+            ).order_by(SnoozeEvent.snoozed_at.asc())
+        ).all()
+    )
+
+    productivity_by_day: dict[object, float] = {}
+    for record in analytics_rows:
+        day = _analytics_day(record.recorded_at)
+        if day is not None:
+            productivity_by_day[day] = float(record.focus_score)
+
+    sleep_by_day: dict[object, list[float]] = defaultdict(list)
+    for record in sleep_rows:
+        day = _analytics_day(record.wake_time)
+        if day is not None:
+            sleep_by_day[day].append(float(record.quality))
+
+    snooze_by_day: dict[object, int] = defaultdict(int)
+    for event in snooze_rows:
+        day = _analytics_day(event.snoozed_at)
+        if day is not None:
+            snooze_by_day[day] += 1
+
+    sleep_pairs = [
+    (
+        sum(sleep_by_day[day]) / len(sleep_by_day[day]),
+        productivity_by_day[day],
+    )
+    for day in sorted(productivity_by_day)
+    if day in sleep_by_day and sleep_by_day[day]
+    ]
+    snooze_pairs = [
+    (
+        float(snooze_by_day.get(day, 0)),
+        productivity_by_day[day],
+    )
+    for day in sorted(productivity_by_day)
+    ]
+
+    sleep_corr = _safe_correlation(sleep_pairs)
+    snooze_corr = _safe_correlation(snooze_pairs)
+
+    return {
+        "window_days": 30,
+        "productivity_score": round(productivity_by_day[max(productivity_by_day)])
+        if productivity_by_day else 0,
+        "sleep_quality_vs_productivity": sleep_corr,
+        "snooze_count_vs_productivity": snooze_corr,
+        "sleep_productivity_samples": len(sleep_pairs),
+        "snooze_productivity_samples": len(snooze_pairs),
+        "interpretation": "Observed correlation only; correlation does not prove causation.",
+    }
+
+
+HABIT_SCORE_WEIGHTS = {
+    "wake_up_consistency": 0.35,
+    "challenge_completion_success": 0.25,
+    "snooze_reduction": 0.20,
+    "sleep_schedule_adherence": 0.20,
+}
+
+
+def _bounded_score(value: float | int | None) -> float | None:
+    if value is None:
+        return None
+    return round(max(0.0, min(100.0, float(value))), 2)
+
+
+def snooze_reduction_score(recent: int, previous: int) -> float:
+    """Score this component as the *better* of two signals: how little you're
+    snoozing right now (absolute), and how much you've improved versus the
+    prior week (relative). A pure week-over-week comparison would otherwise
+    score a consistently-low snoozer identically to a consistently-bad one -
+    both show 0% "reduction" - so a stable good habit gets no credit for
+    already being good. Taking the max of both signals fixes that without
+    losing credit for genuine improvement from a bad baseline.
+    """
+    absolute_score = max(0.0, 100 - recent * 20)
+    if previous:
+        improvement_score = max(0.0, min(100.0, (previous - recent) / previous * 100))
+        return max(absolute_score, improvement_score)
+    return absolute_score
+
+
+def habit_score_payload(user_id: int, db: Session, now: datetime | None = None) -> dict:
+    """Calculate the weighted habit score only from observed records."""
+    current = as_utc(now or datetime.now(timezone.utc))
+    wake = wake_behavior_metrics(user_id, db, current)
+    sleep = sleep_pattern_metrics(user_id, db, current)
+    attempts = list(db.scalars(select(ChallengeAttempt).where(
+        ChallengeAttempt.user_id == user_id,
+        ChallengeAttempt.completed.is_(True),
+    )).all())
+    snoozes = list(db.scalars(select(SnoozeEvent).where(
+        SnoozeEvent.user_id == user_id,
+        SnoozeEvent.snoozed_at >= current - timedelta(days=14),
+    )).all())
+    recent = sum(as_utc(event.snoozed_at) >= current - timedelta(days=7) for event in snoozes)
+    previous = sum(as_utc(event.snoozed_at) < current - timedelta(days=7) for event in snoozes)
+
+    components = {
+        "wake_up_consistency": _bounded_score(wake["wake_consistency_percent"] if wake["observed_wake_sessions"] else None),
+        "challenge_completion_success": _bounded_score(
+            (sum(bool(attempt.verification_passed) for attempt in attempts) / len(attempts)) * 100
+            if attempts else None
+        ),
+        "snooze_reduction": _bounded_score(
+            snooze_reduction_score(recent, previous)
+            if snoozes or wake["observed_wake_sessions"] else None
+        ),
+        "sleep_schedule_adherence": _bounded_score(
+            sleep["duration_consistency_percent"] if sleep["records"] else None
+        ),
+    }
+    available_weight = sum(
+        HABIT_SCORE_WEIGHTS[name] for name, value in components.items() if value is not None
+    )
+    final_score = (
+        round(sum(value * HABIT_SCORE_WEIGHTS[name] for name, value in components.items() if value is not None) / available_weight, 2)
+        if available_weight else None
+    )
+    return {
+        "score": final_score,
+        "components": components,
+        "weights": HABIT_SCORE_WEIGHTS,
+        "available_weight": round(available_weight, 2),
+        "data_window_days": 14,
+        "basis": "Observed wake, challenge, snooze, and sleep records; unavailable components are excluded.",
+    }
+
+
+def recommendation_payload(user_id: int, db: Session, now: datetime | None = None) -> dict:
+    profile = db.scalar(select(UserProfile).where(UserProfile.user_id == user_id))
+    analytics = behavioral_analytics_payload(user_id, db, now)
+    performance = performance_payload(list(db.scalars(select(ChallengeAttempt).where(
+        ChallengeAttempt.user_id == user_id,
+        ChallengeAttempt.completed.is_(True),
+    )).all()))
+    recommendations: dict[str, list[dict]] = {
+        "sleep_improvement": [],
+        "wake_optimization": [],
+        "habit_improvement": [],
+        "productivity": [],
+        "personalized_challenges": [],
+    }
+    sleep = analytics["sleep_patterns"]
+    if sleep["records"]:
+        if sleep["average_sleep_hours"] is not None and sleep["target_sleep_hours"] is not None and sleep["average_sleep_hours"] < sleep["target_sleep_hours"]:
+            recommendations["sleep_improvement"].append({
+                "message": f"Your observed average is {sleep['average_sleep_hours']} hours versus a {sleep['target_sleep_hours']}-hour target.",
+                "evidence": "sleep_patterns.average_sleep_hours",
+                "action": "Move bedtime earlier gradually and log the next wake window.",
+            })
+        if sleep["duration_consistency_percent"] < 80:
+            recommendations["sleep_improvement"].append({
+                "message": "Your logged sleep duration is varying across the recent window.",
+                "evidence": "sleep_patterns.duration_consistency_percent",
+                "action": "Keep sleep and wake times within a consistent window.",
+            })
+    wake = analytics["wake_behavior"]
+    if wake["observed_wake_sessions"]:
+        if wake["wake_success_rate_percent"] < 80:
+            recommendations["wake_optimization"].append({
+                "message": f"Verified wake success is {wake['wake_success_rate_percent']}% across observed sessions.",
+                "evidence": "wake_behavior.wake_success_rate_percent",
+                "action": "Keep the challenge difficulty steady until verification becomes reliable.",
+            })
+        if analytics["snooze_patterns"]["recent_7_day_snoozes"]:
+            recommendations["wake_optimization"].append({
+                "message": f"{analytics['snooze_patterns']['recent_7_day_snoozes']} snooze events were recorded in the last 7 days.",
+                "evidence": "snooze_patterns.recent_7_day_snoozes",
+                "action": "Use the configured wake window and stand before deciding to snooze.",
+            })
+    habit = analytics["habit_consistency"]
+    if not habit["missions_tracked"]:
+        recommendations["habit_improvement"].append({
+            "message": "No missions have been tracked in the last 7 days.",
+            "evidence": "habit_consistency.missions_tracked",
+            "action": "Choose one repeatable mission to start building a routine signal.",
+        })
+    elif habit["completion_rate_percent"] < 80:
+        recommendations["habit_improvement"].append({
+            "message": f"{habit['completion_rate_percent']}% of tracked missions were completed.",
+            "evidence": "habit_consistency.completion_rate_percent",
+            "action": "Choose one repeatable mission for the next route.",
+        })
+    productivity = analytics["productivity_correlation"]
+    if 0 < productivity["productivity_score"] < 70:
+        recommendations["productivity"].append({
+            "message": f"Your latest stored focus score is {productivity['productivity_score']}.",
+            "evidence": "productivity_correlation.productivity_score",
+            "action": (profile.productivity_goal if profile and profile.productivity_goal else "Protect one focused block after verification."),
+            "note": "Observed association is not evidence of causation.",
+        })
+    challenge = performance.get("recommendation")
+    if challenge:
+        recommendations["personalized_challenges"].append({
+            "message": f"Adaptive selection favors {challenge['challenge_type']} at {challenge['difficulty']} based on challenge performance.",
+            "evidence": "challenge_performance",
+            "action": "Use the suggested checkpoint on the next wake route.",
+            "challenge_type": challenge["challenge_type"],
+            "difficulty": challenge["difficulty"],
+            "reason": challenge["reason"],
+        })
+    return recommendations
+
+
+def _metric_rows(items) -> list[dict]:
+    """Build human-readable {Metric, Value} rows from raw (key, value) pairs,
+    e.g. ("wake_up_consistency", 100.0) -> {"metric": "Wake-Up Consistency", "value": "100.0%"}."""
+    return [{"metric": _report_field_label(key), "value": _report_field_value(key, value)} for key, value in items]
+
+
+def _report_rows(user_id: int, report_type: str, db: Session) -> list[dict]:
+    report_type = report_type.lower()
+    if report_type not in {"habit", "wake", "challenge", "productivity", "sleep"}:
+        raise HTTPException(status_code=404, detail="Unknown report type")
+    analytics = behavioral_analytics_payload(user_id, db)
+    if report_type == "habit":
+        score = habit_score_payload(user_id, db)
+        return _metric_rows(list(score["components"].items()) + [("final_score", score["score"])])
+    if report_type == "wake":
+        return _metric_rows(analytics["wake_behavior"].items())
+    if report_type == "challenge":
+        return _metric_rows(performance_payload(list(db.scalars(select(ChallengeAttempt).where(ChallengeAttempt.user_id == user_id, ChallengeAttempt.completed.is_(True))).all())).items())
+    if report_type == "productivity":
+        return _metric_rows(analytics["productivity_correlation"].items())
+    return _metric_rows(analytics["sleep_patterns"].items())
+
+
+_REPORT_FIELD_LABELS = {
+    # Habit score
+    "wake_up_consistency": "Wake-Up Consistency",
+    "challenge_completion_success": "Challenge Completion Success",
+    "snooze_reduction": "Snooze Reduction",
+    "sleep_schedule_adherence": "Sleep Schedule Adherence",
+    "final_score": "Final Habit Score",
+    # Wake behavior
+    "window_days": "Observation Window (days)",
+    "successful_wakes": "Successful Wakes",
+    "wake_challenge_failures": "Wake Challenge Failures",
+    "observed_wake_checks": "Observed Wake Checks",
+    "observed_wake_sessions": "Observed Wake Sessions",
+    "average_verification_seconds": "Avg Verification Time",
+    "average_challenge_attempts": "Avg Challenge Attempts",
+    "successful_wake_days": "Successful Wake Days",
+    "observed_wake_days": "Observed Wake Days",
+    "wake_consistency_percent": "Wake Consistency",
+    "wake_success_rate_percent": "Wake Success Rate",
+    # Challenge performance
+    "completed": "Completed",
+    "correct": "Correct",
+    "accuracy_percent": "Accuracy",
+    "average_completion_seconds": "Avg Completion Time",
+    "median_speed_percent_of_limit": "Median Speed (% of limit)",
+    "failed_attempts": "Failed Attempts",
+    "average_failed_attempts": "Avg Failed Attempts",
+    "failure_streak": "Current Failure Streak",
+    "highest_completed_difficulty": "Highest Difficulty Completed",
+    "user_rating": "Performance Rating",
+    "user_rating_label": "Rating Label",
+    "user_rating_stars": "Rating (Stars)",
+    # Productivity correlation
+    "productivity_score": "Productivity Score",
+    "sleep_quality_vs_productivity": "Sleep Quality vs Productivity (correlation)",
+    "snooze_count_vs_productivity": "Snooze Count vs Productivity (correlation)",
+    "sleep_productivity_samples": "Sleep/Productivity Samples",
+    "snooze_productivity_samples": "Snooze/Productivity Samples",
+    "interpretation": "Interpretation",
+    # Sleep patterns
+    "records": "Sleep Records",
+    "average_sleep_hours": "Avg Sleep Duration (hrs)",
+    "average_sleep_quality": "Avg Sleep Quality",
+    "duration_std_minutes": "Sleep Duration Variability (min)",
+    "bedtime_variability_minutes": "Bedtime Variability (min)",
+    "target_sleep_hours": "Target Sleep Duration (hrs)",
+    "duration_consistency_percent": "Sleep Duration Consistency",
+    "latest_quality": "Latest Sleep Quality",
+    # Admin: users / platform summary
+    "id": "ID",
+    "name": "Name",
+    "email": "Email",
+    "role": "Role",
+    "provider": "Sign-in Provider",
+    "created_at": "Created At",
+    "total_users": "Total Users",
+    "admins": "Admins",
+    "wellness_coaches": "Wellness Coaches",
+    "active_alarms": "Active Alarms",
+    "completed_challenges": "Completed Challenges",
+    "notifications_sent": "Notifications Sent",
+    "coach_notes_recorded": "Coach Notes Recorded",
+    # Generic
+    "metric": "Metric",
+    "value": "Value",
+}
+_REPORT_PERCENT_FIELDS = {
+    "accuracy_percent", "wake_consistency_percent", "wake_success_rate_percent",
+    "duration_consistency_percent", "median_speed_percent_of_limit",
+    "wake_up_consistency", "challenge_completion_success", "snooze_reduction",
+    "sleep_schedule_adherence", "productivity_score", "average_sleep_quality", "latest_quality",
+}
+_REPORT_SECONDS_FIELDS = {"average_verification_seconds", "average_completion_seconds"}
+_REPORT_OUT_OF_100_FIELDS = {"final_score"}
+_REPORT_ACCENT_COLOR = "0EA5B5"
+_REPORT_STRIPE_COLOR = "F5F7FA"
+_REPORT_INK_COLOR = "0B1220"
+
+
+def _report_field_label(key: str) -> str:
+    return _REPORT_FIELD_LABELS.get(key, key.replace("_", " ").title())
+
+
+def _report_field_value(key: str, value: object) -> str:
+    if value is None:
+        return "—"
+    if isinstance(value, bool):
+        return "Yes" if value else "No"
+    if isinstance(value, datetime):
+        return as_utc(value).strftime("%Y-%m-%d %H:%M UTC")
+    if isinstance(value, float):
+        value = round(value, 2)
+    if key in _REPORT_PERCENT_FIELDS and isinstance(value, (int, float)):
+        return f"{value}%"
+    if key in _REPORT_SECONDS_FIELDS and isinstance(value, (int, float)):
+        return f"{value}s"
+    if key in _REPORT_OUT_OF_100_FIELDS and isinstance(value, (int, float)):
+        return f"{value}/100"
+    return str(value)
+
+
+def _xlsx_bytes(rows: list[dict], title: str = "BrainOS Report", subtitle: str = "") -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = (title[:31] or "Report")
+
+    columns = list(rows[0].keys()) if rows else ["metric", "value"]
+    header_labels = [_report_field_label(column) for column in columns]
+
+    sheet.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max(1, len(columns)))
+    title_cell = sheet.cell(row=1, column=1, value=title)
+    title_cell.font = Font(size=16, bold=True, color=_REPORT_INK_COLOR)
+
+    if subtitle:
+        sheet.merge_cells(start_row=2, start_column=1, end_row=2, end_column=max(1, len(columns)))
+        subtitle_cell = sheet.cell(row=2, column=1, value=subtitle)
+        subtitle_cell.font = Font(size=10, italic=True, color="666666")
+
+    header_row = 4
+    header_fill = PatternFill("solid", fgColor=_REPORT_ACCENT_COLOR)
+    stripe_fill = PatternFill("solid", fgColor=_REPORT_STRIPE_COLOR)
+    thin_border = Border(*(Side(style="thin", color="D9D9D9") for _ in range(4)))
+
+    for column_index, label in enumerate(header_labels, start=1):
+        cell = sheet.cell(row=header_row, column=column_index, value=label)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = thin_border
+
+    for row_offset, row in enumerate(rows, start=1):
+        excel_row = header_row + row_offset
+        for column_index, column_key in enumerate(columns, start=1):
+            cell = sheet.cell(row=excel_row, column=column_index, value=_report_field_value(column_key, row.get(column_key)))
+            cell.border = thin_border
+            if row_offset % 2 == 0:
+                cell.fill = stripe_fill
+
+    if not rows:
+        sheet.cell(row=header_row + 1, column=1, value="No data recorded yet.").font = Font(italic=True, color="777777")
+
+    for column_index, column_key in enumerate(columns, start=1):
+        widest = max([len(header_labels[column_index - 1])] + [len(_report_field_value(column_key, row.get(column_key))) for row in rows] or [10])
+        sheet.column_dimensions[get_column_letter(column_index)].width = min(45, max(14, widest + 3))
+
+    output = io.BytesIO()
+    workbook.save(output)
+    return output.getvalue()
+
+
+def _pdf_bytes(rows: list[dict], title: str, subtitle: str = "") -> bytes:
+    buffer = io.BytesIO()
+    document = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        topMargin=0.6 * inch, bottomMargin=0.6 * inch, leftMargin=0.6 * inch, rightMargin=0.6 * inch,
+    )
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("BrainOSTitle", parent=styles["Heading1"], textColor=colors.HexColor(f"#{_REPORT_INK_COLOR}"), spaceAfter=4)
+    subtitle_style = ParagraphStyle("BrainOSSubtitle", parent=styles["Normal"], textColor=colors.HexColor("#666666"), spaceAfter=18)
+
+    story = [Paragraph(title, title_style)]
+    story.append(Paragraph(subtitle, subtitle_style) if subtitle else Spacer(1, 14))
+
+    columns = list(rows[0].keys()) if rows else ["metric", "value"]
+    header_labels = [_report_field_label(column) for column in columns]
+    table_data = [header_labels]
+    for row in rows:
+        table_data.append([_report_field_value(column, row.get(column)) for column in columns])
+    if not rows:
+        table_data.append(["No data recorded yet."] + [""] * (len(columns) - 1))
+
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(f"#{_REPORT_ACCENT_COLOR}")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("FONTSIZE", (0, 0), (-1, -1), 9),
+        ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9D9D9")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(f"#{_REPORT_STRIPE_COLOR}")]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    story.append(table)
+
+    document.build(story)
+    return buffer.getvalue()
+
+
+def behavioral_analytics_payload(user_id: int, db: Session, now: datetime | None = None) -> dict:
+    return {
+        "snooze_patterns": snooze_pattern_metrics(user_id, db, now),
+        "wake_behavior": wake_behavior_metrics(user_id, db, now),
+        "productivity_correlation": productivity_correlation_metrics(user_id, db, now),
+        "habit_consistency": habit_consistency_metrics(user_id, db, now),
+        "sleep_patterns": sleep_pattern_metrics(user_id, db, now),
+    }
+
+
+NOTIFICATION_REFRESH_HOURS = 20
+
+
+def _notification_records(user: User, db: Session) -> list[dict]:
+    """Evaluate reminder conditions and persist any that haven't fired recently.
+
+    Runs on every call (not just once ever) so this behaves like a real
+    recurring reminder system: each notification type is re-checked and, if
+    still true, gets a fresh row at most once per NOTIFICATION_REFRESH_HOURS -
+    frequent enough to feel live, not so frequent it spams duplicates.
+    """
+    analytics = behavioral_analytics_payload(user.id, db)
+    score = habit_score_payload(user.id, db)
+    profile = db.scalar(select(UserProfile).where(UserProfile.user_id == user.id))
+    now = datetime.now(timezone.utc)
+
+    candidates = []
+    if profile and profile.preferred_wake_time:
+        candidates.append(("BEDTIME_REMINDER", "Bedtime reminder", f"Protect the sleep window before your {profile.preferred_wake_time.strftime('%H:%M')} wake target."))
+    if db.scalar(select(Alarm.alarm_id).where(Alarm.user_id == user.id, Alarm.status == "ACTIVE")):
+        candidates.append(("WAKE_REMINDER", "Wake route ready", "Your next active alarm will require challenge verification before dismiss or snooze."))
+    if analytics["habit_consistency"]["missions_tracked"] and analytics["habit_consistency"]["completion_rate_percent"] < 70:
+        candidates.append(("HABIT_ALERT", "Habit signal", "Your observed mission completion is below 70%; choose one smaller repeatable mission."))
+    if db.scalar(select(ChallengeAttempt.challenge_id).where(ChallengeAttempt.user_id == user.id, ChallengeAttempt.status == ACTIVE_CHALLENGE_STATUS)):
+        candidates.append(("CHALLENGE_REMINDER", "Checkpoint waiting", "You have an active cognitive checkpoint that still needs an answer."))
+    if score["score"] is not None:
+        candidates.append(("PROGRESS", "Habit score updated", f"Your observed weighted habit score is {score['score']}/100."))
+
+    recently_notified_types = set(
+        db.scalars(
+            select(Notification.notification_type).where(
+                Notification.user_id == user.id,
+                Notification.created_at >= now - timedelta(hours=NOTIFICATION_REFRESH_HOURS),
+            )
+        ).all()
+    )
+    new_records = [
+        Notification(user_id=user.id, notification_type=notification_type, title=title, message=message)
+        for notification_type, title, message in candidates
+        if notification_type not in recently_notified_types
+    ]
+    if new_records:
+        db.add_all(new_records)
+        db.commit()
+
+    records = list(db.scalars(select(Notification).where(
+        Notification.user_id == user.id,
+    ).order_by(Notification.created_at.desc()).limit(50)).all())
+    return [{
+        "notification_id": item.notification_id,
+        "type": item.notification_type,
+        "title": item.title,
+        "message": item.message,
+        "read": item.read,
+        "created_at": item.created_at,
+    } for item in records]
+
+
+def user_device_tokens(user_id: int, db: Session) -> list[str]:
+    return list(db.scalars(select(DeviceToken.token).where(DeviceToken.user_id == user_id)).all())
+
+
+@app.get("/notifications")
+def notifications(user: User = Depends(current_user), db: Session = Depends(db_session)):
+    return _notification_records(user, db)
+
+
+@app.post("/notifications/device-tokens", status_code=status.HTTP_201_CREATED)
+def register_device_token(data: DeviceTokenInput, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    existing = db.scalar(select(DeviceToken).where(DeviceToken.token == data.token))
+    if existing:
+        existing.user_id = user.id
+        existing.platform = data.platform.upper()
+    else:
+        db.add(DeviceToken(user_id=user.id, token=data.token, platform=data.platform.upper()))
+    db.commit()
+    return {"registered": True, "push_enabled": get_fcm_service().enabled}
+
+
+@app.delete("/notifications/device-tokens/{token}", status_code=status.HTTP_204_NO_CONTENT)
+def unregister_device_token(token: str, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    record = db.scalar(select(DeviceToken).where(DeviceToken.token == token, DeviceToken.user_id == user.id))
+    if record:
+        db.delete(record)
+        db.commit()
+
+
+@app.patch("/notifications/{notification_id}/read")
+def mark_notification_read(notification_id: int, user: User = Depends(current_user), db: Session = Depends(db_session)):
+    record = db.scalar(select(Notification).where(
+        Notification.notification_id == notification_id,
+        Notification.user_id == user.id,
+    ))
+    if not record:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    record.read = True
+    db.commit()
+    return {"notification_id": record.notification_id, "read": True}
+
+
+@app.post("/admin/announcements", status_code=status.HTTP_201_CREATED)
+def create_announcement(
+    data: AnnouncementInput,
+    _: User = Depends(require_roles(Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    users = db.scalars(select(User.id)).all()
+    db.add_all([
+        Notification(
+            user_id=user_id,
+            notification_type="PLATFORM_ANNOUNCEMENT",
+            title=data.title,
+            message=data.message,
+        )
+        for user_id in users
+    ])
+    db.commit()
+    all_tokens = list(db.scalars(select(DeviceToken.token)).all())
+    push_result = get_fcm_service().send(
+        all_tokens, title=data.title, body=data.message, data={"type": "PLATFORM_ANNOUNCEMENT"}
+    )
+    return {"recipients": len(users), "title": data.title, "push": push_result}
+
+
+@app.get("/reports/{report_type}")
+def download_report(
+    report_type: str,
+    format: str = Query(default="xlsx", pattern="^(xlsx|pdf)$"),
+    target_user_id: int | None = Query(default=None, ge=1),
+    user: User = Depends(current_user),
+    db: Session = Depends(db_session),
+):
+    if target_user_id is not None and target_user_id != user.id and user.role not in {Role.ADMIN.value, Role.WELLNESS_COACH.value}:
+        raise HTTPException(status_code=403, detail="You do not have permission to access this report")
+    report_user_id = target_user_id or user.id
+    report_user = db.get(User, report_user_id)
+    if not report_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    rows = _report_rows(report_user_id, report_type, db)
+    title = f"BrainOS {report_type.title()} Report"
+    subtitle = f"{report_user.name} · Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+    filename = f"brainos-{report_type}-report.{format}"
+    if format == "pdf":
+        content, media_type = _pdf_bytes(rows, title, subtitle), "application/pdf"
+    else:
+        content, media_type = _xlsx_bytes(rows, title, subtitle), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return StreamingResponse(io.BytesIO(content), media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+def _admin_report_rows(report_type: str, db: Session) -> list[dict]:
+    report_type = report_type.lower()
+    if report_type == "users":
+        users = db.scalars(select(User).order_by(User.created_at.desc())).all()
+        return [
+            {"id": u.id, "name": u.name, "email": u.email, "role": u.role, "provider": u.provider, "created_at": u.created_at}
+            for u in users
+        ]
+    if report_type == "platform_summary":
+        return _metric_rows({
+            "total_users": db.scalar(select(func.count(User.id))) or 0,
+            "admins": db.scalar(select(func.count(User.id)).where(User.role == Role.ADMIN.value)) or 0,
+            "wellness_coaches": db.scalar(select(func.count(User.id)).where(User.role == Role.WELLNESS_COACH.value)) or 0,
+            "active_alarms": db.scalar(select(func.count(Alarm.alarm_id)).where(Alarm.status == "ACTIVE")) or 0,
+            "completed_challenges": db.scalar(select(func.count(ChallengeAttempt.challenge_id)).where(ChallengeAttempt.completed.is_(True))) or 0,
+            "notifications_sent": db.scalar(select(func.count(Notification.notification_id))) or 0,
+            "coach_notes_recorded": db.scalar(select(func.count(CoachNote.note_id))) or 0,
+        }.items())
+    raise HTTPException(status_code=404, detail="Unknown system report type")
+
+
+@app.get("/admin/reports/{report_type}")
+def download_admin_report(
+    report_type: str,
+    format: str = Query(default="xlsx", pattern="^(xlsx|pdf)$"),
+    admin: User = Depends(require_roles(Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    rows = _admin_report_rows(report_type, db)
+    title = f"BrainOS System {report_type.replace('_', ' ').title()} Report"
+    subtitle = f"Requested by {admin.name} · Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
+    filename = f"brainos-system-{report_type}-report.{format}"
+    if format == "pdf":
+        content, media_type = _pdf_bytes(rows, title, subtitle), "application/pdf"
+    else:
+        content, media_type = _xlsx_bytes(rows, title, subtitle), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    return StreamingResponse(io.BytesIO(content), media_type=media_type, headers={"Content-Disposition": f'attachment; filename="{filename}"'})
+
+
+@app.get("/coach/insights")
+def coach_insights(coach: User = Depends(require_roles(Role.WELLNESS_COACH, Role.ADMIN)), db: Session = Depends(db_session)):
+    if coach.role == Role.WELLNESS_COACH.value:
+        member_ids = db.scalars(select(CoachAssignment.member_id).where(CoachAssignment.coach_id == coach.id)).all()
+        users = db.scalars(select(User).where(User.id.in_(member_ids))).all() if member_ids else []
+    else:
+        users = db.scalars(select(User).where(User.role == Role.USER.value)).all()
+    member_scores = {user.id: habit_score_payload(user.id, db)["score"] for user in users}
+    scores = list(member_scores.values())
+    note_counts = dict(
+        db.execute(
+            select(CoachNote.member_id, func.count(CoachNote.note_id)).group_by(CoachNote.member_id)
+        ).all()
+    )
+    open_help_counts = dict(
+        db.execute(
+            select(CoachHelpMessage.member_id, func.count(CoachHelpMessage.message_id))
+            .where(CoachHelpMessage.sender_role == "USER", CoachHelpMessage.read.is_(False))
+            .group_by(CoachHelpMessage.member_id)
+        ).all()
+    )
+    return {
+        "users_tracked": len(users),
+        "average_habit_score": round(sum(score for score in scores if score is not None) / len([score for score in scores if score is not None]), 2) if any(score is not None for score in scores) else None,
+        "users": [
+            {
+                "user_id": user.id,
+                "name": user.name,
+                "habit_score": member_scores[user.id],
+                "note_count": note_counts.get(user.id, 0),
+                "open_help_requests": open_help_counts.get(user.id, 0),
+                "analytics": behavioral_analytics_payload(user.id, db),
+            }
+            for user in users
+        ],
+    }
+
+
+def owned_member_for_coach(user_id: int, coach: User, db: Session) -> User:
+    member = db.get(User, user_id)
+    if not member or member.role != Role.USER.value:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    if coach.role == Role.WELLNESS_COACH.value:
+        assignment = db.scalar(
+            select(CoachAssignment).where(CoachAssignment.coach_id == coach.id, CoachAssignment.member_id == user_id)
+        )
+        if not assignment:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member not found")
+    return member
+
+
+@app.get("/coach/members/{user_id}/notes")
+def list_coach_notes(
+    user_id: int,
+    coach: User = Depends(require_roles(Role.WELLNESS_COACH, Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    owned_member_for_coach(user_id, coach, db)
+    notes = db.scalars(
+        select(CoachNote).where(CoachNote.member_id == user_id).order_by(CoachNote.created_at.desc())
+    ).all()
+    coach_names = {row.id: row.name for row in db.scalars(select(User).where(User.id.in_({note.coach_id for note in notes})))} if notes else {}
+    return [
+        {
+            "note_id": note.note_id,
+            "note": note.note,
+            "coach_name": coach_names.get(note.coach_id, "Coach"),
+            "created_at": note.created_at,
+        }
+        for note in notes
+    ]
+
+
+@app.post("/coach/members/{user_id}/notes", status_code=status.HTTP_201_CREATED)
+def add_coach_note(
+    user_id: int,
+    data: CoachNoteInput,
+    coach: User = Depends(require_roles(Role.WELLNESS_COACH, Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    owned_member_for_coach(user_id, coach, db)
+    record = CoachNote(coach_id=coach.id, member_id=user_id, note=data.note.strip())
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return {"note_id": record.note_id, "note": record.note, "coach_name": coach.name, "created_at": record.created_at}
+
+
+@app.post("/coach/members/{user_id}/message", status_code=status.HTTP_201_CREATED)
+def send_coach_message(
+    user_id: int,
+    data: CoachMessageInput,
+    coach: User = Depends(require_roles(Role.WELLNESS_COACH, Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    member = owned_member_for_coach(user_id, coach, db)
+    db.add(Notification(
+        user_id=member.id,
+        notification_type="COACH_MESSAGE",
+        title=data.title,
+        message=data.message,
+    ))
+    db.commit()
+    tokens = user_device_tokens(member.id, db)
+    push_result = get_fcm_service().send(tokens, title=data.title, body=data.message, data={"type": "COACH_MESSAGE"})
+    return {"delivered_to": member.name, "push": push_result}
+
+
+@app.get("/coach/members/{user_id}/help-messages")
+def list_member_help_messages(
+    user_id: int,
+    coach: User = Depends(require_roles(Role.WELLNESS_COACH, Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    owned_member_for_coach(user_id, coach, db)
+    messages = db.scalars(
+        select(CoachHelpMessage).where(CoachHelpMessage.member_id == user_id).order_by(CoachHelpMessage.created_at)
+    ).all()
+    unread = [m for m in messages if m.sender_role == "USER" and not m.read]
+    for message in unread:
+        message.read = True
+    if unread:
+        db.commit()
+    return [_serialize_help_message(m) for m in messages]
+
+
+@app.post("/coach/members/{user_id}/help-messages", status_code=status.HTTP_201_CREATED)
+def reply_to_member_help_message(
+    user_id: int,
+    data: CoachHelpMessageInput,
+    coach: User = Depends(require_roles(Role.WELLNESS_COACH, Role.ADMIN)),
+    db: Session = Depends(db_session),
+):
+    member = owned_member_for_coach(user_id, coach, db)
+    content = data.message.strip()
+    record = CoachHelpMessage(member_id=user_id, coach_id=coach.id, sender_role="COACH", content=content)
+    db.add(record)
+    db.add(Notification(
+        user_id=member.id,
+        notification_type="COACH_HELP_REPLY",
+        title=f"{coach.name} replied",
+        message=content,
+    ))
+    db.commit()
+    db.refresh(record)
+    tokens = user_device_tokens(member.id, db)
+    push_result = get_fcm_service().send(tokens, title=f"{coach.name} replied", body=content, data={"type": "COACH_HELP_REPLY"})
+    return {**_serialize_help_message(record), "push": push_result}
+
+
+@app.get("/admin/analytics")
+def admin_analytics(_: User = Depends(require_roles(Role.ADMIN)), db: Session = Depends(db_session)):
+    return {
+        "users": db.scalar(select(func.count(User.id))) or 0,
+        "active_alarms": db.scalar(select(func.count(Alarm.alarm_id)).where(Alarm.status == "ACTIVE")) or 0,
+        "completed_challenges": db.scalar(select(func.count(ChallengeAttempt.challenge_id)).where(ChallengeAttempt.completed.is_(True))) or 0,
+        "notifications": db.scalar(select(func.count(Notification.notification_id))) or 0,
+    }
+
+
+@app.get("/admin/recommendations")
+def admin_recommendations(_: User = Depends(require_roles(Role.ADMIN)), db: Session = Depends(db_session)):
+    users = db.scalars(select(User).where(User.role == Role.USER.value)).all()
+    return {
+        "users_tracked": len(users),
+        "recommendations": [
+            {"user_id": user.id, "recommendations": recommendation_payload(user.id, db)}
+            for user in users
+        ],
+    }
+
+
 @app.get("/analytics")
 def analytics(user: User = Depends(current_user), db: Session = Depends(db_session)):
     records = list(
-        db.scalars(select(Analytics).where(Analytics.user_id == user.id).order_by(Analytics.recorded_at.desc()).limit(7))
+        db.scalars(
+            select(Analytics)
+            .where(Analytics.user_id == user.id)
+            .order_by(Analytics.recorded_at.desc())
+            .limit(7)
+        ).all()
     )
+
     attempts = list(
         db.scalars(
             select(ChallengeAttempt)
-            .where(ChallengeAttempt.user_id == user.id, ChallengeAttempt.completed.is_(True))
+            .where(
+                ChallengeAttempt.user_id == user.id,
+                ChallengeAttempt.completed.is_(True),
+            )
             .order_by(ChallengeAttempt.completed_at.desc(), ChallengeAttempt.created_at.desc())
             .limit(20)
         ).all()
     )
+
     challenge_data = performance_payload(attempts)
+
     sleep_records = list(
         db.scalars(
             select(SleepLog)
@@ -2087,25 +3647,32 @@ def analytics(user: User = Depends(current_user), db: Session = Depends(db_sessi
             .limit(7)
         ).all()
     )
-    latest = records[0] if records else None
-    sleep_score = (
-        round(sum(float(record.quality) for record in sleep_records) / len(sleep_records))
-        if sleep_records
-        else (latest.sleep_score if latest else 0)
-    )
-    wake_attempts = [attempt for attempt in attempts if attempt.intent == "WAKE_UP"]
-    wake_successes = sum(1 for attempt in wake_attempts if attempt.is_correct and attempt.verification_passed)
-    wake_failures = sum(1 for attempt in wake_attempts if not attempt.is_correct)
+
+    if records:
+        latest = records[0]
+        focus_score = latest.focus_score
+        habit_score = latest.habit_score
+        sleep_score = latest.sleep_score
+        history = [record.sleep_score for record in reversed(records)]
+    else:
+        sleep_score = (
+            round(sum(float(record.quality) for record in sleep_records) / len(sleep_records))
+            if sleep_records
+            else 0
+        )
+        focus_score = round(challenge_data["accuracy_percent"]) if attempts else 0
+        habit_score = 0
+        history = [record.quality for record in reversed(sleep_records)]
+
+    behavioral = behavioral_analytics_payload(user.id, db)
+
     return {
-        "focus_score": round(challenge_data["accuracy_percent"]) if attempts else (latest.focus_score if latest else 0),
-        "habit_score": latest.habit_score if latest else 0,
+        "focus_score": focus_score,
+        "habit_score": habit_score,
         "sleep_score": sleep_score,
-        "history": [record.quality for record in reversed(sleep_records)] or [record.sleep_score for record in reversed(records)],
+        "history": history,
         "challenge_performance": challenge_data,
-        "user_rating": challenge_data["user_rating"],
-        "user_rating_label": challenge_data["user_rating_label"],
-        "user_rating_stars": challenge_data["user_rating_stars"],
-        "wake_successes": wake_successes,
-        "wake_failures": wake_failures,
-        "difficulty_progression": [attempt.difficulty for attempt in reversed(attempts)],
+        "habit_score": habit_score_payload(user.id, db),
+        "recommendations": recommendation_payload(user.id, db),
+        **behavioral,
     }

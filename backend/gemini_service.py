@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Optional
 
 try:
@@ -12,6 +13,14 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Bounds how long a single _generate_text call may take overall, regardless of
+# how many model candidates it tries - without this, a slow/unresponsive model
+# left the caller's "Thinking..." state hanging for a minute or more.
+GEMINI_TOTAL_TIMEOUT_SECONDS = 15
+# The Gemini API rejects any deadline under 10s with a 400 INVALID_ARGUMENT,
+# so this doubles as the API's own enforced minimum, not just our preference.
+GEMINI_PER_CALL_TIMEOUT_MS = 10000
+
 
 class GeminiChallengeGenerator:
     """Generate personalized cognitive challenges with Gemini or deterministic fallback."""
@@ -20,11 +29,14 @@ class GeminiChallengeGenerator:
         "gemini-3.7-flash",
         "gemini-3.1-flash-lite",
         "gemini-flash-latest",
-        "gemini-2.5-flash-lite",
+        "gemini-3.5-flash-lite",
     )
 
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        # `api_key is not None` (not `or`) so an explicitly-passed empty
+        # string disables the service instead of silently falling through
+        # to the real environment variable.
+        self.api_key = api_key if api_key is not None else os.getenv("GEMINI_API_KEY")
         self.enabled = bool(self.api_key)
         self.client = None
         self.model_name: Optional[str] = None
@@ -51,9 +63,19 @@ class GeminiChallengeGenerator:
         if not self.client:
             raise RuntimeError("Gemini client is unavailable")
         last_error = None
+        deadline = time.monotonic() + GEMINI_TOTAL_TIMEOUT_SECONDS
         for model_name in self.MODEL_CANDIDATES:
+            if time.monotonic() >= deadline:
+                last_error = last_error or TimeoutError("Gemini request budget exhausted")
+                break
             try:
-                response = self.client.models.generate_content(model=model_name, contents=prompt)
+                response = self.client.models.generate_content(
+                    model=model_name,
+                    contents=prompt,
+                    config=modern_genai.types.GenerateContentConfig(
+                        http_options=modern_genai.types.HttpOptions(timeout=GEMINI_PER_CALL_TIMEOUT_MS)
+                    ),
+                )
                 text = (getattr(response, "text", "") or "").strip()
                 if text:
                     self.model_name = model_name
@@ -88,12 +110,34 @@ class GeminiChallengeGenerator:
             "HARD": "complex reasoning",
             "EXPERT": "advanced reasoning with minimal scaffolding",
         }.get(difficulty, "moderate complexity")
-        return f"""Generate one concise cognitive challenge.
+        return f"""Generate one concise cognitive challenge for someone who just woke up.
 Challenge Type: {challenge_type}
 Difficulty: {difficulty} ({complexity})
 Context: {context}
 User Goal: {productivity_goal}
 User Habits: {habits}
+
+Critical rule: every person who reads the prompt must be able to work out the
+answer themselves, right now, with no outside knowledge, lookup, or tools.
+- For MATH, LOGIC, PATTERN, MEMORY, REACTION: the prompt must contain every
+  fact needed to derive the answer. Never require information the prompt
+  doesn't give.
+- For WORD, RIDDLE, QUIZ: use only common, everyday knowledge that a typical
+  adult already knows (e.g. basic geography, everyday objects, classic
+  riddles). Never use obscure trivia, specialized/technical facts, niche
+  history, or anything that would require a search engine to answer.
+- For WORD specifically: the answer must be a real, common dictionary word.
+  Never invent a word. Do not use letter-extraction/acrostic puzzles (e.g.
+  "take the Nth letter of each of these words") - models frequently make
+  arithmetic mistakes on these and produce a wrong or invented answer. Prefer
+  a plain anagram of a common word, or a one-word answer to a simple clue.
+- Before returning, re-derive expected_answer yourself from the prompt you
+  wrote and confirm it is exactly correct and (for WORD) a real word. If it
+  is not, revise the prompt or answer until it is.
+- Increase difficulty by making the reasoning take more steps or the timing
+  tighter - never by making the required knowledge more obscure.
+If you cannot produce a challenge that satisfies this rule, prefer a simpler
+one over a harder one that fails it.
 
 Return ONLY valid JSON with exactly:
 {{"prompt":"...","expected_answer":"...","instructions":"..."}}
@@ -125,14 +169,25 @@ The expected answer must be concise and unambiguous. Do not include markdown."""
         prompt, answer, instructions = fallback_generator(challenge_type, difficulty, intent)
         return prompt, answer, instructions, "DETERMINISTIC"
 
-    def _build_assistant_prompt(self, user_message: str, user_profile: Optional[dict] = None) -> str:
+    def _build_assistant_prompt(
+        self, user_message: str, user_profile: Optional[dict] = None, history: Optional[list] = None
+    ) -> str:
         profile = user_profile or {}
         productivity_goal = profile.get("productivity_goal") or "feel more awake and focused"
         habits = ", ".join(profile.get("habit_preferences") or []) or "simple morning routines"
         timezone = profile.get("timezone") or "your local timezone"
+        transcript = ""
+        if history:
+            lines = [
+                f"{'User' if turn.get('role') == 'USER' else 'Coach'}: {turn.get('content', '')}"
+                for turn in history
+            ]
+            transcript = "Conversation so far:\n" + "\n".join(lines) + "\n\n"
         return (
-            "You are a concise morning wellness coach for a cognitive alarm app. Reply in 2-4 sentences. "
-            f"User message: {user_message}. Goal: {productivity_goal}. Habits: {habits}. Timezone: {timezone}. "
+            "You are a concise morning wellness coach for a cognitive alarm app, in an ongoing chat "
+            "with this user. Reply in 2-4 sentences, staying consistent with what you already told them.\n\n"
+            f"{transcript}"
+            f"User's latest message: {user_message}. Goal: {productivity_goal}. Habits: {habits}. Timezone: {timezone}. "
             "Be warm, practical, and easy to act on immediately."
         )
 
@@ -141,14 +196,16 @@ The expected answer must be concise and unambiguous. Do not include markdown."""
         cleaned = re.sub(r"\s+", " ", cleaned)
         return cleaned if len(cleaned) <= 500 else cleaned[:497].rstrip() + "..."
 
-    def generate_assistant_reply(self, user_message: str, user_profile: Optional[dict] = None) -> str:
+    def generate_assistant_reply(
+        self, user_message: str, user_profile: Optional[dict] = None, history: Optional[list] = None
+    ) -> str:
         if not str(user_message or "").strip():
             return "Tell me what you need in your morning routine and I’ll help you simplify it."
         if not self.enabled:
             self.last_response_source = "DETERMINISTIC"
             return self._fallback_assistant_reply(user_message, user_profile)
         try:
-            text = self._generate_text(self._build_assistant_prompt(user_message, user_profile))
+            text = self._generate_text(self._build_assistant_prompt(user_message, user_profile, history))
             self.last_response_source = "GEMINI"
             return self._clean_assistant_response(text)
         except Exception as exc:

@@ -1,6 +1,7 @@
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import NeuralCore from "../components/NeuralCore";
+import { enablePushNotifications } from "../notifications/push";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000";
 const baseNav = ["Command", "Alarms", "Challenges", "Analytics", "Settings"];
@@ -31,8 +32,73 @@ const defaultPreferences = {
   habits: "Water before screen time, 10-minute daylight walk",
 };
 
-const headers = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("brainos_token")}` });
+const headers = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${window.localStorage.getItem("brainos_token") || ""}`,
+});
 const readJson = async (response) => { try { return await response.json(); } catch { return null; } };
+const fetchWithTimeout = (url, options = {}, timeoutMs = 20000) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+};
+const magnetic = (strength = 14) => ({
+  onMouseMove: (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left - rect.width / 2;
+    const y = event.clientY - rect.top - rect.height / 2;
+    event.currentTarget.style.transform = `translate(${(x / rect.width) * strength}px, ${(y / rect.height) * strength}px)`;
+  },
+  onMouseLeave: (event) => { event.currentTarget.style.transform = ""; },
+});
+function useAnimatedNumber(target, duration = 1100) {
+  const targetValue = Number.isFinite(Number(target)) ? Number(target) : 0;
+  const [display, setDisplay] = useState(0);
+  const displayRef = useRef(0);
+
+  useEffect(() => {
+    const from = displayRef.current;
+    let frame;
+    let start = null;
+    const step = (timestamp) => {
+      if (start === null) start = timestamp;
+      const progress = Math.min(1, (timestamp - start) / duration);
+      const eased = 1 - (1 - progress) ** 3;
+      const next = from + (targetValue - from) * eased;
+      displayRef.current = next;
+      setDisplay(next);
+      if (progress < 1) frame = requestAnimationFrame(step);
+    };
+    frame = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frame);
+  }, [targetValue, duration]);
+
+  return display;
+}
+function AnimatedNumber({ value, decimals = 0 }) {
+  const numeric = Number.isFinite(Number(value)) ? Number(value) : null;
+  const shown = useAnimatedNumber(numeric ?? 0);
+  if (numeric === null) return "—";
+  return decimals ? shown.toFixed(decimals) : Math.round(shown);
+}
+function TypewriterBubble({ text, className }) {
+  const [length, setLength] = useState(0);
+  useEffect(() => {
+    if (!text) return undefined;
+    const interval = setInterval(() => {
+      setLength((current) => {
+        if (current >= text.length) {
+          clearInterval(interval);
+          return current;
+        }
+        return current + 1;
+      });
+    }, 16);
+    return () => clearInterval(interval);
+  }, [text]);
+  const done = length >= text.length;
+  return <p className={done ? className : `${className} assistant-bubble-typing`}>{text.slice(0, length)}</p>;
+}
 const safeRead = (key, fallback) => {
   try { const saved = window.localStorage.getItem(key); return saved ? JSON.parse(saved) : fallback; } catch { return fallback; }
 };
@@ -42,6 +108,17 @@ const intentKey = (userId) => `brainos_alarm_intents_${userId || "guest"}`;
 const historyKey = (userId) => `brainos_challenge_history_${userId || "guest"}`;
 const defaultRepeatDays = (type) => ({ DAILY: "Mon,Tue,Wed,Thu,Fri,Sat,Sun", WEEKDAY: "Mon,Tue,Wed,Thu,Fri", WEEKEND: "Sat,Sun", ONE_TIME: "", SMART_ADAPTIVE: "Mon,Tue,Wed,Thu,Fri" })[type] ?? "";
 const labelForAlarmType = (type) => alarmTypes.find(([value]) => value === String(type).toUpperCase())?.[1] || "Wake alarm";
+const repeatDayLetters = (alarm) => {
+  const type = String(alarm?.alarm_type || "").toUpperCase();
+  if (type === "ONE_TIME") return { letters: ["•"], active: [true], oneTime: true };
+  const source = String(alarm?.repeat_days || "").toLowerCase();
+  const names = ["mon","tue","wed","thu","fri","sat","sun"];
+  return {
+    letters: ["M","T","W","T","F","S","S"],
+    active: names.map((name) => source.includes(name)),
+    oneTime: false,
+  };
+};
 const formatTime = (value) => {
   const match = String(value || "07:00").match(/(\d{1,2}):(\d{2})/);
   if (!match) return "07:00";
@@ -59,13 +136,9 @@ const numericValue = (value, fallback) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
-const DIFFICULTY_LEVELS = ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"];
-const normalizeDifficulty = (value, fallback = "MEDIUM") => {
-  const normalized = String(value || "").toUpperCase();
-  return DIFFICULTY_LEVELS.includes(normalized) ? normalized : fallback;
-};
-const fallbackTimeLimit = (difficulty) => ({ BEGINNER: 105, EASY: 90, MEDIUM: 75, HARD: 60, EXPERT: 45 })[normalizeDifficulty(difficulty)] || 75;
-const fallbackMaxAttempts = (difficulty) => ({ BEGINNER: 4, EASY: 3, MEDIUM: 2, HARD: 2, EXPERT: 1 })[normalizeDifficulty(difficulty)] || 2;
+const normalizeDifficulty = (value, fallback = "MEDIUM") => ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"].includes(String(value || "").toUpperCase()) ? String(value).toUpperCase() : fallback;
+const fallbackTimeLimit = (difficulty) => ({ BEGINNER: 110, EASY: 90, MEDIUM: 75, HARD: 60, EXPERT: 45 })[normalizeDifficulty(difficulty)] || 75;
+const fallbackMaxAttempts = (difficulty) => ({ BEGINNER: 3, EASY: 3, MEDIUM: 2, HARD: 2, EXPERT: 1 })[normalizeDifficulty(difficulty)] || 2;
 const challengeTitle = (type) => challengeTypes.find(([value]) => value === String(type).toUpperCase())?.[1] || "Cognitive checkpoint";
 const preferencesFromProfile = (profile) => {
   const preferences = {};
@@ -90,34 +163,14 @@ const formatCountdown = (seconds) => {
   const safeSeconds = Math.max(0, Math.ceil(numericValue(seconds, 0)));
   return `${String(Math.floor(safeSeconds / 60)).padStart(2, "0")}:${String(safeSeconds % 60).padStart(2, "0")}`;
 };
-const countdownLabel = (iso, nowMs = Date.now()) => {
-  const target = Date.parse(iso || "");
-  if (!Number.isFinite(target)) return "NOT SET";
-  const diff = target - nowMs;
-  if (diff <= 0) return "DUE NOW";
-  const totalMinutes = Math.floor(diff / 60000);
-  const days = Math.floor(totalMinutes / 1440);
-  const hours = Math.floor((totalMinutes % 1440) / 60);
-  const minutes = totalMinutes % 60;
-  if (days > 0) return `in ${days}d ${hours}h`;
-  if (hours > 0) return `in ${hours}h ${minutes}m`;
-  return `in ${Math.max(1, minutes)}m`;
-};
-
-const performanceRating = (performance) => {
-  const score = Number(performance?.user_rating);
-  if (!Number.isInteger(score) || score < 1 || score > 5) return { score: 0, label: "No data", stars: "☆☆☆☆☆" };
-  const labels = { 1: "Beginner", 2: "Needs practice", 3: "Developing", 4: "Strong", 5: "Expert" };
-  return { score, label: performance?.user_rating_label || labels[score], stars: performance?.user_rating_stars || "★".repeat(score) + "☆".repeat(5 - score) };
-};
-const alarmPresentationStatus = (alarm, nowMs) => {
-  const status = String(alarm?.status || "ACTIVE").toUpperCase();
-  const snoozedUntil = Date.parse(alarm?.snoozed_until || "");
-  if (["DISABLED", "COMPLETED", "RINGING"].includes(status)) return status;
-  if (status === "SNOOZED" && (!Number.isFinite(snoozedUntil) || snoozedUntil > nowMs)) return "SNOOZED";
-  if (Number.isFinite(snoozedUntil) && snoozedUntil > nowMs) return "SNOOZED";
-
-  return "ACTIVE";
+const defaultAlarmTitle = (alarmTime) => {
+  const hour = Number(String(alarmTime || "").slice(0, 2));
+  if (!Number.isFinite(hour)) return "Morning Focus";
+  if (hour < 5) return "Night Focus";
+  if (hour < 12) return "Morning Focus";
+  if (hour < 17) return "Afternoon Focus";
+  if (hour < 21) return "Evening Focus";
+  return "Night Focus";
 };
 const getAlarmDueAt = (alarm) => {
   if (!alarm) return null;
@@ -143,7 +196,7 @@ const performanceRecommendation = (performance) => {
   const reason = recommendation?.reason ?? performance?.selection_reason ?? performance?.difficulty_reason;
   return {
     type: knownChallengeTypes.has(String(type || "").toUpperCase()) ? String(type).toUpperCase() : null,
-    difficulty: DIFFICULTY_LEVELS.includes(String(difficulty || "").toUpperCase()) ? String(difficulty).toUpperCase() : null,
+    difficulty: ["BEGINNER", "EASY", "MEDIUM", "HARD", "EXPERT"].includes(String(difficulty || "").toUpperCase()) ? String(difficulty).toUpperCase() : null,
     reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
   };
 };
@@ -226,20 +279,22 @@ export default function Dashboard({ onSignOut }) {
   const [alarmIntents, setAlarmIntents] = useState({});
   const alarmToneRef = useRef(null);
   const alarmTimerRef = useRef(null);
+  const autoStartedAlarmRef = useRef(null);
   const [challengeHistory, setChallengeHistory] = useState([]);
   const [activeChallenge, setActiveChallenge] = useState(null);
   const [challengeLoading, setChallengeLoading] = useState(false);
   const [challengePerformance, setChallengePerformance] = useState(null);
-  const [assistantReply, setAssistantReply] = useState("Start with one small win: drink water, then protect one focus block.");
+  const [assistantMessages, setAssistantMessages] = useState([
+    { role: "ASSISTANT", content: "Start with one small win: drink water, then protect one focus block.", id: 0 },
+  ]);
   const [assistantInput, setAssistantInput] = useState("I am tired and need help waking up");
   const [assistantLoading, setAssistantLoading] = useState(false);
-  const [snoozeSubmitting, setSnoozeSubmitting] = useState(false);
-  const [clockNow, setClockNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setClockNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
+  const [assistantHistoryLoaded, setAssistantHistoryLoaded] = useState(false);
+  const [typingMessageId, setTypingMessageId] = useState(null);
+  const assistantMessageIdRef = useRef(1);
+  const nextAssistantMessageId = () => assistantMessageIdRef.current++;
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   const refreshChallengePerformance = useCallback(async () => {
     try {
@@ -287,7 +342,6 @@ export default function Dashboard({ onSignOut }) {
   }, []);
 
   const triggerAlarmNotification = useCallback((alarm) => {
-    if (alarm?.notification_enabled === false) return;
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission === "granted") {
       new Notification(alarm?.title || "Wake mission", {
@@ -300,7 +354,7 @@ export default function Dashboard({ onSignOut }) {
   const ringAlarm = useCallback((alarm) => {
     if (!alarm || ringingAlarm?.alarm_id === alarm.alarm_id) return;
     setRingingAlarm(alarm);
-    setNotice(`${alarm.title || "Wake mission"} is ringing. Snooze or dismiss it.`);
+    setNotice(`${alarm.title || "Wake mission"} is ringing. Solve the cognitive checkpoint first.`);
     triggerAlarmNotification(alarm);
     playAlarmTone();
     if (alarmTimerRef.current) window.clearInterval(alarmTimerRef.current);
@@ -308,10 +362,13 @@ export default function Dashboard({ onSignOut }) {
   }, [playAlarmTone, ringingAlarm, triggerAlarmNotification]);
 
   const snoozeActiveAlarm = useCallback(async (alarm) => {
-  if (!alarm || snoozeSubmitting) return;
+  if (!alarm) return;
+    if (ringingAlarm?.alarm_id === alarm.alarm_id) {
+      setNotice("Complete the cognitive checkpoint before snoozing this alarm.");
+      return;
+    }
 
   const minutes = Number(alarm.snooze_minutes ?? 5) || 5;
-  setSnoozeSubmitting(true);
 
   try {
     const response = await fetch(
@@ -336,9 +393,6 @@ export default function Dashboard({ onSignOut }) {
 
     stopAlarmTone();
     setRingingAlarm(null);
-    setActiveChallenge((current) => current?.alarmTriggered && current.alarmId === alarmId
-      ? { ...current, alarmVerificationComplete: true }
-      : current);
 
     const snoozedUntil = payload?.snoozed_until;
 
@@ -363,10 +417,8 @@ export default function Dashboard({ onSignOut }) {
     
   } catch {
     setNotice("The alarm service is unavailable right now.");
-  } finally {
-    setSnoozeSubmitting(false);
   }
-}, [onSignOut, snoozeSubmitting, stopAlarmTone]);
+}, [onSignOut, ringingAlarm, stopAlarmTone]);
 
   const load = useCallback(async () => {
     try {
@@ -381,7 +433,7 @@ export default function Dashboard({ onSignOut }) {
       setProfile(nextProfile);
       setAlarms(Array.isArray(nextAlarms) ? nextAlarms : []);
       setAnalytics(nextAnalytics);
-      setNextAlarm(null);
+      setNextAlarm((Array.isArray(nextAlarms) ? nextAlarms : []).find((alarm) => alarm.status !== "DISABLED") || null);
       if (nextProfile?.id) {
         setPreferences({
           ...defaultPreferences,
@@ -415,7 +467,11 @@ export default function Dashboard({ onSignOut }) {
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission === "default") {
-      Notification.requestPermission().catch(() => { /* Browser permission prompts are optional. */ });
+      Notification.requestPermission()
+        .then((permission) => { if (permission === "granted") void enablePushNotifications(); })
+        .catch(() => { /* Browser permission prompts are optional. */ });
+    } else if (Notification.permission === "granted") {
+      void enablePushNotifications();
     }
   }, []);
   
@@ -426,52 +482,19 @@ useEffect(() => {
 
   if (!Number.isFinite(dueAt)) return undefined;
 
-  const MAX_LATE_RING_MS = 15 * 60 * 1000;
-
   const checkAlarm = () => {
     const lateness = Date.now() - dueAt;
-
-    // Never resurrect an alarm that became due hours ago. The backend also
-    // expires stale RINGING states after the same 15-minute window.
-    if (lateness >= 0 && lateness <= MAX_LATE_RING_MS) {
+    if (lateness >= 0 && lateness <= 15 * 60 * 1000) {
       ringAlarm(nextAlarm);
     }
   };
 
   checkAlarm();
+
   const timer = window.setInterval(checkAlarm, 1000);
+
   return () => window.clearInterval(timer);
 }, [nextAlarm, ringingAlarm, ringAlarm]);
-
-  useEffect(() => {
-    const pollNextAlarm = async () => {
-      try {
-        const response = await fetch(`${API}/alarms/check-next`, {
-          method: "POST",
-          headers: headers(),
-        });
-
-        if (response.status === 401) {
-          onSignOut();
-          return;
-        }
-
-        if (!response.ok) return;
-
-        const payload = await readJson(response);
-        const next = payload?.next_alarm
-          ? { ...payload.next_alarm, next_at: payload.next_at }
-          : null;
-
-        setNextAlarm(next);
-      } catch {
-        // Keep current UI state when the scheduler check is temporarily unavailable.
-      }
-    };
-
-    const timer = window.setInterval(pollNextAlarm, 30000);
-    return () => window.clearInterval(timer);
-  }, [onSignOut]);
 
   useEffect(() => {
     return () => stopAlarmTone();
@@ -506,20 +529,16 @@ useEffect(() => {
   };
 
   const updateAlarm = async (alarmId, form, intent) => {
+    const alarmTime = String(form.alarm_time || "").slice(0, 5);
     const payload = {
-      title: form.title?.trim() || "Morning Focus",
-      alarm_time: String(form.alarm_time || "").slice(0, 5),
+      title: form.title?.trim() || defaultAlarmTitle(alarmTime),
+      alarm_time: alarmTime,
       alarm_type: form.alarm_type || "DAILY",
       repeat_days: form.alarm_type === "ONE_TIME" ? "" : form.repeat_days || null,
       difficulty: normalizeDifficulty(form.difficulty, preferences.difficulty || "MEDIUM"),
       sound: form.sound || "Neural Dawn",
       vibration: form.vibration !== false,
       snooze_minutes: Number(form.snooze_minutes ?? 5),
-      challenge_type: form.challenge_type || "AUTO",
-      wake_verification_mode: form.wake_verification_mode || "SINGLE",
-      notification_enabled: form.notification_enabled !== false,
-      daybreak_route_enabled: form.daybreak_route_enabled !== false,
-      wake_window_minutes: Number(form.wake_window_minutes ?? 30),
       status: form.status || "ACTIVE",
     };
 
@@ -600,20 +619,16 @@ useEffect(() => {
     } catch { setNotice("The alarm service is unavailable right now."); }
   };
 
-  const activateChallenge = async (type, difficulty, context = {}) => {
+  const activateChallenge = useCallback(async (type, difficulty, context = {}) => {
     setChallengeLoading(true);
     try {
       const recommendedDifficulty = performanceRecommendation(challengePerformance).difficulty;
       const fallbackDifficulty = normalizeDifficulty(difficulty || recommendedDifficulty || preferences.difficulty);
       let challenge = fallbackChallenge(type, fallbackDifficulty);
       try {
-        const request = {
-          challenge_type: type,
-          intent: context.alarmId ? "WAKE_UP" : "ROUTE",
-        };
-        if (context.alarmId) request.alarm_id = Number(context.alarmId);
+        const request = { challenge_type: type, intent: "WAKE_UP" };
         if (difficulty) request.difficulty = normalizeDifficulty(difficulty);
-        const generated = await fetch(`${API}/challenges/generate`, { method: "POST", headers: headers(), body: JSON.stringify(request) });
+        const generated = await fetchWithTimeout(`${API}/challenges/generate`, { method: "POST", headers: headers(), body: JSON.stringify(request) }, 30000);
         if (generated.status === 401) return onSignOut();
         if (generated.ok) {
           const adapted = adaptChallenge(await readJson(generated), type, fallbackDifficulty);
@@ -634,24 +649,21 @@ useEffect(() => {
           if (mission) setMissions((current) => [mission, ...current]);
         }
       } catch { /* A challenge can still be completed locally. */ }
-      setActiveChallenge({
-        ...challenge,
-        alarmId: context.alarmId ?? null,
-        alarmTriggered: Boolean(context.alarmId),
-        wakeVerificationMode: context.wakeVerificationMode || "SINGLE",
-      });
+     setActiveChallenge({
+  ...challenge,
+  alarmId: context.alarmId ?? null,
+  alarmTriggered: Boolean(context.alarmId),
+});
 
-      setView("Challenges");
+setView("Challenges");
     } finally {
       setChallengeLoading(false);
     }
-  };
+  }, [challengePerformance, onSignOut, preferences.difficulty]);
   
  const startAlarmChallenge = useCallback(async (alarm) => {
   if (!alarm) return;
-
-  stopAlarmTone();
-  setRingingAlarm(null);
+  if (activeChallenge?.alarmTriggered && activeChallenge.alarmId === alarm.alarm_id) return;
 
   const intent = alarmIntents?.[alarm.alarm_id] || {};
   const recommendation = performanceRecommendation(challengePerformance);
@@ -685,15 +697,24 @@ useEffect(() => {
 
   await activateChallenge(type, difficulty, {
     alarmId: alarm.alarm_id,
-    wakeVerificationMode: alarm.wake_verification_mode || "SINGLE",
   });
 }, [
   activateChallenge,
+  activeChallenge,
   alarmIntents,
   challengePerformance,
   preferences.difficulty,
-  stopAlarmTone,
 ]);
+
+useEffect(() => {
+  if (!ringingAlarm) {
+    autoStartedAlarmRef.current = null;
+    return;
+  }
+  if (autoStartedAlarmRef.current === ringingAlarm.alarm_id) return;
+  autoStartedAlarmRef.current = ringingAlarm.alarm_id;
+  void startAlarmChallenge(ringingAlarm);
+}, [ringingAlarm, startAlarmChallenge]);
 
 const recordChallengeOutcome = (challenge, outcome) => {
     if (!outcome.correct && !outcome.terminal) return;
@@ -738,12 +759,10 @@ const recordChallengeOutcome = (challenge, outcome) => {
     const payload = await readJson(response);
 
     if (!response.ok) {
-      const verificationPending = response.status === 409 && /required wake verification/i.test(String(payload?.detail || ""));
-      if (verificationPending) {
-        return { ok: false, pending: true, detail: payload?.detail || "Additional wake verification is required." };
-      }
-      setNotice(payload?.detail || "Challenge cleared, but the alarm could not be finalized.");
-      return { ok: false, pending: false };
+      setNotice(
+        payload?.detail || "Challenge cleared, but the alarm could not be finalized."
+      );
+      return false;
     }
 
     stopAlarmTone();
@@ -770,37 +789,35 @@ const recordChallengeOutcome = (challenge, outcome) => {
         : "Wake protocol complete. Alarm cleared."
     );
 
-    return { ok: true, pending: false };
+    return true;
   } catch {
-    setNotice("Challenge cleared, but alarm finalization is unavailable.");
-    return { ok: false, pending: false };
+    setNotice(
+      "Challenge cleared, but alarm finalization is unavailable."
+    );
+    return false;
   }
 }, [onSignOut, stopAlarmTone]);
 
-const rearmAlarmForVerification = (challenge, message) => {
-  if (!challenge?.alarmTriggered || !challenge?.alarmId) return false;
-  const alarm = alarms.find((item) => String(item.alarm_id) === String(challenge.alarmId))
-    || (String(nextAlarm?.alarm_id) === String(challenge.alarmId) ? nextAlarm : null);
-  if (!alarm) {
-    setNotice("Wake verification is still required, but the alarm could not be re-armed yet. Keep this checkpoint open and try again when the route reconnects.");
-    return false;
+const dismissVerifiedAlarm = useCallback(async (challenge) => {
+  if (!challenge?.alarmId) return;
+  const completed = await completeAlarmWake(challenge.alarmId);
+  if (completed) {
+    setActiveChallenge(null);
+    setView("Command");
   }
-  setActiveChallenge(null);
-  setRingingAlarm(null);
-  setView("Command");
-  setNotice(message || "Wake verification is incomplete. Solve another checkpoint to stop the alarm.");
-  ringAlarm(alarm);
-  return true;
-};
+}, [completeAlarmWake]);
 
-const closeActiveChallenge = () => {
-  if (!activeChallenge) return;
-  if (activeChallenge.alarmTriggered && activeChallenge.alarmId && !activeChallenge.alarmVerificationComplete) {
-    rearmAlarmForVerification(activeChallenge, "Wake verification is still required. Solve a fresh checkpoint to stop the alarm.");
+const snoozeVerifiedAlarm = useCallback(async (challenge) => {
+  if (!challenge?.alarmId) return;
+  const alarm = alarms.find((item) => item.alarm_id === challenge.alarmId);
+  if (!alarm) {
+    setNotice("The verified alarm could not be found.");
     return;
   }
+  await snoozeActiveAlarm(alarm);
   setActiveChallenge(null);
-};
+  setView("Command");
+}, [alarms, snoozeActiveAlarm]);
 
 const submitChallenge = async (challenge, answer, meta = {}) => {
   const timedOut = Boolean(meta.timedOut);
@@ -891,14 +908,10 @@ const submitChallenge = async (challenge, answer, meta = {}) => {
           await completeChallengeMission(challenge);
 
           if (challenge.alarmTriggered && challenge.alarmId) {
-            const completion = await completeAlarmWake(challenge.alarmId);
-            if (completion?.pending) {
-              const alarmForNextStep = alarms.find((item) => item.alarm_id === challenge.alarmId);
-              if (alarmForNextStep) {
-                setNotice("Wake verification continues. Another verified checkpoint is required.");
-                await startAlarmChallenge(alarmForNextStep);
-              }
-            }
+            await completeAlarmWake(challenge.alarmId);
+            setNotice(
+              "Checkpoint verified. Choose whether to dismiss the alarm or snooze it."
+            );
           } else {
             setNotice(
               `Route checkpoint complete - ${challenge.type.toLowerCase()} clarity unlocked.`
@@ -908,12 +921,6 @@ const submitChallenge = async (challenge, answer, meta = {}) => {
 
         if (terminal) {
           void refreshChallengePerformance();
-          if (challenge.alarmTriggered && challenge.alarmId && !correct) {
-            rearmAlarmForVerification(
-              challenge,
-              "Wake verification failed. The alarm remains active; solve a fresh checkpoint to continue."
-            );
-          }
         }
 
         return outcome;
@@ -945,12 +952,6 @@ const submitChallenge = async (challenge, answer, meta = {}) => {
       };
 
       recordChallengeOutcome(challenge, outcome);
-      if (terminal && challenge.alarmTriggered && challenge.alarmId) {
-        rearmAlarmForVerification(
-          challenge,
-          "Wake verification could not be completed. The alarm remains active."
-        );
-      }
       return outcome;
     } catch {
       const terminal = timedOut;
@@ -1030,25 +1031,11 @@ const submitChallenge = async (challenge, answer, meta = {}) => {
 
   recordChallengeOutcome(challenge, outcome);
 
-  if (terminal && challenge.alarmTriggered && challenge.alarmId && !correct) {
-    rearmAlarmForVerification(
-      challenge,
-      "Wake verification failed. The alarm remains active; solve a fresh checkpoint to continue."
-    );
-  }
-
   if (correct) {
     await completeChallengeMission(challenge);
 
     if (challenge.alarmTriggered && challenge.alarmId) {
-      const completion = await completeAlarmWake(challenge.alarmId);
-      if (completion?.pending) {
-        const alarmForNextStep = alarms.find((item) => item.alarm_id === challenge.alarmId);
-        if (alarmForNextStep) {
-          setNotice("Wake verification continues. Another verified checkpoint is required.");
-          await startAlarmChallenge(alarmForNextStep);
-        }
-      }
+      await completeAlarmWake(challenge.alarmId);
     } else {
       setNotice(
         `Route checkpoint complete - ${challenge.type.toLowerCase()} clarity unlocked.`
@@ -1076,56 +1063,163 @@ const submitChallenge = async (challenge, answer, meta = {}) => {
     setNotice(profileSaved ? "Profile and Daybreak preferences saved." : "Daybreak preferences saved on this device; profile sync will resume when the API is online.");
   };
 
+  const loadAssistantHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`${API}/assistant/messages`, { headers: headers() });
+      if (response.status === 401) return onSignOut();
+      const payload = await readJson(response);
+      if (payload?.messages?.length) setAssistantMessages(payload.messages.map((entry) => ({ ...entry, id: nextAssistantMessageId() })));
+    } catch {
+      // Keep the default greeting if history can't be loaded (e.g. offline).
+    } finally {
+      setAssistantHistoryLoaded(true);
+    }
+  }, [onSignOut]);
+
+  useEffect(() => {
+    if (assistantHistoryLoaded) return undefined;
+    const timer = setTimeout(() => { void loadAssistantHistory(); }, 0);
+    return () => clearTimeout(timer);
+  }, [assistantHistoryLoaded, loadAssistantHistory]);
+
   const askAssistant = async () => {
     const message = assistantInput.trim();
     if (!message) return;
+    setAssistantMessages((current) => [...current, { role: "USER", content: message, id: nextAssistantMessageId() }]);
+    setAssistantInput("");
     setAssistantLoading(true);
     try {
-      const response = await fetch(`${API}/assistant/help`, {
+      const response = await fetchWithTimeout(`${API}/assistant/help`, {
         method: "POST",
         headers: headers(),
         body: JSON.stringify({ message }),
-      });
+      }, 30000);
       if (response.status === 401) return onSignOut();
       const payload = await readJson(response);
-      setAssistantReply(payload?.reply || "Keep it small. One clear action is enough to start the day well.");
-      setAssistantInput("");
+      const replyId = nextAssistantMessageId();
+      setTypingMessageId(replyId);
+      setAssistantMessages((current) => [
+        ...current,
+        { role: "ASSISTANT", content: payload?.reply || "Keep it small. One clear action is enough to start the day well.", id: replyId },
+      ]);
     } catch {
-      setAssistantReply("The AI guide is unavailable right now, but a simple morning plan still helps: water, light, one priority task.");
+      const replyId = nextAssistantMessageId();
+      setTypingMessageId(replyId);
+      setAssistantMessages((current) => [
+        ...current,
+        { role: "ASSISTANT", content: "The AI guide is unavailable right now, but a simple morning plan still helps: water, light, one priority task.", id: replyId },
+      ]);
     } finally {
       setAssistantLoading(false);
     }
   };
 
+  const clearAssistantConversation = async () => {
+    setTypingMessageId(null);
+    setAssistantMessages([{ role: "ASSISTANT", content: "New conversation. What's on your mind this morning?", id: nextAssistantMessageId() }]);
+    try {
+      await fetch(`${API}/assistant/messages`, { method: "DELETE", headers: headers() });
+    } catch {
+      // Local view already reset; the server-side history will just get pruned on next successful call.
+    }
+  };
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const response = await fetch(`${API}/notifications`, { headers: headers() });
+      if (response.status === 401) return onSignOut();
+      const payload = await readJson(response);
+      if (Array.isArray(payload)) setNotifications(payload);
+    } catch {
+      // Notifications are a convenience layer; a failed fetch just leaves the last known list.
+    }
+  }, [onSignOut]);
+
+  useEffect(() => { const timer = setTimeout(() => { void loadNotifications(); }, 0); return () => clearTimeout(timer); }, [loadNotifications]);
+
+  const markNotificationRead = async (notificationId) => {
+    setNotifications((current) => current.map((n) => n.notification_id === notificationId ? { ...n, read: true } : n));
+    try {
+      await fetch(`${API}/notifications/${notificationId}/read`, { method: "PATCH", headers: headers() });
+    } catch {
+      // Local state already reflects "read"; a background retry isn't worth the complexity here.
+    }
+  };
+
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+
+  const toggleNotifications = () => {
+    setNotificationsOpen((open) => {
+      const next = !open;
+      if (next) void loadNotifications();
+      return next;
+    });
+  };
+
   const role = String(profile?.role || "USER").toUpperCase();
   const privileged = ["ADMIN", "WELLNESS_COACH", "COACH"].includes(role);
-  const navigation = useMemo(() => privileged ? [...baseNav, "Workspace"] : baseNav, [privileged]);
+  const navigation = useMemo(() => privileged ? ["Workspace"] : baseNav, [privileged]);
+  const workspaceLabel = ["WELLNESS_COACH", "COACH"].includes(role) ? "Coach Panel" : "Admin Panel";
 
-  return <main className="dashboard-shell"><div className="star-field" />
-    <nav className="dash-nav"><div className="wordmark"><i /> BRAIN<span>OS</span></div><div className="nav-links">{navigation.map((item) => <button key={item} className={view === item ? "active" : ""} onClick={() => setView(item)}>{item}</button>)}</div><div className="nav-status"><b /> DAYBREAK LINK</div><button className="avatar" onClick={onSignOut} title="Sign out">{profile?.name?.[0] || "P"}</button></nav>
+  useEffect(() => {
+    if (!privileged || navigation.includes(view)) return undefined;
+    const timer = setTimeout(() => setView("Workspace"), 0);
+    return () => clearTimeout(timer);
+  }, [privileged, navigation, view]);
+
+  const spotlightRef = useRef(null);
+  const handleSpotlightMove = (event) => {
+    const node = spotlightRef.current;
+    if (!node) return;
+    node.style.setProperty("--spot-x", `${event.clientX}px`);
+    node.style.setProperty("--spot-y", `${event.clientY}px`);
+    node.classList.add("is-active");
+  };
+  const handleSpotlightLeave = () => { spotlightRef.current?.classList.remove("is-active"); };
+
+  return <main className="dashboard-shell" onMouseMove={handleSpotlightMove} onMouseLeave={handleSpotlightLeave}><div className="star-field" /><div className="cursor-spotlight" ref={spotlightRef} />
+    <nav className="dash-nav"><div className="wordmark"><i /> BRAIN<span>OS</span></div><div className="nav-links">{navigation.map((item) => <button key={item} className={view === item ? "active" : ""} onClick={() => setView(item)}>{item === "Command" ? "Today" : item === "Workspace" ? workspaceLabel : item}</button>)}</div><div className="nav-status"><b /> DAYBREAK LINK</div><div className="notification-bell-wrap"><button className="notification-bell" onClick={toggleNotifications} title="Notifications" aria-label="Notifications">ALERTS{unreadNotificationCount > 0 && <span className="notification-badge">{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</button>{notificationsOpen && <div className="notification-panel">
+      <div className="notification-panel-heading"><span>NOTIFICATIONS</span><button type="button" onClick={() => setNotificationsOpen(false)} aria-label="Close notifications">&times;</button></div>
+      <div className="notification-list">
+        {notifications.map((entry) => (
+          <button key={entry.notification_id} type="button" className={`notification-item${entry.read ? "" : " unread"}`} onClick={() => markNotificationRead(entry.notification_id)}>
+            <b>{entry.title}</b>
+            <p>{entry.message}</p>
+            <small>{new Date(entry.created_at).toLocaleString()}</small>
+          </button>
+        ))}
+        {!notifications.length && <p className="mission-copy">No notifications yet.</p>}
+      </div>
+    </div>}</div><button className="avatar" onClick={onSignOut} title="Sign out">{profile?.name?.[0] || "P"}</button></nav>
     {notice && <div className="toast" role="status">{notice}<button type="button" onClick={() => setNotice("")} aria-label="Dismiss message">&times;</button></div>}
-    {ringingAlarm && !activeChallenge && <WakeAlarmPopup alarm={ringingAlarm} onSnooze={snoozeActiveAlarm} onSolve={startAlarmChallenge} snoozeSubmitting={snoozeSubmitting} />}
+    <div className={`view-frame view-${view.toLowerCase()}`} key={view}>
     {view === "Command" && <Command
     profile={profile}
     alarms={alarms}
     analytics={analytics}
     nextAlarm={nextAlarm}
+    ringingAlarm={ringingAlarm}
+    onSolveAlarm={startAlarmChallenge}
+    challengeLoading={challengeLoading}
     preferences={preferences}
     missions={missions}
     history={challengeHistory}
     onStartChallenge={activateChallenge}
     goAlarms={() => setView("Alarms")}
-    assistantReply={assistantReply}
+    assistantMessages={assistantMessages}
+    typingMessageId={typingMessageId}
     assistantInput={assistantInput}
     setAssistantInput={setAssistantInput}
     askAssistant={askAssistant}
     assistantLoading={assistantLoading}
+    clearAssistantConversation={clearAssistantConversation}
   />}
-    {view === "Alarms" && <Alarms alarms={alarms} alarmIntents={alarmIntents} createAlarm={createAlarm} updateAlarm={updateAlarm} removeAlarm={removeAlarm} toggleAlarm={toggleAlarm} preferences={preferences} challengePerformance={challengePerformance} onTestSound={playAlarmTone} nowMs={clockNow} />}
-    {view === "Challenges" && <Challenges activeChallenge={activeChallenge} loading={challengeLoading} history={challengeHistory} missions={missions} performance={challengePerformance} defaultDifficulty={preferences.difficulty} onStartChallenge={activateChallenge} onSubmitChallenge={submitChallenge} onCloseChallenge={closeActiveChallenge} />}
+    {view === "Alarms" && <Alarms alarms={alarms} alarmIntents={alarmIntents} createAlarm={createAlarm} updateAlarm={updateAlarm} removeAlarm={removeAlarm} toggleAlarm={toggleAlarm} preferences={preferences} challengePerformance={challengePerformance} />}
+    {view === "Challenges" && <Challenges activeChallenge={activeChallenge} loading={challengeLoading} history={challengeHistory} missions={missions} performance={challengePerformance} defaultDifficulty={preferences.difficulty} onStartChallenge={activateChallenge} onSubmitChallenge={submitChallenge} onCloseChallenge={() => setActiveChallenge(null)} onAlarmDismiss={dismissVerifiedAlarm} onAlarmSnooze={snoozeVerifiedAlarm} />}
     {view === "Analytics" && <Analytics data={analytics} history={challengeHistory} missions={missions} />}
     {view === "Settings" && <Settings key={profile?.id ?? "loading"} profile={profile} preferences={preferences} saveSettings={saveSettings} />}
-    {view === "Workspace" && privileged && <Workspace role={role} profile={profile} alarms={alarms} analytics={analytics} preferences={preferences} missions={missions} />}
+    {view === "Workspace" && privileged && <Workspace role={role} />}
+    </div>
   </main>;
 }
 
@@ -1139,12 +1233,17 @@ function Alarms({
   toggleAlarm,
   preferences,
   challengePerformance,
-  onTestSound,
-  nowMs,
 }) {
   const [showCreate, setShowCreate] = useState(false);
   const [editingAlarm, setEditingAlarm] = useState(null);
   const recommendation = performanceRecommendation(challengePerformance);
+
+  useEffect(() => {
+    if (!showCreate) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [showCreate]);
 
   const defaultChallengePool = [
     "MATH",
@@ -1168,16 +1267,13 @@ function Alarms({
     challengeTypes: [...defaultChallengePool],
     difficulty: "ADAPTIVE",
     wakeStrategy: "FOCUS",
-    wakeVerificationMode: "SINGLE",
     snooze_minutes: 5,
     snoozePolicy: "NEW_CHALLENGE",
     sound: "Neural Dawn",
     vibration: true,
-    notificationEnabled: true,
   });
 
   const [form, setForm] = useState(defaultForm);
-  const [formError, setFormError] = useState("");
 
   const update = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -1232,7 +1328,6 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
 
   const openCreate = () => {
     setEditingAlarm(null);
-    setFormError("");
     setForm(defaultForm());
     setShowCreate(true);
   };
@@ -1244,7 +1339,6 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
     const minute = match ? match[2] : "00";
 
     setEditingAlarm(alarm);
-    setFormError("");
     setForm({
       title: alarm.title || "",
       alarm_type: alarm.alarm_type || "DAILY",
@@ -1267,37 +1361,20 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
       wakeStrategy: intent.wakeStrategy || "FOCUS",
       snooze_minutes: Number(alarm.snooze_minutes ?? 5),
       snoozePolicy: intent.snoozePolicy || "NEW_CHALLENGE",
-      wakeVerificationMode: alarm.wake_verification_mode || "SINGLE",
       sound: alarm.sound || "Neural Dawn",
       vibration: alarm.vibration !== false,
-      notificationEnabled: alarm.notification_enabled !== false,
     });
     setShowCreate(true);
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    setFormError("");
 
     if (
       form.challengeMode === "CUSTOM" &&
       form.challengeTypes.length === 0
     ) {
-      setFormError("Select at least one challenge type for Custom Pool.");
       return;
-    }
-
-    if (form.alarm_type !== "ONE_TIME" && !form.repeat_days.trim()) {
-      setFormError("Add at least one repeat day for a recurring alarm.");
-      return;
-    }
-
-    if (form.notificationEnabled && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
-      try {
-        await Notification.requestPermission();
-      } catch {
-        // Notification access remains optional.
-      }
     }
 
     const selectedDifficulty =
@@ -1310,12 +1387,11 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
       challengeTypes: form.challengeTypes,
       difficulty: form.difficulty,
       wakeStrategy: form.wakeStrategy,
-      wakeVerificationMode: form.wakeVerificationMode,
       snoozePolicy: form.snoozePolicy,
     };
 
     const payload = {
-      title: form.title.trim() || "Morning Focus",
+      title: form.title.trim() || defaultAlarmTitle(alarmTimeValue),
       alarm_time: alarmTimeValue,
       alarm_type: form.alarm_type,
       repeat_days:
@@ -1324,11 +1400,6 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
       sound: form.sound,
       vibration: form.vibration,
       snooze_minutes: Number(form.snooze_minutes),
-      challenge_type: form.challengeMode === "AUTO" ? "AUTO" : (form.challengeTypes[0] || "RIDDLE"),
-      wake_verification_mode: form.wakeVerificationMode,
-      notification_enabled: Boolean(form.notificationEnabled),
-      daybreak_route_enabled: true,
-      wake_window_minutes: 30,
       status: "ACTIVE",
     };
 
@@ -1339,7 +1410,6 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
     if (success !== false) {
       setShowCreate(false);
       setEditingAlarm(null);
-      setFormError("");
       setForm(defaultForm());
     }
   };
@@ -1356,16 +1426,18 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
       alarm.status === "COMPLETED"
   );
 
+  const nextAlarm = activeAlarms
+    .slice()
+    .sort((a, b) => {
+      const dueA = getAlarmDueAt(a);
+      const dueB = getAlarmDueAt(b);
+      if (Number.isFinite(dueA) && Number.isFinite(dueB)) return dueA - dueB;
+      if (Number.isFinite(dueA)) return -1;
+      if (Number.isFinite(dueB)) return 1;
+      return String(a.alarm_time).localeCompare(String(b.alarm_time));
+    })[0];
+
   const recentAccuracy = Number(challengePerformance?.accuracy_percent);
-  const nextAlarm = activeAlarms.slice().sort((a, b) => {
-    const aAt = Date.parse(a.next_at || "");
-    const bAt = Date.parse(b.next_at || "");
-    if (Number.isFinite(aAt) && Number.isFinite(bAt)) return aAt - bAt;
-    if (Number.isFinite(aAt)) return -1;
-    if (Number.isFinite(bAt)) return 1;
-    return String(a.alarm_time).localeCompare(String(b.alarm_time));
-  })[0];
-  const nextCountdown = nextAlarm ? countdownLabel(nextAlarm.next_at, nowMs) : "NOT SET";
 
   return (
     <section className="module-shell alarm-center-shell">
@@ -1402,13 +1474,11 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
         <article>
           <span>NEXT WAKE</span>
           <b>{nextAlarm ? formatTime(nextAlarm.alarm_time) : "NOT SET"}</b>
-          <small className="alarm-overview-sub">{nextCountdown}</small>
         </article>
 
         <article>
           <span>RECENT ACCURACY</span>
           <b>{Number.isFinite(recentAccuracy) ? `${Math.round(recentAccuracy)}%` : "—"}</b>
-          <small className="alarm-overview-sub">{performanceRating(challengePerformance).stars} {performanceRating(challengePerformance).label}</small>
         </article>
       </section>
 
@@ -1465,11 +1535,11 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                     <span className="alarm-index">
                       {String(alarm.alarm_id).padStart(2, "0")}
                     </span>
-                    <h3>{alarm.title || "Morning Focus"}</h3>
+                    <h3>{alarm.title || defaultAlarmTitle(alarm.alarm_time)}</h3>
                   </div>
 
-                  <span className={`alarm-status ${alarmPresentationStatus(alarm, nowMs).toLowerCase()}`}>
-                    ● {alarmPresentationStatus(alarm, nowMs)}
+                  <span className="alarm-status active">
+                    ● ACTIVE
                   </span>
                 </div>
 
@@ -1478,11 +1548,22 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                 </div>
 
                 <div className="alarm-card-repeat">
-                  {labelForAlarmType(alarm.alarm_type)}
+                  <span>{labelForAlarmType(alarm.alarm_type)}</span>
                   {alarm.repeat_days ? ` · ${alarm.repeat_days}` : ""}
                 </div>
-                <div className="alarm-card-last-signal">
-                  LAST SIGNAL · {alarm.last_fired_at ? new Date(alarm.last_fired_at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "Never fired"}
+
+                <div className="alarm-days" aria-label="Repeat days">
+                  {(() => {
+                    const dayState = repeatDayLetters(alarm);
+                    return dayState.letters.map((letter, index) => (
+                      <span
+                        key={`${letter}-${index}`}
+                        className={dayState.active[index] ? "active" : ""}
+                      >
+                        {letter}
+                      </span>
+                    ));
+                  })()}
                 </div>
 
                 <div className="alarm-card-divider" />
@@ -1499,10 +1580,6 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                   <div>
                     <span>SNOOZE</span>
                     <b>{Number(alarm.snooze_minutes ?? 5)} min</b>
-                  </div>
-                  <div>
-                    <span>DIFFICULTY SOURCE</span>
-                    <b>{difficulty === "ADAPTIVE" || intent.difficulty === "ADAPTIVE" ? "ADAPTIVE" : "USER"}</b>
                   </div>
                 </div>
 
@@ -1593,7 +1670,7 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
         </>
       )}
 
-      {showCreate && (
+      {showCreate && createPortal(
         <div className="alarm-create-backdrop" role="presentation">
           <section
             className="alarm-create-panel"
@@ -1622,8 +1699,9 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
               </button>
             </div>
 
-            <form className="alarm-create-form wake-designer-form" onSubmit={handleSubmit}>
-              <div className="protocol-preview compact-preview">
+            <form className="alarm-create-form" onSubmit={handleSubmit}>
+              <div className="alarm-create-scroll">
+              <div className="protocol-preview">
                 <div>
                   <span>NEXT WAKE</span>
                   <strong>{formatTime(alarmTimeValue)}</strong>
@@ -1644,25 +1722,28 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                 </div>
                 <div>
                   <span>MODE</span>
-                  <strong>{form.challengeMode === "AUTO" ? "Intelligent" : "Custom"}</strong>
+                  <strong>
+                    {form.challengeMode === "AUTO" ? "Intelligent" : "Custom"}
+                  </strong>
                 </div>
               </div>
 
-              <div className="wake-core-grid">
-                <label>
-                  PROTOCOL NAME
-                  <input
-                    value={form.title}
-                    onChange={(event) => update("title", event.target.value)}
-                    placeholder="Morning Focus"
-                  />
-                </label>
+              <label>
+                PROTOCOL NAME
+                <input
+                  value={form.title}
+                  onChange={(event) => update("title", event.target.value)}
+                  placeholder="Morning Focus"
+                />
+              </label>
 
-                <div className="alarm-time-card featured">
-                  <span>WAKE TIME</span>
-                  <div className="alarm-time-fields">
+              <section className="protocol-block">
+                <h3 className="protocol-block-title"><span>TIME / WAKE WINDOW</span></h3>
+
+                <div className="alarm-form-grid">
+                  <label>
+                    HOUR
                     <select
-                      aria-label="Alarm hour"
                       value={form.hour}
                       onChange={(event) => updateTime("hour", event.target.value)}
                     >
@@ -1672,29 +1753,48 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                         </option>
                       ))}
                     </select>
-                    <span className="time-colon">:</span>
+                  </label>
+
+                  <label>
+                    MINUTE
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={2}
                       value={form.minute}
                       placeholder="00"
-                      onChange={(event) => updateTime("minute", event.target.value.replace(/\D/g, "").slice(0, 2))}
+                      onChange={(event) => {
+                        const digits = event.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 2);
+
+                        updateTime("minute", digits);
+                      }}
                       onBlur={() => {
-                        const numeric = Math.min(59, Math.max(0, Number(form.minute) || 0));
-                        updateTime("minute", String(numeric).padStart(2, "0"));
+                        const numeric = Math.min(
+                          59,
+                          Math.max(0, Number(form.minute) || 0)
+                        );
+
+                        updateTime(
+                          "minute",
+                          String(numeric).padStart(2, "0")
+                        );
                       }}
                       aria-label="Alarm minute"
                     />
+                  </label>
+
+                  <label>
+                    PERIOD
                     <select
-                      aria-label="Alarm period"
                       value={form.meridiem}
                       onChange={(event) => updateTime("meridiem", event.target.value)}
                     >
                       <option value="AM">AM</option>
                       <option value="PM">PM</option>
                     </select>
-                  </div>
+                  </label>
                 </div>
 
                 <label>
@@ -1704,7 +1804,11 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                     onChange={(event) => {
                       const nextType = event.target.value;
                       update("alarm_type", nextType);
-                      update("repeat_days", nextType === "ONE_TIME" ? "" : defaultRepeatDays(nextType));
+                      if (nextType !== "ONE_TIME") {
+                        update("repeat_days", defaultRepeatDays(nextType));
+                      } else {
+                        update("repeat_days", "");
+                      }
                     }}
                   >
                     {alarmTypes.map(([value, label]) => (
@@ -1713,7 +1817,7 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                   </select>
                 </label>
 
-                {form.alarm_type !== "ONE_TIME" ? (
+                {form.alarm_type !== "ONE_TIME" && (
                   <label>
                     REPEAT DAYS
                     <input
@@ -1722,45 +1826,40 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                       placeholder="Mon,Tue,Wed,Thu,Fri"
                     />
                   </label>
-                ) : (
-                  <div className="wake-core-note">
-                    <span>ONE-TIME SIGNAL</span>
-                    <small>This wake runs once and completes after verification.</small>
-                  </div>
                 )}
-              </div>
+              </section>
 
-              <div className="alarm-create-divider compact">
-                <span>COGNITIVE WAKE</span>
-              </div>
+              <section className="protocol-block">
+                <h3 className="protocol-block-title"><span>COGNITIVE WAKE</span></h3>
 
-              <div className="protocol-mode-grid compact">
-                <button
-                  type="button"
-                  className={`protocol-mode compact ${form.challengeMode === "AUTO" ? "selected" : ""}`}
-                  onClick={() => update("challengeMode", "AUTO")}
-                >
-                  <span>✦</span>
-                  <b>Intelligent Mix</b>
-                  <small>BrainOS selects from your performance.</small>
-                </button>
-                <button
-                  type="button"
-                  className={`protocol-mode compact ${form.challengeMode === "CUSTOM" ? "selected" : ""}`}
-                  onClick={() => update("challengeMode", "CUSTOM")}
-                >
-                  <span>◈</span>
-                  <b>Custom Pool</b>
-                  <small>You choose the challenge types.</small>
-                </button>
-              </div>
+                <div className="protocol-mode-grid">
+                  <button
+                    type="button"
+                    className={`protocol-mode ${form.challengeMode === "AUTO" ? "selected" : ""}`}
+                    onClick={() => update("challengeMode", "AUTO")}
+                  >
+                    <span>✦</span>
+                    <b>Intelligent Mix</b>
+                    <small>BrainOS chooses from your challenge pool and performance.</small>
+                  </button>
 
-              <div className="wake-cognition-grid">
-                <div className="challenge-pool compact">
+                  <button
+                    type="button"
+                    className={`protocol-mode ${form.challengeMode === "CUSTOM" ? "selected" : ""}`}
+                    onClick={() => update("challengeMode", "CUSTOM")}
+                  >
+                    <span>◈</span>
+                    <b>Custom Pool</b>
+                    <small>You decide which challenge types can appear.</small>
+                  </button>
+                </div>
+
+                <div className="challenge-pool">
                   <div className="challenge-pool-header">
                     <span>CHALLENGE POOL</span>
                     <small>{form.challengeTypes.length} selected</small>
                   </div>
+
                   <div className="challenge-pool-grid">
                     {Object.entries(challengeLabels).map(([type, label]) => (
                       <button
@@ -1777,65 +1876,74 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                   </div>
                 </div>
 
-                <div className="recommendation-card compact">
+                <div className="recommendation-card">
                   <div className="recommendation-mark">✦</div>
                   <div>
                     <span>BRAINOS RECOMMENDS</span>
                     <strong>
-                      {recommendation?.type ? challengeTitle(recommendation.type) : "Intelligent Mix"} · {recommendation?.difficulty || preferences.difficulty || "MEDIUM"}
+                      {recommendation?.type
+                        ? challengeTitle(recommendation.type)
+                        : "Intelligent Mix"}{" "}
+                      ·{" "}
+                      {recommendation?.difficulty || preferences.difficulty || "MEDIUM"}
                     </strong>
                     <small>
                       {Number.isFinite(recentAccuracy)
-                        ? `${Math.round(recentAccuracy)}% recent accuracy is guiding this pick.`
-                        : "Your profile preference will guide the first checkpoint."}
+                        ? `Based on ${Math.round(recentAccuracy)}% recent challenge accuracy.`
+                        : "Your current profile preference will guide the first checkpoint."}
                     </small>
                   </div>
                 </div>
-              </div>
 
-              <div className="wake-settings-grid">
-                <label>
-                  DIFFICULTY
-                  <select value={form.difficulty} onChange={(event) => update("difficulty", event.target.value)}>
-                    <option value="ADAPTIVE">Adaptive</option>
-                    {DIFFICULTY_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level.charAt(0) + level.slice(1).toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="alarm-form-grid two">
+                  <label>
+                    DIFFICULTY
+                    <select
+                      value={form.difficulty}
+                      onChange={(event) => update("difficulty", event.target.value)}
+                    >
+                      <option value="ADAPTIVE">Adaptive</option>
+                      <option value="BEGINNER">Beginner</option>
+                      <option value="EASY">Easy</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HARD">Hard</option>
+                      <option value="EXPERT">Expert</option>
+                    </select>
+                  </label>
 
-                <label>
-                  WAKE STRATEGY
-                  <select value={form.wakeStrategy} onChange={(event) => update("wakeStrategy", event.target.value)}>
-                    <option value="GENTLE">Gentle</option>
-                    <option value="FOCUS">Focus</option>
-                    <option value="DEEP">Deep Wake</option>
-                  </select>
-                </label>
-              </div>
+                  <label>
+                    WAKE STRATEGY
+                    <select
+                      value={form.wakeStrategy}
+                      onChange={(event) => update("wakeStrategy", event.target.value)}
+                    >
+                      <option value="GENTLE">Gentle</option>
+                      <option value="FOCUS">Focus</option>
+                      <option value="DEEP">Deep Wake</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
 
-              <div className="alarm-behavior-grid compact-behavior">
-                <div className="alarm-behavior-card">
-                  <span>SNOOZE</span>
-                  <div className="snooze-policy-row">
-                    {[5, 10, 15].map((minutes) => (
-                      <button
-                        type="button"
-                        key={minutes}
-                        className={form.snooze_minutes === minutes ? "selected" : ""}
-                        onClick={() => update("snooze_minutes", minutes)}
-                      >
-                        {minutes}m
-                      </button>
-                    ))}
-                  </div>
+              <section className="protocol-block">
+                <h3 className="protocol-block-title"><span>SNOOZE POLICY</span></h3>
+
+                <div className="snooze-policy-row">
+                  {[5, 10, 15].map((minutes) => (
+                    <button
+                      type="button"
+                      key={minutes}
+                      className={form.snooze_minutes === minutes ? "selected" : ""}
+                      onClick={() => update("snooze_minutes", minutes)}
+                    >
+                      {minutes}m
+                    </button>
+                  ))}
                 </div>
 
-                <div className="alarm-behavior-card">
+                <div className="snooze-after-row">
                   <span>AFTER SNOOZE</span>
-                  <div className="snooze-after-inline">
+                  <div>
                     <label>
                       <input
                         type="radio"
@@ -1854,155 +1962,107 @@ return `${String(hour24).padStart(2, "0")}:${safeMinute}`;
                     </label>
                   </div>
                 </div>
-              </div>
+              </section>
 
-              <details className="alarm-advanced-settings">
-                <summary>+ Wake signal settings</summary>
-                <div className="alarm-advanced-grid">
-                  <label>
-                    VERIFICATION METHOD
-                    <select value={form.wakeVerificationMode} onChange={(event) => update("wakeVerificationMode", event.target.value)}>
-                      <option value="SINGLE">Single challenge</option>
-                      <option value="MULTI_STEP">Multi-step · 2 challenges</option>
-                      <option value="CONSECUTIVE">Consecutive correct · 2</option>
-                      <option value="TIMED">Timed challenge</option>
-                      <option value="ACCURACY">Cognitive accuracy · 2</option>
-                    </select>
-                  </label>
+              <section className="protocol-block">
+                <h3 className="protocol-block-title"><span>WAKE SIGNAL</span></h3>
 
-                  <label>
-                    SOUND
-                    <select value={form.sound} onChange={(event) => update("sound", event.target.value)}>
-                      <option value="Neural Dawn">Neural Dawn</option>
-                      <option value="Sunrise Pulse">Sunrise Pulse</option>
-                      <option value="Forest Signal">Forest Signal</option>
-                    </select>
-                    <button type="button" className="alarm-test-signal" onClick={() => onTestSound?.()}>&#9654; Test signal</button>
-                  </label>
+                <label>
+                  SOUND
+                  <select
+                    value={form.sound}
+                    onChange={(event) => update("sound", event.target.value)}
+                  >
+                    <option value="Neural Dawn">Neural Dawn</option>
+                    <option value="Sunrise Pulse">Sunrise Pulse</option>
+                    <option value="Forest Signal">Forest Signal</option>
+                  </select>
+                </label>
 
-                  <div className="alarm-inline-control">
-                    <div>
-                      <span>VIBRATION</span>
-                      <small>Physical cue when supported.</small>
-                    </div>
-                    <button type="button" className={`toggle-switch ${form.vibration ? "on" : ""}`} onClick={() => update("vibration", !form.vibration)} aria-label="Toggle vibration">
-                      <span />
-                    </button>
+                <div className="alarm-inline-control">
+                  <div>
+                    <span>VIBRATION</span>
+                    <small>Add a physical wake cue when supported.</small>
                   </div>
 
-                  <div className="alarm-inline-control">
-                    <div>
-                      <span>BROWSER NOTIFICATION</span>
-                      <small>Show a system notification when due.</small>
-                    </div>
-                    <button type="button" className={`toggle-switch ${form.notificationEnabled ? "on" : ""}`} onClick={() => update("notificationEnabled", !form.notificationEnabled)} aria-label="Toggle browser notification">
-                      <span />
-                    </button>
-                  </div>
-                </div>
-              </details>
-
-              {formError && <div className="alarm-form-error" role="alert">{formError}</div>}
-
-              <div className="protocol-summary-card">
-                <div>
-                  <span>PROTOCOL SUMMARY</span>
-                  <strong>{form.title.trim() || "Morning Focus"}</strong>
-                </div>
-                <div>
-                  <small>{formatTime(alarmTimeValue)} · {form.alarm_type === "ONE_TIME" ? "One time" : form.alarm_type === "WEEKDAY" ? "Weekdays" : form.alarm_type === "WEEKEND" ? "Weekends" : form.alarm_type === "DAILY" ? "Daily" : "Smart adaptive"}</small>
-                  <small>{form.difficulty === "ADAPTIVE" ? "Adaptive" : form.difficulty} · Snooze {form.snooze_minutes}m</small>
-                </div>
-              </div>
-
-              <div className="alarm-create-actions sticky-create-actions">
-                <div className="alarm-action-summary">
-                  <strong>{formatTime(alarmTimeValue)}</strong>
-                  <span>· {form.alarm_type === "ONE_TIME" ? "One time" : form.alarm_type === "WEEKDAY" ? "Weekdays" : form.alarm_type === "WEEKEND" ? "Weekends" : form.alarm_type === "DAILY" ? "Daily" : "Smart adaptive"}</span>
-                </div>
-                <div className="alarm-action-buttons">
-                  <button type="button" className="quiet-button" onClick={() => setShowCreate(false)}>Cancel</button>
-                  <button type="submit" className="primary-button">
-                    {editingAlarm ? "SAVE CHANGES" : "INITIALIZE WAKE PROTOCOL"}
-                    <span>→</span>
+                  <button
+                    type="button"
+                    className={`toggle-switch ${form.vibration ? "on" : ""}`}
+                    onClick={() => update("vibration", !form.vibration)}
+                    aria-label="Toggle vibration"
+                  >
+                    <span />
                   </button>
                 </div>
+              </section>
+
+              <div className="protocol-timeline">
+                <span>WAKE PROTOCOL PREVIEW</span>
+
+                <div>
+                  <b>01</b>
+                  <p>{formatTime(alarmTimeValue)}</p>
+                  <small>Signal begins</small>
+                </div>
+                <div>
+                  <b>02</b>
+                  <p>Challenge</p>
+                  <small>Cognition unlocked</small>
+                </div>
+                <div>
+                  <b>03</b>
+                  <p>Validate</p>
+                  <small>Answer verified</small>
+                </div>
+                <div>
+                  <b>04</b>
+                  <p>Record</p>
+                  <small>Performance saved</small>
+                </div>
+              </div>
+              </div>
+
+              <div className="alarm-create-actions">
+                <button
+                  type="button"
+                  className="quiet-button"
+                  onClick={() => setShowCreate(false)}
+                >
+                  Cancel
+                </button>
+
+                <button type="submit" className="primary-button" {...magnetic()}>
+                  {editingAlarm ? "SAVE WAKE CHANGES" : "INITIALIZE WAKE PROTOCOL"}
+                  <span>→</span>
+                </button>
               </div>
             </form>
           </section>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );
 }
 
 
-function WakeAlarmPopup({ alarm, onSnooze, onSolve, snoozeSubmitting = false }) {
-  if (!alarm) return null;
-
-  return (
-    <div className="wake-alarm-backdrop" role="presentation">
-      <section
-        className="wake-alarm-popup"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="wake-alarm-title"
-      >
-        <div className="wake-alarm-icon" aria-hidden="true">
-          <span>◷</span>
-        </div>
-
-        <div className="wake-alarm-status">
-          WAKE SIGNAL / ACTIVE
-        </div>
-
-        <div className="wake-alarm-time">
-          {formatTime(alarm.alarm_time)}
-        </div>
-
-        <h2 id="wake-alarm-title">Alarm is ringing.</h2>
-        <p className="wake-alarm-title">
-          {alarm.title || "Morning Focus"}
-        </p>
-
-        <div className="wake-alarm-meta">
-          <span>{labelForAlarmType(alarm.alarm_type)}</span>
-          <span>{alarm.difficulty || "ADAPTIVE"}</span>
-          <span>{alarm.wake_verification_mode || "SINGLE"}</span>
-        </div>
-
-        <p className="wake-alarm-copy">
-          Solve the cognitive checkpoint below to disarm the alarm.
-        </p>
-
-        <div className="wake-alarm-actions">
-          <button
-            type="button"
-            className="wake-alarm-primary"
-            onClick={() => onSolve(alarm)}
-          >
-            SOLVE TO STOP
-            <span>→</span>
-          </button>
-
-          <button
-            type="button"
-            className="wake-alarm-snooze"
-            onClick={() => onSnooze(alarm)}
-            disabled={snoozeSubmitting}
-          >
-            {snoozeSubmitting ? "Snoozing…" : `Snooze ${Number(alarm.snooze_minutes ?? 5) || 5} min`}
-          </button>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function Command({ profile, alarms, analytics, nextAlarm, ringingAlarm, onSnoozeAlarm, snoozeSubmitting, onSolveAlarm, preferences, missions, history, onStartChallenge, goAlarms, assistantReply, assistantInput, setAssistantInput, askAssistant, assistantLoading }) {
-  const score = analytics?.focus_score ?? 74;
+function Command({ profile, alarms, analytics, nextAlarm, ringingAlarm, onSolveAlarm, challengeLoading, preferences, missions, history, onStartChallenge, goAlarms, assistantMessages, typingMessageId, assistantInput, setAssistantInput, askAssistant, assistantLoading, clearAssistantConversation }) {
+  const [focusMode, setFocusMode] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const score = Number.isFinite(Number(analytics?.focus_score)) ? Math.round(Number(analytics.focus_score)) : null;
   const next = nextAlarm || alarms.find((alarm) => alarm.status !== "DISABLED");
   const completed = missions.filter((mission) => mission.completed).length + history.filter((entry) => entry.correct).length;
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const nextDueAt = getAlarmDueAt(next);
+  const minutesToWake = Number.isFinite(nextDueAt) ? Math.round((nextDueAt - now) / 60000) : null;
+  const wakeState = ringingAlarm
+    ? { label: "CHECKPOINT ACTIVE", tone: "active", detail: "Complete the cognitive check to finish waking." }
+    : minutesToWake !== null && minutesToWake >= 0 && minutesToWake <= 30
+      ? { label: "WAKE WINDOW OPEN", tone: "window", detail: `${minutesToWake} minutes until your protected alarm.` }
+      : { label: "EVENING PREP", tone: "prepare", detail: "Shape one clear first win before you sleep." };
   const route = [
     ["01", "Wind-down cue", bedtimeFrom(preferences.preferredWakeTime, preferences.sleepDuration), "Dim the feed and prepare tomorrow's first choice."],
     ["02", "Sleep arc", `${preferences.sleepDuration} hours`, "Let the route recover your attention reserve."],
@@ -2010,25 +2070,94 @@ function Command({ profile, alarms, analytics, nextAlarm, ringingAlarm, onSnooze
     ["04", "First win", "+ 90 min", preferences.productivityGoal || "Protect a single focus block"],
   ];
   return (
-    <>
+    <div className={`command-view ${focusMode ? "focus-mode" : ""}`} data-state={wakeState.tone}>
+      <div className="daybreak-horizon" aria-hidden="true" />
       <section className="command-hero">
         <div className="hero-copy">
           <p className="eyebrow">DAYBREAK ROUTE / {preferences.timezone}</p>
           <h1>Good morning,<br /><em>{profile?.name || "Explorer"}.</em></h1>
           <p>Not another alarm dashboard - this is your route from rest to one deliberate first win.</p>
-          <button className="quiet-button" type="button" onClick={goAlarms}>Shape today&apos;s route <span>&rarr;</span></button>
+          <div className="hero-actions">
+            <button className="quiet-button" type="button" {...magnetic()} onClick={goAlarms}>Shape today&apos;s route <span>&rarr;</span></button>
+            <button className="focus-toggle" type="button" onClick={() => setFocusMode((value) => !value)} aria-pressed={focusMode}>{focusMode ? "Exit focus atmosphere" : "Enter focus atmosphere"} <span>◌</span></button>
+          </div>
         </div>
         <div className="hero-core">
           <NeuralCore />
-          <div className="core-caption"><b>{score}</b><span>ROUTE<br />READINESS</span></div>
+          <div className="core-caption"><b>{score ?? "—"}</b><span>ROUTE<br />READINESS</span></div>
         </div>
         <div className="hero-metrics">
           <span>NEXT SIGNAL <b>{next ? formatTime(next.alarm_time) : "NOT SET"}</b></span>
           <span>COMPLETED CHECKPOINTS <b>{completed}</b></span>
         </div>
       </section>
+      <section className="daybreak-ritual" aria-label="Daybreak ritual">
+        <div className="ritual-heading">
+          <div>
+            <p className="eyebrow">THE DAYBREAK RITUAL</p>
+            <h2>Wake with a little more <em>intention.</em></h2>
+          </div>
+          <span className={`ritual-state ${wakeState.tone}`}><i /> {wakeState.label}</span>
+        </div>
+        <div className="ritual-grid">
+          <article className="ritual-card ritual-window">
+            <div className="ritual-card-label"><span>01</span><b>{wakeState.label}</b></div>
+            <div className="wake-window-visual" style={{ "--wake-progress": `${score ?? 78}%` }}>
+              <div className="wake-window-ring"><span>{next ? formatTime(next.alarm_time) : formatTime(preferences.preferredWakeTime)}</span></div>
+            </div>
+            <p>{ringingAlarm ? "Your morning checkpoint is ready." : next ? `${next.title || "Your wake signal"} is next.` : "Set a first wake signal to begin."}</p>
+            <div className="confidence-meter"><i style={{ width: `${score ?? 78}%` }} /></div>
+            <small>{wakeState.detail} · {score ?? 78}% route confidence</small>
+          </article>
+          <article className="ritual-card ritual-why">
+            <div className="ritual-card-label"><span>02</span><b>WHY THIS ROUTE</b></div>
+            <h3>A gentler first minute beats a louder one.</h3>
+            <p>BrainOS uses your preferred wake time, recent checkpoints, and tomorrow&apos;s focus intention to keep the morning clear.</p>
+            <button type="button" className="ritual-link" onClick={goAlarms}>Review wake protocol <span>→</span></button>
+          </article>
+          <article className="ritual-card ritual-focus">
+            <div className="ritual-card-label"><span>03</span><b>FIRST WIN</b></div>
+            <strong>+ 90 min</strong>
+            <p>{preferences.productivityGoal || "Protect one clear focus block."}</p>
+            <button type="button" className="ritual-action" onClick={() => ringingAlarm ? onSolveAlarm(ringingAlarm) : onStartChallenge("QUIZ")}>{ringingAlarm ? "Start cognitive checkpoint" : "Begin a 2-minute reset"} <span>→</span></button>
+          </article>
+        </div>
+      </section>
+      {ringingAlarm && (
+        <div className="wake-alarm-backdrop" role="dialog" aria-modal="true" aria-live="assertive">
+          <section className="wake-alarm-popup is-ringing">
+            <div className="wake-alarm-icon"><span>◈</span></div>
+            <div className="wake-alarm-status">WAKE PROTOCOL / CHECKPOINT REQUIRED</div>
+            <div className="wake-alarm-time">{formatTime(ringingAlarm.alarm_time)}</div>
+            <h2>{ringingAlarm.title || defaultAlarmTitle(ringingAlarm.alarm_time)}</h2>
+            <p className="wake-alarm-title">{labelForAlarmType(ringingAlarm.alarm_type)} · {ringingAlarm.sound || "Neural Dawn"}</p>
+            <div className="wake-alarm-meta">
+              <span>COGNITIVE WAKE</span>
+              <span>{ringingAlarm.wake_verification_mode || "SINGLE"}</span>
+              <span>DIFFICULTY {ringingAlarm.difficulty || "MEDIUM"}</span>
+            </div>
+            <p className="wake-alarm-copy">
+              {challengeLoading
+                ? "Loading your cognitive checkpoint..."
+                : "Your alarm is active. The checkpoint opens automatically."}
+              {" "}Dismiss or snooze becomes available after verification.
+            </p>
+            <div className="wake-alarm-actions">
+              <button
+                className="wake-alarm-primary"
+                type="button"
+                disabled={challengeLoading}
+                onClick={() => onSolveAlarm(ringingAlarm)}
+              >
+                {challengeLoading ? "OPENING CHECKPOINT..." : "OPEN COGNITIVE CHECKPOINT"}
+                <span>→</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       <section className="dashboard-grid">
-        <article className="mission-card">
+        <article className="mission-card glow-border">
           <div>
             <p className="eyebrow">TODAY&apos;S WAKE CHECKPOINT</p>
             <h2>Earn your<br />first clear thought.</h2>
@@ -2036,20 +2165,39 @@ function Command({ profile, alarms, analytics, nextAlarm, ringingAlarm, onSnooze
           </div>
           <div className="mission-bottom">
             <span><b>+ 180</b> route points</span>
-            <button type="button" onClick={() => onStartChallenge("PATTERN")}>Start checkpoint <b>&rarr;</b></button>
+            <button type="button" {...magnetic()} onClick={() => onStartChallenge("PATTERN")}>Start checkpoint <b>&rarr;</b></button>
           </div>
         </article>
 
-        <article className="assistant-card">
-          <div className="assistant-mark">&#10022;</div>
-          <p className="eyebrow">GEMINI COACH</p>
+        <article className="assistant-card assistant-chat glow-border">
+          <div className="assistant-chat-heading">
+            <div><div className="assistant-mark">&#10022;</div><p className="eyebrow">GEMINI COACH</p></div>
+            <button type="button" className="quiet-button assistant-reset" onClick={clearAssistantConversation}>New conversation</button>
+          </div>
           <h3>Morning help, without the noise.</h3>
-          <textarea value={assistantInput} onChange={(event) => setAssistantInput(event.target.value)} rows={3} placeholder="Ask for wake-up help..." />
-          <button type="button" className="quiet-button" disabled={assistantLoading} onClick={askAssistant}>{assistantLoading ? "Thinking..." : "Ask Gemini"} <span>&rarr;</span></button>
-          <p className="mission-copy">{assistantReply}</p>
+          <div className="assistant-thread">
+            {assistantMessages.map((entry) => {
+              const bubbleClass = `assistant-bubble ${entry.role === "USER" ? "assistant-bubble-user" : "assistant-bubble-coach"}`;
+              return entry.id === typingMessageId
+                ? <TypewriterBubble key={entry.id} text={entry.content} className={bubbleClass} />
+                : <p key={entry.id} className={bubbleClass}>{entry.content}</p>;
+            })}
+            {assistantLoading && <p className="assistant-bubble assistant-bubble-coach assistant-bubble-pending">Thinking...</p>}
+          </div>
+          <textarea
+            value={assistantInput}
+            onChange={(event) => setAssistantInput(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void askAssistant(); } }}
+            rows={2}
+            placeholder="Ask for wake-up help..."
+          />
+          <button type="button" className="quiet-button" {...magnetic()} disabled={assistantLoading || !assistantInput.trim()} onClick={askAssistant}>{assistantLoading ? "Thinking..." : "Ask Gemini"} <span>&rarr;</span></button>
         </article>
 
+        <CoachHelpWidget />
+
         <Stats analytics={analytics} />
+        <SignalFlow />
 
         <article className="rhythm-card daybreak-route">
           <div>
@@ -2061,29 +2209,134 @@ function Command({ profile, alarms, analytics, nextAlarm, ringingAlarm, onSnooze
           <div className="route-timeline" aria-label="Your four-step Daybreak Route">{route.map(([number, title, time, detail]) => <div className="route-stop" key={number}><span>{number}</span><div><b>{title} <em>{time}</em></b><small>{detail}</small></div></div>)}</div>
         </article>
       </section>
-    </>
+    </div>
   );
 }
 
+function CoachHelpWidget() {
+  const [thread, setThread] = useState({ coach_assigned: false, coach_name: null, messages: [] });
+  const [draft, setDraft] = useState("");
+  const [status, setStatus] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const data = await fetch(`${API}/coach/help/messages`, { headers: headers() }).then(readJson);
+      if (data) setThread(data);
+    } catch {
+      // Keep the last known thread; a background refresh failure isn't worth surfacing here.
+    }
+  }, []);
+
+  useEffect(() => { const timer = setTimeout(() => { void load(); }, 0); return () => clearTimeout(timer); }, [load]);
+
+  const send = async () => {
+    const message = draft.trim();
+    if (!message) return;
+    setSending(true);
+    setStatus("");
+    try {
+      const response = await fetch(`${API}/coach/help/messages`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ message }),
+      });
+      const data = await readJson(response);
+      if (response.ok) {
+        setDraft("");
+        await load();
+      } else {
+        setStatus(data?.detail || "Unable to send your message.");
+      }
+    } catch {
+      setStatus("Neural gateway is offline.");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <article className="assistant-card assistant-chat glow-border">
+      <div className="assistant-chat-heading">
+        <div><div className="assistant-mark">&#9993;</div><p className="eyebrow">ASK MY COACH</p></div>
+        <button type="button" className="quiet-button assistant-reset" onClick={load}>Refresh</button>
+      </div>
+      <h3>{thread.coach_assigned ? `A direct line to ${thread.coach_name}.` : "No coach assigned yet."}</h3>
+      {thread.coach_assigned ? (
+        <>
+          <div className="assistant-thread">
+            {thread.messages.map((entry) => (
+              <p key={entry.message_id} className={`assistant-bubble ${entry.sender === "USER" ? "assistant-bubble-user" : "assistant-bubble-coach"}`}>{entry.content}</p>
+            ))}
+            {!thread.messages.length && <p className="mission-copy">Ask your coach anything about your routine, sleep, or a rough morning.</p>}
+          </div>
+          <textarea
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
+            rows={2}
+            placeholder="Tell your coach what you need help with..."
+            maxLength={1000}
+          />
+          <button type="button" className="quiet-button" disabled={sending || !draft.trim()} onClick={send}>{sending ? "Sending..." : "Send to coach"} <span>&rarr;</span></button>
+          {status && <p className="mission-copy">{status}</p>}
+        </>
+      ) : (
+        <p className="mission-copy">Once an admin assigns you a wellness coach, you'll be able to message them directly here.</p>
+      )}
+    </article>
+  );
+}
+
+function GaugeStat({ label, value, color }) {
+  const clamped = Number.isFinite(Number(value)) ? Math.max(0, Math.min(100, Number(value))) : null;
+  const shown = useAnimatedNumber(clamped ?? 0);
+  return <article className={`stat-card gauge-stat ${color}`}>
+    <p>{label}</p>
+    <div className="gauge-ring" style={{ "--gauge-value": `${clamped === null ? 0 : shown}%` }}>
+      <div>
+        <b>{clamped === null ? "—" : Math.round(shown)}</b>
+        {clamped !== null && <span>%</span>}
+      </div>
+    </div>
+    <small>{clamped === null ? "Not enough observations yet" : "Measured from your recent rhythm"}</small>
+  </article>;
+}
+
 function Stats({ analytics }) {
-  const stats = [{ label: "Brain energy", value: analytics?.focus_score ?? 74, color: "cyan" }, { label: "Sleep battery", value: analytics?.sleep_score ?? 72, color: "violet" }, { label: "Habit orbit", value: analytics?.habit_score ?? 68, color: "lime" }];
-  return <section className="stats-row">{stats.map((stat) => <article className={`stat-card ${stat.color}`} key={stat.label}><p>{stat.label}</p><div><b>{stat.value}</b><span>%</span></div><small>Measured from your recent rhythm</small><div className="stat-line"><i style={{ width: `${Math.max(0, Math.min(100, stat.value))}%` }} /></div></article>)}</section>;
+  const stats = [{ label: "Brain energy", value: analytics?.focus_score, color: "cyan" }, { label: "Sleep battery", value: analytics?.sleep_score, color: "violet" }, { label: "Habit orbit", value: analytics?.habit_score?.score ?? analytics?.habit_score, color: "lime" }];
+  return <section className="stats-row">{stats.map((stat) => <GaugeStat key={stat.label} {...stat} />)}</section>;
+}
+
+function SignalFlow() {
+  return <article className="signal-flow-card">
+    <div>
+      <p className="eyebrow">BEHAVIORAL SIGNAL FLOW</p>
+      <h3>Small inputs, clearer mornings.</h3>
+      <p className="mission-copy">BrainOS follows the hand-off from sleep to signal to first action.</p>
+    </div>
+    <svg className="signal-flow-diagram" viewBox="0 0 520 110" role="img" aria-label="Signal flow from sleep to focus">
+      <defs><linearGradient id="signal-line" x1="0" x2="1"><stop stopColor="#8b5cf6" /><stop offset="1" stopColor="#00f5ff" /></linearGradient></defs>
+      <path d="M55 55 C130 12 165 98 245 55 S365 12 465 55" className="signal-path" />
+      {[[55,55,"SLEEP"],[245,55,"WAKE"],[465,55,"FOCUS"]].map(([x,y,label]) => <g key={label} className="signal-node" transform={`translate(${x} ${y})`}><circle r="14" /><circle r="5" /><text y="32" textAnchor="middle">{label}</text></g>)}
+    </svg>
+  </article>;
 }
 
 
-function Challenges({ activeChallenge, loading, history, missions, performance, defaultDifficulty, onStartChallenge, onSubmitChallenge, onCloseChallenge }) {
+function Challenges({ activeChallenge, loading, history, missions, performance, defaultDifficulty, onStartChallenge, onSubmitChallenge, onCloseChallenge, onAlarmDismiss, onAlarmSnooze }) {
   const successful = history.filter((entry) => entry.correct).length + missions.filter((mission) => mission.completed).length;
   const recommendation = performanceRecommendation(performance);
   const accuracy = Number(performance?.accuracy_percent);
   const hasAccuracy = Number.isFinite(accuracy);
   return <section className="module-shell">
     <div className="module-heading"><p className="eyebrow">COGNITIVE CHECKPOINTS</p><h1>Earn your <em>morning.</em></h1><p>Choose a small puzzle that makes your attention arrive before your notifications do.</p></div>
-    {activeChallenge ? <ChallengeConsole key={activeChallenge.id} challenge={activeChallenge} onSubmit={onSubmitChallenge} onNew={() => onStartChallenge(activeChallenge.type)} onClose={onCloseChallenge} /> : <article className="module-card challenge-status-card"><p className="eyebrow">ROUTE STATUS</p><h2>{successful} completed checkpoints</h2><p className="mission-copy">Each solved challenge becomes a small signal that you can begin on purpose.</p><div className="performance-rating-inline"><span>USER PERFORMANCE</span><b>{performanceRating(performance).stars}</b><small>{performanceRating(performance).label}{Number.isFinite(Number(performance?.accuracy_percent)) ? ` · ${Math.round(Number(performance.accuracy_percent))}% accuracy` : ""}</small></div>{(recommendation.difficulty || recommendation.reason || hasAccuracy) && <div className="challenge-personalization" role="status"><span>ADAPTIVE PICK</span><b>{recommendation.difficulty || normalizeDifficulty(defaultDifficulty)}</b>{hasAccuracy && <small>{accuracy.toFixed(0)}% recent accuracy</small>}{recommendation.reason && <p>{recommendation.reason}</p>}</div>}</article>}
+    {activeChallenge ? <ChallengeConsole key={activeChallenge.id} challenge={activeChallenge} onSubmit={onSubmitChallenge} onNew={() => onStartChallenge(activeChallenge.type)} onClose={onCloseChallenge} onAlarmDismiss={onAlarmDismiss} onAlarmSnooze={onAlarmSnooze} /> : <article className="module-card challenge-status-card"><p className="eyebrow">ROUTE STATUS</p><h2>{successful} completed checkpoints</h2><p className="mission-copy">Each solved challenge becomes a small signal that you can begin on purpose.</p>{(recommendation.difficulty || recommendation.reason || hasAccuracy) && <div className="challenge-personalization" role="status"><span>ADAPTIVE PICK</span><b>{recommendation.difficulty || normalizeDifficulty(defaultDifficulty)}</b>{hasAccuracy && <small>{accuracy.toFixed(0)}% recent accuracy</small>}{recommendation.reason && <p>{recommendation.reason}</p>}</div>}</article>}
     <div className="challenge-grid">{challengeTypes.map(([type, title, copy], index) => <article className="challenge-card" key={type}><span>0{index + 1}</span><h2>{title}</h2><p>{copy}</p><button type="button" disabled={loading} onClick={() => onStartChallenge(type)}>{loading ? "Building route..." : "Activate"} <b>&rarr;</b></button></article>)}</div>
   </section>;
 }
 
-function ChallengeConsole({ challenge, onSubmit, onNew, onClose }) {
+function ChallengeConsole({ challenge, onSubmit, onNew, onClose, onAlarmDismiss, onAlarmSnooze }) {
   const maxAttempts = Math.max(1, numericValue(challenge.maxAttempts, 3));
   const [answer, setAnswer] = useState("");
   const [result, setResult] = useState(null);
@@ -2135,9 +2388,11 @@ function ChallengeConsole({ challenge, onSubmit, onNew, onClose }) {
   const buttonLabel = result?.correct ? "CHECKPOINT COMPLETE" : terminal ? "CHECKPOINT CLOSED" : submitting ? "VERIFYING..." : "VERIFY ANSWER";
   const sourceLabel = challenge.isOffline ? "OFFLINE CHECKPOINT" : challenge.source?.toUpperCase() || "ADAPTIVE ENGINE";
 
-  return <article className="module-card challenge-console">
+  const progress = Math.max(0, Math.min(100, (timeRemaining / Math.max(1, numericValue(challenge.timeLimitSeconds, timeRemaining || 1))) * 100));
+  return <article className={`module-card challenge-console ${result?.correct ? "is-verified" : ""}`}>
     <div className="panel-cap"><span>{sourceLabel} / {challenge.difficulty}</span><button type="button" onClick={onClose}>Close</button></div>
-    <div className="challenge-status-row" aria-live="polite"><span className={timeRemaining <= 10 ? "urgent" : ""}>TIME <b>{formatCountdown(timeRemaining)}</b></span><span>ATTEMPTS <b>{attemptsRemaining} / {maxAttempts}</b></span><span>VERIFY <b>{challenge.wakeVerificationMode || "SINGLE"}</b></span></div>
+    <div className="challenge-progress-rail" style={{ "--progress": `${progress}%` }}><i /><span>NEURAL CHECKPOINT</span><b>{Math.round(progress)}%</b></div>
+    <div className="challenge-status-row" aria-live="polite"><span className={timeRemaining <= 10 ? "urgent" : ""}>TIME <b>{formatCountdown(timeRemaining)}</b></span><span>ATTEMPTS <b>{attemptsRemaining} / {maxAttempts}</b></span></div>
     <h2>{challenge.type} checkpoint</h2>
     <p className="mission-copy">{challenge.prompt}</p>
     {challenge.selectionReason && <p className="challenge-selection-reason"><b>Adaptive selection</b>{challenge.selectionReason}</p>}
@@ -2146,28 +2401,703 @@ function ChallengeConsole({ challenge, onSubmit, onNew, onClose }) {
       {challenge.instructions && <p className="challenge-instructions">{challenge.instructions}</p>}
       {challenge.hint && <p className="settings-form">Hint: {challenge.hint}</p>}
       {result && <p role={result.correct ? "status" : "alert"} className={result.correct ? "signal-row" : "form-notice"}>{result.message}</p>}
-      <button className="primary-button" disabled={submitting || terminal || timeRemaining <= 0}>{buttonLabel}<span>&rarr;</span></button>
+      <button className="primary-button" {...magnetic()} disabled={submitting || terminal || timeRemaining <= 0}>{buttonLabel}<span>&rarr;</span></button>
     </form>
-    {terminal && <button className="quiet-button" type="button" onClick={onNew}>{result?.correct ? "Build another checkpoint" : "Try a new checkpoint"} <span>&rarr;</span></button>}
+    {terminal && result?.correct && challenge.alarmTriggered && challenge.alarmId && (
+      <div className="verified-wake-actions" role="status">
+        <div>
+          <p className="eyebrow">CHECKPOINT VERIFIED</p>
+          <h3>You are awake. What happens next?</h3>
+          <small>Dismiss the wake signal or defer it for the configured snooze interval.</small>
+        </div>
+        <div className="verified-wake-buttons">
+          <button className="wake-dismiss-button" type="button" onClick={() => onAlarmDismiss(challenge)}>
+            DISMISS ALARM <span>✓</span>
+          </button>
+          <button className="wake-snooze-button" type="button" onClick={() => onAlarmSnooze(challenge)}>
+            SNOOZE {Number(challenge.snoozeMinutes ?? 5) || 5} MIN
+          </button>
+        </div>
+      </div>
+    )}
+    {terminal && (!result?.correct || !challenge.alarmTriggered) && <button className="quiet-button" type="button" onClick={onNew}>{result?.correct ? "Build another checkpoint" : "Try a new checkpoint"} <span>&rarr;</span></button>}
   </article>;
 }
 
+function HabitScore({ value, components }) {
+  const score = Number.isFinite(Number(value)) ? Math.max(0, Math.min(100, Number(value))) : null;
+  const shown = useAnimatedNumber(score ?? 0);
+  return <div className="habit-score-visual">
+    <div className="habit-score-ring" style={{ "--score": `${score === null ? 0 : shown}%` }}>
+      <div><strong>{score === null ? "—" : Math.round(shown)}</strong><span>HABIT SCORE</span></div>
+    </div>
+    <div className="habit-score-legend">{Object.entries(components || {}).slice(0, 3).map(([name, item]) => <span key={name}><i />{name.replaceAll("_", " ")} <b>{item ?? "—"}%</b></span>)}</div>
+  </div>;
+}
+
 function Analytics({ data, history, missions }) {
-  const values = data?.history?.length ? data.history : [56, 63, 59, 71, 67, 82, 74];
-  const passed = history.filter((entry) => entry.correct).length + missions.filter((mission) => mission.completed).length;
-  const attempts = history.length || missions.length;
-  return <section className="module-shell"><div className="module-heading"><p className="eyebrow">COGNITIVE INSIGHTS</p><h1>Your rhythm,<br /><em>decoded.</em></h1><p>The route connects sleep quality to the actions that make your first hour feel more yours.</p></div><Stats analytics={data} /><article className="module-card full-chart"><div><p className="eyebrow">SLEEP QUALITY / 7 DAYS</p><h2>Recovery is trending upward.</h2><p className="mission-copy">{passed} checkpoints passed from {attempts || 0} recorded attempts.</p></div><div className="rhythm-chart" aria-label="Seven-day sleep-quality chart">{values.map((value, index) => <span key={`${value}-${index}`} className={index === values.length - 1 ? "active" : ""} style={{ height: `${Math.max(8, Math.min(100, value))}%` }} />)}</div></article></section>;
+  const [reportNotice, setReportNotice] = useState("");
+  const behavioral = data || {};
+  const snooze = behavioral.snooze_patterns || {};
+  const wake = behavioral.wake_behavior || {};
+  const productivity = behavioral.productivity_correlation || {};
+  const habit = behavioral.habit_consistency || {};
+  const sleep = behavioral.sleep_patterns || {};
+  const habitScore = data?.habit_score || {};
+  const recommendations = data?.recommendations || {};
+
+  const clamp = (value, fallback = 0) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return fallback;
+    return Math.max(0, Math.min(100, numeric));
+  };
+
+  const readinessInputs = [data?.focus_score, data?.sleep_score, wake?.wake_consistency_percent, habit?.consistency_percent]
+    .map((value) => Number(value))
+    .filter(Number.isFinite);
+  const readiness = readinessInputs.length === 4
+    ? Math.round(readinessInputs.reduce((total, value) => total + clamp(value), 0) / 4)
+    : null;
+
+  const passed = history.filter((entry) => entry.correct).length +
+    missions.filter((mission) => mission.completed).length;
+  const attempts = history.length + missions.length;
+
+  const radarValues = [
+    clamp(wake?.wake_consistency_percent),
+    clamp(data?.challenge_performance?.accuracy_percent),
+    clamp(habit?.consistency_percent),
+    clamp(data?.focus_score),
+    clamp(sleep?.duration_consistency_percent),
+  ];
+
+  const radarPoints = radarValues.map((value, index) => {
+    const angle = (-90 + index * 72) * (Math.PI / 180);
+    const radius = 74 * (value / 100);
+    return `${150 + Math.cos(angle) * radius},${115 + Math.sin(angle) * radius}`;
+  }).join(" ");
+
+  const learned =
+    Number(wake?.wake_success_rate_percent) >= 80
+      ? "Your wake verification is becoming reliable."
+      : Number(snooze?.total_snoozes) > 3
+        ? "Snooze friction is your strongest current signal."
+        : "BrainOS is still learning your morning rhythm.";
+
+  return (
+    <section className="module-shell analytics-shell">
+      <div className="module-heading analytics-heading">
+        <div>
+          <p className="eyebrow">BEHAVIORAL INTELLIGENCE / 07</p>
+          <h1>Your rhythm,<br /><em>decoded.</em></h1>
+          <p>BrainOS turns wake events, challenge behavior, sleep and routine activity into an evolving morning profile.</p>
+        </div>
+        <div className="analytics-live-mark">
+          <span />
+          LIVE PROFILE
+          <b>30D</b>
+        </div>
+      </div>
+
+      <section className="neural-readiness-card">
+        <div className="readiness-copy">
+          <p className="eyebrow">NEURAL READINESS</p>
+          <strong>{readiness ?? "—"}</strong><span>{readiness === null ? "observations pending" : "/100"}</span>
+          <h2>{readiness === null ? "MORNING STATE: LEARNING" : readiness >= 80 ? "MORNING STATE: STRONG" : readiness >= 60 ? "MORNING STATE: STABLE" : "MORNING STATE: RECOVERING"}</h2>
+          <p>Your composite signal blends focus, sleep, successful wake sessions and habit consistency.</p>
+        </div>
+        <div className="readiness-orbit" aria-hidden="true">
+          <div className="readiness-ring ring-one" />
+          <div className="readiness-ring ring-two" />
+          <div className="readiness-core">{readiness ?? "—"}</div>
+        </div>
+        <div className="readiness-mini-grid">
+          <div><span>FOCUS</span><b>{Number.isFinite(Number(data?.focus_score)) ? `${Math.round(clamp(data.focus_score))}%` : "—"}</b></div>
+          <div><span>SLEEP</span><b>{Number.isFinite(Number(data?.sleep_score)) ? `${Math.round(clamp(data.sleep_score))}%` : "—"}</b></div>
+          <div><span>WAKE</span><b>{Number.isFinite(Number(wake?.wake_success_rate_percent)) ? `${Math.round(clamp(wake.wake_success_rate_percent))}%` : "—"}</b></div>
+          <div><span>HABIT</span><b>{Number.isFinite(Number(habit?.consistency_percent)) ? `${Math.round(clamp(habit.consistency_percent))}%` : "—"}</b></div>
+        </div>
+      </section>
+
+      <section className="analytics-bottom-grid analytics-summary-grid">
+        <article className="analytics-panel learned-panel">
+          <p className="eyebrow">HABIT SCORING ENGINE / 08</p>
+          <h2>{habitScore.score ?? "—"}<small>/100 observed score</small></h2>
+          <HabitScore value={habitScore.score} components={habitScore.components} />
+          <div className="analytics-metrics-row">
+            {Object.entries(habitScore.components || {}).map(([name, value]) => (
+              <div key={name}><span>{name.replaceAll("_", " ")}</span><b>{value ?? "—"}%</b></div>
+            ))}
+          </div>
+        </article>
+        <article className="analytics-panel productivity-panel">
+          <div className="analytics-panel-head"><div><p className="eyebrow">RECOMMENDATION ENGINE / 09</p><h2>Next best actions</h2></div><span className="analytics-badge">EVIDENCE LINKED</span></div>
+          {Object.entries(recommendations).flatMap(([category, items]) => (items || []).map((item) => (
+            <p className="analytics-footnote" key={`${category}-${item.message}`}><b>{category.replaceAll("_", " ")}</b>: {item.message} {item.action}</p>
+          )))}
+          {!Object.values(recommendations).some((items) => items?.length) && <p className="analytics-footnote">More observed activity is needed before personalized guidance is generated.</p>}
+        </article>
+      </section>
+
+      <section className="analytics-bottom-grid">
+        <article className="analytics-panel consistency-panel">
+          <div className="analytics-panel-head"><div><p className="eyebrow">REPORTS / 12</p><h2>Download your data</h2></div></div>
+          <div className="snooze-policy-row">
+            {["habit", "wake", "challenge", "productivity", "sleep"].flatMap((type) => ["xlsx", "pdf"].map((format) => (
+              <button key={`${type}-${format}`} type="button" onClick={() => {
+                fetch(`${API}/reports/${type}?format=${format}`, { headers: headers() }).then(async (response) => {
+                  if (!response.ok) throw new Error("Report unavailable");
+                  const blob = await response.blob();
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement("a");
+                  link.href = url;
+                  link.download = `brainos-${type}-report.${format}`;
+                  link.click();
+                  URL.revokeObjectURL(url);
+                }).catch(() => {
+                  setReportNotice("This report is unavailable right now.");
+                });
+              }}>{type} {format.toUpperCase()}</button>
+            )))}
+          </div>
+        </article>
+      </section>
+
+      <section className="analytics-grid-main">
+        <article className="analytics-panel snooze-visual">
+          <div className="analytics-panel-head">
+            <div><p className="eyebrow">SNOOZE RHYTHM</p><h2>Your delay pattern</h2></div>
+            <b>{Number(snooze?.total_snoozes ?? 0)} events</b>
+          </div>
+          <div className="snooze-wave" aria-label="Snooze rhythm observations">
+            {Array.isArray(snooze?.recent_7_day_snoozes_by_day)
+              ? snooze.recent_7_day_snoozes_by_day.map((value, index) => <i key={index} style={{ height: `${Math.max(8, Math.min(100, Number(value) * 18))}%` }} className={Number(value) > 2 ? "peak" : ""} />)
+              : <p className="analytics-footnote">Daily snooze observations are not available yet.</p>}
+          </div>
+          <div className="snooze-days">
+            {"MTWTFSS".split("").map((letter, index) => (
+              <span key={`${letter}-${index}`} className={index < Math.min(7, Number(snooze?.recent_7_day_snoozes ?? 0)) ? "active" : ""}>{letter}</span>
+            ))}
+          </div>
+          <div className="analytics-metrics-row">
+            <div><span>AVG DELAY</span><b>{snooze?.average_snooze_minutes ?? "—"}m</b></div>
+            <div><span>COMMON</span><b>{snooze?.most_common_snooze_minutes ?? "—"}m</b></div>
+            <div><span>RECENT</span><b>{snooze?.recent_7_day_snoozes ?? "—"}</b></div>
+            <div><span>PER WAKE</span><b>{snooze?.snoozes_per_wake ?? "—"}</b></div>
+            <div><span>SNOOZE RATE</span><b>{snooze?.recent_7_day_snooze_rate != null ? `${snooze.recent_7_day_snooze_rate}%` : "—"}</b></div>
+          </div>
+          {reportNotice && <p className="form-notice" role="alert">{reportNotice}</p>}
+        </article>
+
+        <article className="analytics-panel wake-radar-panel">
+          <div className="analytics-panel-head">
+            <div><p className="eyebrow">HABIT MOMENTUM</p><h2>Six-signal profile</h2></div>
+            <b>{Math.round(clamp(habit?.consistency_percent))}%</b>
+          </div>
+          <svg className="analytics-radar" viewBox="0 0 300 230" role="img" aria-label="Behavioral habit radar">
+            <polygon points="150,41 221,93 194,178 106,178 79,93" className="radar-grid" />
+            <polygon points="150,63 202,101 182,164 118,164 98,101" className="radar-grid" />
+            <polygon points={radarPoints} className="radar-data" />
+            {[[150,41,"WAKE"],[221,93,"ACCURACY"],[194,178,"HABIT"],[106,178,"FOCUS"],[79,93,"SLEEP"]].map(([x,y,label]) => (
+              <text key={label} x={x} y={y} className="radar-label">{label}</text>
+            ))}
+          </svg>
+          <div className="radar-foot"><span>{habit?.missions_completed ?? 0} completed habits</span><span>{wake?.successful_wakes ?? 0} successful wakes</span></div>
+        </article>
+
+        <article className="analytics-panel sleep-visual-panel">
+          <div className="analytics-panel-head">
+            <div><p className="eyebrow">SLEEP RHYTHM</p><h2>Recovery window</h2></div>
+            <b>{sleep?.average_sleep_hours ?? "—"}h</b>
+          </div>
+          <div className="sleep-dial">
+            <div className="sleep-dial-inner">
+              <span>AVG</span>
+              <strong>{sleep?.average_sleep_hours ?? "—"}</strong>
+              <small>hours</small>
+            </div>
+          </div>
+          <div className="sleep-stats">
+            <div><span>TARGET</span><b>{sleep?.target_sleep_hours ?? "—"}h</b></div>
+            <div><span>QUALITY</span><b>{sleep?.average_sleep_quality ?? "—"}%</b></div>
+            <div><span>REGULARITY</span><b>{sleep?.duration_consistency_percent ?? 0}%</b></div>
+          </div>
+        </article>
+
+        <article className="analytics-panel productivity-panel">
+          <div className="analytics-panel-head">
+            <div><p className="eyebrow">BEHAVIOR → PRODUCTIVITY</p><h2>Observed association</h2></div>
+            <span className="analytics-badge">NOT CAUSATION</span>
+          </div>
+          <div className="correlation-board">
+            <div className="correlation-bar"><span>Sleep quality</span><i style={{ width: `${Math.max(8, clamp((Number(productivity?.sleep_quality_vs_productivity ?? 0) + 1) * 50))}%` }} /><b>{productivity?.sleep_quality_vs_productivity ?? "—"}</b></div>
+            <div className="correlation-bar"><span>Snooze count</span><i style={{ width: `${Math.max(8, clamp((1 - Number(productivity?.snooze_count_vs_productivity ?? 0) * 0.5) * 100))}%` }} /><b>{productivity?.snooze_count_vs_productivity ?? "—"}</b></div>
+            <div className="correlation-scale"><span>−1</span><span>0</span><span>+1</span></div>
+          </div>
+          <p className="analytics-footnote">{productivity?.interpretation || "Observed relationship from available daily records."}</p>
+        </article>
+      </section>
+
+      <section className="analytics-bottom-grid">
+        <article className="analytics-panel learned-panel">
+          <div className="learned-icon">✦</div>
+          <p className="eyebrow">BRAINOS LEARNED</p>
+          <h2>{learned}</h2>
+          <p>Based on {attempts || 0} recorded activities and {passed || 0} successful checkpoints.</p>
+          <div className="learned-next"><span>NEXT ADAPTATION</span><b>{readiness >= 80 ? "Keep current difficulty" : "Favor recovery-aware challenges"}</b></div>
+        </article>
+
+
+
+        <article className="analytics-panel wake-score-panel">
+          <div className="analytics-panel-head">
+            <div><p className="eyebrow">WAKE BEHAVIOR</p><h2>Verification health</h2></div>
+            <b>{wake?.wake_success_rate_percent ?? 0}%</b>
+          </div>
+          <div className="wake-segment-track">
+            <i style={{ width: `${clamp(wake?.wake_success_rate_percent)}%` }} />
+          </div>
+          <div className="analytics-metrics-row">
+            <div><span>SUCCESSFUL</span><b>{wake?.successful_wakes ?? 0}</b></div>
+            <div><span>FAILED</span><b>{wake?.wake_challenge_failures ?? 0}</b></div>
+            <div><span>AVG VERIFY</span><b>{wake?.average_verification_seconds ?? "—"}s</b></div>
+          </div>
+        </article>
+
+        <article className="analytics-panel consistency-panel">
+          <div className="analytics-panel-head">
+            <div><p className="eyebrow">HABIT CONSISTENCY</p><h2>Routine signal</h2></div>
+            <b>{habit?.consistency_percent ?? 0}%</b>
+          </div>
+          <div className="consistency-dots">
+            {Array.from({ length: 14 }, (_, index) => <span key={index} className={index < Math.round(clamp(habit?.completion_rate_percent) / 100 * 14) ? "active" : ""} />)}
+          </div>
+          <p className="analytics-footnote">{habit?.missions_completed ?? 0} missions completed across {habit?.tracked_days ?? 0} tracked days.</p>
+        </article>
+      </section>
+    </section>
+  );
 }
 
 function Settings({ profile, preferences, saveSettings }) {
   const [form, setForm] = useState({ name: profile?.name || "", ...preferences });
   const update = (field, value) => setForm((current) => ({ ...current, [field]: value }));
-  return <section className="module-shell"><div className="module-heading"><p className="eyebrow">PROFILE + HABIT SETTINGS</p><h1>Make the route <em>yours.</em></h1><p>These preferences shape the language and timing of your Daybreak Route. They remain on this device when an older API has no preference endpoint yet.</p></div><form className="module-card alarm-form settings-form" onSubmit={(event) => { event.preventDefault(); void saveSettings(form.name, { preferredWakeTime: form.preferredWakeTime, sleepDuration: form.sleepDuration, timezone: form.timezone, productivityGoal: form.productivityGoal, difficulty: form.difficulty, habits: form.habits }); }}><h2>Your daybreak profile</h2><label>DISPLAY NAME<input value={form.name} onChange={(event) => update("name", event.target.value)} minLength="2" required /></label><label>ACCOUNT EMAIL<input value={profile?.email || ""} disabled /></label><label>PREFERRED WAKE-UP TIME<input type="time" value={form.preferredWakeTime} onChange={(event) => update("preferredWakeTime", event.target.value)} /></label><label>SLEEP DURATION<select value={form.sleepDuration} onChange={(event) => update("sleepDuration", event.target.value)}><option value="6">6 hours</option><option value="7">7 hours</option><option value="8">8 hours</option><option value="9">9 hours</option></select></label><label>TIME ZONE<select value={form.timezone} onChange={(event) => update("timezone", event.target.value)}><option value="Asia/Kolkata">Asia/Kolkata</option><option value="Asia/Dubai">Asia/Dubai</option><option value="Europe/London">Europe/London</option><option value="America/New_York">America/New York</option><option value="America/Los_Angeles">America/Los Angeles</option></select></label><label>PRODUCTIVITY GOAL<input value={form.productivityGoal} onChange={(event) => update("productivityGoal", event.target.value)} placeholder="Protect a 90-minute focus block" /></label><label>DEFAULT CHALLENGE DIFFICULTY<select value={form.difficulty} onChange={(event) => update("difficulty", event.target.value)}>{DIFFICULTY_LEVELS.map((level) => <option key={level} value={level}>{level.charAt(0) + level.slice(1).toLowerCase()}</option>)}</select></label><label>HABIT PREFERENCES<input value={form.habits} onChange={(event) => update("habits", event.target.value)} placeholder="Hydrate, sunlight, stretch" /></label><p>Signed in as {profile?.role === "WELLNESS_COACH" ? "Wellness Coach" : profile?.role === "ADMIN" ? "Administrator" : "User"} via {profile?.provider || "LOCAL"}.</p><button className="primary-button">SAVE DAYBREAK PROFILE <span>&rarr;</span></button></form></section>;
+  return <section className="module-shell"><div className="module-heading"><p className="eyebrow">PROFILE + HABIT SETTINGS</p><h1>Make the route <em>yours.</em></h1><p>These preferences shape the language and timing of your Daybreak Route. They remain on this device when an older API has no preference endpoint yet.</p></div><form className="module-card alarm-form settings-form" onSubmit={(event) => { event.preventDefault(); void saveSettings(form.name, { preferredWakeTime: form.preferredWakeTime, sleepDuration: form.sleepDuration, timezone: form.timezone, productivityGoal: form.productivityGoal, difficulty: form.difficulty, habits: form.habits }); }}><h2>Your daybreak profile</h2><label>DISPLAY NAME<input value={form.name} onChange={(event) => update("name", event.target.value)} minLength="2" required /></label><label>ACCOUNT EMAIL<input value={profile?.email || ""} disabled /></label><label>PREFERRED WAKE-UP TIME<input type="time" value={form.preferredWakeTime} onChange={(event) => update("preferredWakeTime", event.target.value)} /></label><label>SLEEP DURATION<select value={form.sleepDuration} onChange={(event) => update("sleepDuration", event.target.value)}><option value="6">6 hours</option><option value="7">7 hours</option><option value="8">8 hours</option><option value="9">9 hours</option></select></label><label>TIME ZONE<select value={form.timezone} onChange={(event) => update("timezone", event.target.value)}><option value="Asia/Kolkata">Asia/Kolkata</option><option value="Asia/Dubai">Asia/Dubai</option><option value="Europe/London">Europe/London</option><option value="America/New_York">America/New York</option><option value="America/Los_Angeles">America/Los Angeles</option></select></label><label>PRODUCTIVITY GOAL<input value={form.productivityGoal} onChange={(event) => update("productivityGoal", event.target.value)} placeholder="Protect a 90-minute focus block" /></label><label>DEFAULT CHALLENGE DIFFICULTY<select value={form.difficulty} onChange={(event) => update("difficulty", event.target.value)}><option value="BEGINNER">Beginner</option><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option><option value="EXPERT">Expert</option></select></label><label>HABIT PREFERENCES<input value={form.habits} onChange={(event) => update("habits", event.target.value)} placeholder="Hydrate, sunlight, stretch" /></label><p>Signed in as {profile?.role === "WELLNESS_COACH" ? "Wellness Coach" : profile?.role === "ADMIN" ? "Administrator" : "User"} via {profile?.provider || "LOCAL"}.</p><button className="primary-button" {...magnetic()}>SAVE DAYBREAK PROFILE <span>&rarr;</span></button></form></section>;
 }
 
-function Workspace({ role, profile, alarms, analytics, preferences, missions }) {
+function Workspace({ role }) {
   const coach = role === "WELLNESS_COACH" || role === "COACH";
-  const activeAlarms = alarms.filter((alarm) => alarm.status !== "DISABLED").length;
-  const completed = missions.filter((mission) => mission.completed).length;
-  return <section className="module-shell"><div className="module-heading"><p className="eyebrow">{coach ? "WELLNESS COACH WORKSPACE" : "ADMINISTRATOR WORKSPACE"}</p><h1>{coach ? <>Guide the <em>next step.</em></> : <>Keep the route <em>trusted.</em></>}</h1><p>{coach ? "Translate steady routines into compassionate, actionable coaching prompts." : "Review the operating signal before you change the system around it."}</p></div><section className="stats-row"><article className="stat-card cyan"><p>{coach ? "COACHING LENS" : "PLATFORM PULSE"}</p><div><b>{analytics?.habit_score ?? 68}</b><span>%</span></div><small>{coach ? "Habit momentum to discuss" : "Current habit-health signal"}</small></article><article className="stat-card violet"><p>ACTIVE ROUTES</p><div><b>{activeAlarms}</b><span>live</span></div><small>Wake signals on this account</small></article><article className="stat-card lime"><p>COMPLETED MISSIONS</p><div><b>{completed}</b><span>done</span></div><small>Verified cognitive checkpoints</small></article></section><article className="module-card full-chart"><div><p className="eyebrow">ROLE-AWARE BRIEF</p><h2>{coach ? `Prepare a gentle prompt for ${profile?.name || "this member"}.` : "Safeguard the Daybreak experience."}</h2><p className="mission-copy">{coach ? `Their stated focus is "${preferences.productivityGoal}". Start with the habit they can actually do tomorrow.` : "Use aggregated, permissioned insights only. Alarm titles, preferences, and challenge answers stay personal by default."}</p></div><div className="route-timeline"><div className="route-stop"><span>01</span><div><b>{coach ? "Observe" : "Review"}</b><small>{coach ? "Look for one sustainable behaviour, not a perfect week." : "Check active route health and account roles."}</small></div></div><div className="route-stop"><span>02</span><div><b>{coach ? "Reflect" : "Protect"}</b><small>{coach ? "Offer a question before a recommendation." : "Keep role boundaries and consent visible."}</small></div></div><div className="route-stop"><span>03</span><div><b>{coach ? "Commit" : "Improve"}</b><small>{coach ? "Agree on the smallest next morning action." : "Use feedback to improve the route without adding pressure."}</small></div></div></div></article></section>;
+  const isAdmin = role === "ADMIN";
+  const [panelData, setPanelData] = useState(null);
+  const [panelError, setPanelError] = useState("");
+  const [roleUpdating, setRoleUpdating] = useState(null);
+  const [expandedMember, setExpandedMember] = useState(null);
+  const [notesByMember, setNotesByMember] = useState({});
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteStatus, setNoteStatus] = useState("");
+  const [messageDraft, setMessageDraft] = useState({ title: "", message: "" });
+  const [messageStatus, setMessageStatus] = useState("");
+  const [helpThreadsByMember, setHelpThreadsByMember] = useState({});
+  const [replyDraft, setReplyDraft] = useState("");
+  const [replyStatus, setReplyStatus] = useState("");
+  const [selectedCoachId, setSelectedCoachId] = useState("");
+  const [coachRoster, setCoachRoster] = useState([]);
+  const [rosterStatus, setRosterStatus] = useState("");
+
+  const loadPanel = useCallback(async () => {
+    if (!coach && !isAdmin) return;
+    setPanelError("");
+    try {
+      if (isAdmin) {
+        const [platform, users, recommendations] = await Promise.all([
+          fetch(`${API}/admin/analytics`, { headers: headers() }).then(readJson),
+          fetch(`${API}/admin/users`, { headers: headers() }).then(readJson),
+          fetch(`${API}/admin/recommendations`, { headers: headers() }).then(readJson),
+        ]);
+        setPanelData({ platform, users: users?.users || [], recommendations: recommendations?.recommendations || [] });
+      } else {
+        const insights = await fetch(`${API}/coach/insights`, { headers: headers() }).then(readJson);
+        setPanelData(insights);
+      }
+    } catch {
+      setPanelError("Unable to load workspace data. The API may be offline.");
+    }
+  }, [coach, isAdmin]);
+
+  useEffect(() => { const timer = setTimeout(() => { void loadPanel(); }, 0); return () => clearTimeout(timer); }, [loadPanel]);
+
+  const changeRole = async (userId, nextRole) => {
+    setRoleUpdating(userId);
+    try {
+      const response = await fetch(`${API}/admin/users/${userId}/role`, {
+        method: "PATCH",
+        headers: headers(),
+        body: JSON.stringify({ role: nextRole }),
+      });
+      if (response.ok) await loadPanel();
+    } finally {
+      setRoleUpdating(null);
+    }
+  };
+
+  const loadCoachRoster = useCallback(async (coachId) => {
+    if (!coachId) { setCoachRoster([]); return; }
+    try {
+      const data = await fetch(`${API}/admin/coaches/${coachId}/members`, { headers: headers() }).then(readJson);
+      setCoachRoster(data?.members || []);
+    } catch {
+      setRosterStatus("Unable to load roster.");
+    }
+  }, []);
+
+  const chooseCoach = async (coachId) => {
+    setSelectedCoachId(coachId);
+    setRosterStatus("");
+    await loadCoachRoster(coachId);
+  };
+
+  const assignToCoach = async (memberId) => {
+    if (!selectedCoachId) return;
+    setRosterStatus("Assigning...");
+    try {
+      const response = await fetch(`${API}/admin/coaches/${selectedCoachId}/members`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ member_id: memberId }),
+      });
+      if (response.ok) {
+        setRosterStatus("");
+        await loadCoachRoster(selectedCoachId);
+      } else {
+        setRosterStatus("Unable to assign member.");
+      }
+    } catch {
+      setRosterStatus("Neural gateway is offline.");
+    }
+  };
+
+  const unassignFromCoach = async (memberId) => {
+    if (!selectedCoachId) return;
+    setRosterStatus("Removing...");
+    try {
+      const response = await fetch(`${API}/admin/coaches/${selectedCoachId}/members/${memberId}`, {
+        method: "DELETE",
+        headers: headers(),
+      });
+      if (response.ok || response.status === 204) {
+        setRosterStatus("");
+        await loadCoachRoster(selectedCoachId);
+      } else {
+        setRosterStatus("Unable to remove member.");
+      }
+    } catch {
+      setRosterStatus("Neural gateway is offline.");
+    }
+  };
+
+  const loadNotes = async (memberId) => {
+    const notes = await fetch(`${API}/coach/members/${memberId}/notes`, { headers: headers() }).then(readJson);
+    setNotesByMember((current) => ({ ...current, [memberId]: notes || [] }));
+  };
+
+  const loadHelpThread = async (memberId) => {
+    const messages = await fetch(`${API}/coach/members/${memberId}/help-messages`, { headers: headers() }).then(readJson);
+    setHelpThreadsByMember((current) => ({ ...current, [memberId]: messages || [] }));
+    await loadPanel();
+  };
+
+  const toggleMember = async (memberId) => {
+    if (expandedMember === memberId) {
+      setExpandedMember(null);
+      return;
+    }
+    setExpandedMember(memberId);
+    setNoteDraft("");
+    setNoteStatus("");
+    setMessageDraft({ title: "", message: "" });
+    setMessageStatus("");
+    setReplyDraft("");
+    setReplyStatus("");
+    if (!notesByMember[memberId]) await loadNotes(memberId);
+    await loadHelpThread(memberId);
+  };
+
+  const submitNote = async (memberId) => {
+    if (!noteDraft.trim()) return;
+    setNoteStatus("Saving...");
+    try {
+      const response = await fetch(`${API}/coach/members/${memberId}/notes`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ note: noteDraft.trim() }),
+      });
+      if (response.ok) {
+        setNoteDraft("");
+        setNoteStatus("");
+        await loadNotes(memberId);
+        await loadPanel();
+      } else {
+        setNoteStatus("Unable to save note.");
+      }
+    } catch {
+      setNoteStatus("Neural gateway is offline.");
+    }
+  };
+
+  const submitMessage = async (memberId) => {
+    if (!messageDraft.title.trim() || !messageDraft.message.trim()) return;
+    setMessageStatus("Sending...");
+    try {
+      const response = await fetch(`${API}/coach/members/${memberId}/message`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify(messageDraft),
+      });
+      const data = await readJson(response);
+      if (response.ok) {
+        setMessageStatus(`Sent to ${data.delivered_to}.`);
+        setMessageDraft({ title: "", message: "" });
+      } else {
+        setMessageStatus(data?.detail || "Unable to send message.");
+      }
+    } catch {
+      setMessageStatus("Neural gateway is offline.");
+    }
+  };
+
+  const submitReply = async (memberId) => {
+    if (!replyDraft.trim()) return;
+    setReplyStatus("Sending...");
+    try {
+      const response = await fetch(`${API}/coach/members/${memberId}/help-messages`, {
+        method: "POST",
+        headers: headers(),
+        body: JSON.stringify({ message: replyDraft.trim() }),
+      });
+      if (response.ok) {
+        setReplyDraft("");
+        setReplyStatus("");
+        await loadHelpThread(memberId);
+      } else {
+        setReplyStatus("Unable to send reply.");
+      }
+    } catch {
+      setReplyStatus("Neural gateway is offline.");
+    }
+  };
+
+  const openRecommendations = (panelData?.recommendations || [])
+    .map((entry) => ({ ...entry, count: Object.values(entry.recommendations || {}).reduce((sum, list) => sum + list.length, 0) }))
+    .filter((entry) => entry.count > 0);
+
+  const average = (values) => values.length ? Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 10) / 10 : null;
+  const allCoaches = isAdmin ? (panelData?.users || []).filter((member) => member.role === "WELLNESS_COACH") : [];
+  const rosterIds = new Set(coachRoster.map((member) => member.user_id));
+  const unassignedUsers = isAdmin ? (panelData?.users || []).filter((member) => member.role === "USER" && !rosterIds.has(member.id)) : [];
+  const coachMembers = panelData?.users || [];
+  const habitAdherence = coachMembers
+    .map((entry) => ({ user_id: entry.user_id, name: entry.name, rate: entry.analytics?.habit_consistency?.completion_rate_percent, tracked: entry.analytics?.habit_consistency?.missions_tracked }))
+    .filter((entry) => entry.tracked > 0);
+  const sleepTrends = coachMembers
+    .map((entry) => ({ user_id: entry.user_id, name: entry.name, avgHours: entry.analytics?.sleep_patterns?.average_sleep_hours, consistency: entry.analytics?.sleep_patterns?.duration_consistency_percent, records: entry.analytics?.sleep_patterns?.records }))
+    .filter((entry) => entry.records > 0);
+  const avgAdherence = average(habitAdherence.map((entry) => entry.rate));
+  const avgSleepConsistency = average(sleepTrends.map((entry) => entry.consistency));
+
+  const downloadSystemReport = (reportType, format) => {
+    fetch(`${API}/admin/reports/${reportType}?format=${format}`, { headers: headers() }).then(async (response) => {
+      if (!response.ok) throw new Error("Report unavailable");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `brainos-system-${reportType}-report.${format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    }).catch(() => setPanelError("Unable to download that report right now."));
+  };
+
+  return <section className="module-shell">
+    <div className="module-heading">
+      <p className="eyebrow">{coach ? "WELLNESS COACH WORKSPACE" : "ADMINISTRATOR WORKSPACE"}</p>
+      <h1>{coach ? <>Guide the <em>next step.</em></> : <>Keep the route <em>trusted.</em></>}</h1>
+      <p>{coach ? "Translate steady routines into compassionate, actionable coaching prompts." : "Manage members, monitor the platform, and broadcast updates."}</p>
+    </div>
+    <section className="stats-row">
+      <article className="stat-card cyan"><p>{coach ? "MEMBERS TRACKED" : "TOTAL USERS"}</p><div><b><AnimatedNumber value={coach ? panelData?.users_tracked : panelData?.platform?.users} /></b></div><small>{coach ? "Users with role USER" : "Registered accounts"}</small></article>
+      <article className="stat-card violet"><p>{coach ? "AVG HABIT SCORE" : "ACTIVE ALARMS"}</p><div><b><AnimatedNumber value={coach ? panelData?.average_habit_score : panelData?.platform?.active_alarms} /></b></div><small>{coach ? "Across tracked members" : "Currently scheduled"}</small></article>
+      {isAdmin && <article className="stat-card lime"><p>CHALLENGES COMPLETED</p><div><b><AnimatedNumber value={panelData?.platform?.completed_challenges} /></b></div><small>Verified checkpoints</small></article>}
+    </section>
+
+    {panelError && <p className="form-notice" role="alert">{panelError}</p>}
+
+    {isAdmin && <article className="module-card">
+      <p className="eyebrow">USER MANAGEMENT</p><h2>Roles &amp; access</h2>
+      <div className="user-rows">
+        {(panelData?.users || []).map((member) => (
+          <div key={member.id} className="user-row">
+            <div><b>{member.name}</b><small>{member.email}</small></div>
+            <select value={member.role} disabled={roleUpdating === member.id} onChange={(event) => changeRole(member.id, event.target.value)}>
+              <option value="USER">User</option>
+              <option value="WELLNESS_COACH">Wellness Coach</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+          </div>
+        ))}
+        {!panelData?.users?.length && <p className="mission-copy">No members yet.</p>}
+      </div>
+    </article>}
+
+    {isAdmin && <article className="module-card">
+      <p className="eyebrow">COACH ROSTERS</p><h2>Assign members to a coach</h2>
+      <p className="mission-copy">Only assigned members show up in a coach's workspace, insights, notes, and messages.</p>
+      <label>COACH<select value={selectedCoachId} onChange={(event) => void chooseCoach(event.target.value)}>
+        <option value="">Select a coach...</option>
+        {allCoaches.map((member) => <option key={member.id} value={member.id}>{member.name}</option>)}
+      </select></label>
+      {rosterStatus && <p className="form-notice" role="alert">{rosterStatus}</p>}
+      {selectedCoachId && <div className="user-rows">
+        <p className="eyebrow">ASSIGNED</p>
+        {coachRoster.map((member) => (
+          <div key={member.user_id} className="user-row">
+            <div><b>{member.name}</b><small>{member.email}</small></div>
+            <button type="button" onClick={() => void unassignFromCoach(member.user_id)}>Remove</button>
+          </div>
+        ))}
+        {!coachRoster.length && <p className="mission-copy">No members assigned yet.</p>}
+        <p className="eyebrow">AVAILABLE</p>
+        {unassignedUsers.map((member) => (
+          <div key={member.id} className="user-row">
+            <div><b>{member.name}</b><small>{member.email}</small></div>
+            <button type="button" onClick={() => void assignToCoach(member.id)}>Assign</button>
+          </div>
+        ))}
+        {!unassignedUsers.length && <p className="mission-copy">Every member is already assigned to this coach.</p>}
+      </div>}
+    </article>}
+
+    {isAdmin && <article className="module-card">
+      <p className="eyebrow">RECOMMENDATION MONITORING</p><h2>Members needing attention</h2>
+      <div className="user-rows">
+        {openRecommendations.map((entry) => (
+          <div key={entry.user_id} className="user-row"><span>User #{entry.user_id}</span><b>{entry.count} open recommendation{entry.count === 1 ? "" : "s"}</b></div>
+        ))}
+        {!openRecommendations.length && <p className="mission-copy">No open recommendations right now.</p>}
+      </div>
+    </article>}
+
+    {isAdmin && <article className="module-card">
+      <p className="eyebrow">SYSTEM REPORTS</p><h2>Export platform data</h2>
+      <div className="snooze-policy-row">
+        {["users", "platform_summary"].flatMap((type) => ["xlsx", "pdf"].map((format) => (
+          <button key={`${type}-${format}`} type="button" onClick={() => downloadSystemReport(type, format)}>
+            {type === "users" ? "Users" : "Platform Summary"} {format.toUpperCase()}
+          </button>
+        )))}
+      </div>
+    </article>}
+
+    {coach && <article className="module-card">
+      <p className="eyebrow">HABIT ADHERENCE ANALYTICS</p><h2>Who's keeping pace</h2>
+      <div className="stats-row">
+        <article className="stat-card cyan"><p>AVG COMPLETION RATE</p><div><b>{avgAdherence ?? "—"}</b><span>%</span></div><small>Across members with tracked missions</small></article>
+      </div>
+      <div className="user-rows">
+        {habitAdherence.map((entry) => (
+          <div key={entry.user_id} className="user-row"><span>{entry.name}</span><b>{entry.rate}% completion</b></div>
+        ))}
+        {!habitAdherence.length && <p className="mission-copy">No mission data recorded by tracked members yet.</p>}
+      </div>
+    </article>}
+
+    {coach && <article className="module-card">
+      <p className="eyebrow">SLEEP TREND REPORTS</p><h2>Recovery across your members</h2>
+      <div className="stats-row">
+        <article className="stat-card violet"><p>AVG SLEEP CONSISTENCY</p><div><b>{avgSleepConsistency ?? "—"}</b><span>%</span></div><small>Across members with logged sleep</small></article>
+      </div>
+      <div className="user-rows">
+        {sleepTrends.map((entry) => (
+          <div key={entry.user_id} className="user-row"><span>{entry.name}</span><b>{entry.avgHours ?? "—"}h avg · {entry.consistency}% consistent</b></div>
+        ))}
+        {!sleepTrends.length && <p className="mission-copy">No sleep logs recorded by tracked members yet.</p>}
+      </div>
+    </article>}
+
+    {coach && <article className="module-card">
+      <p className="eyebrow">PROGRESS MONITORING</p><h2>Tracked days this window</h2>
+      <div className="user-rows">
+        {coachMembers.map((entry) => {
+          const consistency = entry.analytics?.habit_consistency;
+          return (
+            <div key={entry.user_id} className="user-row">
+              <span>{entry.name}</span>
+              <b>{consistency?.consistent_days ?? 0} / {consistency?.tracked_days ?? 0} consistent days · habit score {entry.habit_score ?? "—"}</b>
+            </div>
+          );
+        })}
+        {!coachMembers.length && <p className="mission-copy">No members assigned yet.</p>}
+      </div>
+    </article>}
+
+    {coach && <article className="module-card">
+      <p className="eyebrow">MEMBER INSIGHTS</p><h2>Behavioral signals</h2>
+      <p className="mission-copy">Click a member to leave a private coaching note or send them an encouragement message.</p>
+      <div className="user-rows">
+        {(panelData?.users || []).map((entry) => {
+          const analytics = entry.analytics || {};
+          const expanded = expandedMember === entry.user_id;
+          return (
+            <div key={entry.user_id} className={`member-card${expanded ? " expanded" : ""}`}>
+              <button type="button" className="user-row member-row-toggle" onClick={() => toggleMember(entry.user_id)}>
+                <span>{entry.name}{entry.note_count > 0 && <em className="note-badge">{entry.note_count} note{entry.note_count === 1 ? "" : "s"}</em>}{entry.open_help_requests > 0 && <em className="note-badge">{entry.open_help_requests} help request{entry.open_help_requests === 1 ? "" : "s"}</em>}</span>
+                <small>
+                  Habit {entry.habit_score ?? "—"} · {analytics.wake_behavior?.wake_success_rate_percent ?? "—"}% wake ·{" "}
+                  {analytics.habit_consistency?.completion_rate_percent ?? "—"}% habits ·{" "}
+                  {analytics.sleep_patterns?.duration_consistency_percent ?? "—"}% sleep ·{" "}
+                  {analytics.snooze_patterns?.total_snoozes ?? 0} snoozes
+                </small>
+              </button>
+              {expanded && <div className="member-detail">
+                <div className="member-notes">
+                  <p className="eyebrow">COACHING NOTES</p>
+                  {(notesByMember[entry.user_id] || []).map((note) => (
+                    <div key={note.note_id} className="coach-note">
+                      <p>{note.note}</p>
+                      <small>{note.coach_name} · {new Date(note.created_at).toLocaleDateString()}</small>
+                    </div>
+                  ))}
+                  {notesByMember[entry.user_id] && !notesByMember[entry.user_id].length && <p className="mission-copy">No notes yet.</p>}
+                  <div className="alarm-row">
+                    <textarea rows="2" value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} placeholder="Add a private coaching note..." maxLength="2000" />
+                    <div><button type="button" className="quiet-button" onClick={() => submitNote(entry.user_id)}>Save note</button></div>
+                  </div>
+                  {noteStatus && <p className="mission-copy">{noteStatus}</p>}
+                </div>
+                <div className="member-message">
+                  <p className="eyebrow">SEND ENCOURAGEMENT</p>
+                  <label>TITLE<input value={messageDraft.title} onChange={(event) => setMessageDraft((current) => ({ ...current, title: event.target.value }))} maxLength="160" /></label>
+                  <label>MESSAGE<input value={messageDraft.message} onChange={(event) => setMessageDraft((current) => ({ ...current, message: event.target.value }))} maxLength="1000" /></label>
+                  <button type="button" className="quiet-button" onClick={() => submitMessage(entry.user_id)}>Send message</button>
+                  {messageStatus && <p className="mission-copy">{messageStatus}</p>}
+                </div>
+                <div className="member-message">
+                  <p className="eyebrow">HELP REQUESTS</p>
+                  <div className="assistant-thread">
+                    {(helpThreadsByMember[entry.user_id] || []).map((entry2) => (
+                      <p key={entry2.message_id} className={`assistant-bubble ${entry2.sender === "USER" ? "assistant-bubble-user" : "assistant-bubble-coach"}`}>{entry2.content}</p>
+                    ))}
+                    {helpThreadsByMember[entry.user_id] && !helpThreadsByMember[entry.user_id].length && <p className="mission-copy">No help requests from this member yet.</p>}
+                  </div>
+                  <textarea rows="2" value={replyDraft} onChange={(event) => setReplyDraft(event.target.value)} placeholder="Reply to their help request..." maxLength="1000" />
+                  <button type="button" className="quiet-button" onClick={() => submitReply(entry.user_id)}>Send reply</button>
+                  {replyStatus && <p className="mission-copy">{replyStatus}</p>}
+                </div>
+              </div>}
+            </div>
+          );
+        })}
+        {!panelData?.users?.length && <p className="mission-copy">No members assigned yet.</p>}
+      </div>
+    </article>}
+  </section>;
 }

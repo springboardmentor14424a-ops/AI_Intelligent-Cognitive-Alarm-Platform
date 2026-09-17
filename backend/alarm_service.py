@@ -22,12 +22,7 @@ def parse_days(alarm_type: str, repeat_days: str | None) -> set[int]:
         return set(range(7))
     return set()
 
-def adaptive_time(base: time, sleep_score: int | None) -> time:
-    """Move a smart alarm up to 20 min later after a low recovery score."""
-    offset = 20 if sleep_score is not None and sleep_score < 60 else 10 if sleep_score is not None and sleep_score < 75 else 0
-    return (datetime.combine(date.today(), base) + timedelta(minutes=offset)).time()
-
-def next_occurrence(alarm_time: time, alarm_type: str, repeat_days: str | None = None, sleep_score: int | None = None, now: datetime | None = None) -> datetime | None:
+def next_occurrence(alarm_time: time, alarm_type: str, repeat_days: str | None = None, now: datetime | None = None) -> datetime | None:
     now = now or datetime.now()
     today = now.date()
     if alarm_type.upper() == "ONE_TIME":
@@ -38,18 +33,3 @@ def next_occurrence(alarm_time: time, alarm_type: str, repeat_days: str | None =
         candidate = datetime.combine(today + timedelta(days=offset), alarm_time)
         if candidate.weekday() in days and candidate > now: return candidate
     return None
-
-
-def next_occurrence_after_snooze(
-    alarm_time: time,
-    alarm_type: str,
-    repeat_days: str | None = None,
-    sleep_score: int | None = None,
-    now: datetime | None = None,
-    snoozed_until: datetime | None = None,
-) -> datetime | None:
-    """Return the next ring time after a snooze window ends."""
-    now = now or datetime.now()
-    if snoozed_until is not None and snoozed_until > now:
-        return snoozed_until
-    return next_occurrence(alarm_time, alarm_type, repeat_days, sleep_score, now)

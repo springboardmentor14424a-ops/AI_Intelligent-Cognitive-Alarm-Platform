@@ -1,6 +1,341 @@
 /* Daybreak Route: purpose-built layer for the route, checkpoint and role workspaces. */
-.daybreak-route{overflow:hidden}.daybreak-route:after{content:"";position:absolute;width:420px;height:420px;border:1px solid rgba(139,92,246,.2);border-radius:50%;right:-190px;bottom:-240px;pointer-events:none}.route-timeline{display:grid;gap:0;align-content:center;position:relative;z-index:1}.route-stop{display:grid;grid-template-columns:44px 1fr;gap:13px;min-height:67px;position:relative}.route-stop:not(:last-child):before{content:"";position:absolute;top:29px;bottom:0;left:14px;border-left:1px dashed rgba(0,245,255,.28)}.route-stop>span{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;font:10px 'DM Mono';color:#bafcff;background:rgba(0,245,255,.1);border:1px solid rgba(0,245,255,.32);z-index:1}.route-stop b{display:block;color:#e8f8ff;font:600 13px 'Space Grotesk';margin:5px 0 4px}.route-stop b em{font-style:normal;color:var(--cyan);font:10px 'DM Mono';margin-left:8px}.route-stop small{display:block;color:#8297b0;font-size:11px;line-height:1.4;max-width:290px}
-.alarm-form .settings-form{max-width:none;margin:0;padding:0;background:none;border:0;color:#8295af;font-size:11px;line-height:1.45}.alarm-form select,.settings-form select{width:100%;height:48px;border:1px solid rgba(148,163,184,.18);background:#09162e;color:#eefaff;padding:0 12px;border-radius:3px;font:14px 'Space Grotesk';outline:none}.alarm-form select:focus,.settings-form select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px rgba(0,245,255,.08)}.alarm-form input:disabled{opacity:.48;cursor:not-allowed}.alarm-row{gap:18px}.alarm-row>div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.alarm-row>div:last-child button{min-width:59px}.alarm-row .eyebrow{margin:0 0 6px}.alarm-row span+span{margin-top:3px}.alarm-row span{max-width:430px;line-height:1.4}
-.challenge-console{max-width:760px;margin:0 auto 28px;box-shadow:0 24px 80px rgba(0,0,0,.22)}.challenge-console .panel-cap button{border:0;background:transparent;color:#8da2bb;font:10px 'DM Mono';text-transform:uppercase}.challenge-console .panel-cap button:hover{color:var(--cyan)}.challenge-console h2{margin-top:28px}.challenge-console form{margin-top:23px}.challenge-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.challenge-options button{min-height:49px;text-align:left;border:1px solid rgba(148,163,184,.18);background:rgba(3,12,29,.55);color:#c9dbe9;padding:12px 14px;border-radius:3px;font-size:13px;transition:.2s}.challenge-options button:hover,.challenge-options button.active{border-color:var(--cyan);color:#efffff;background:rgba(0,245,255,.09);box-shadow:0 0 0 2px rgba(0,245,255,.05)}.challenge-console>.quiet-button{width:auto;margin-top:18px}.challenge-console .signal-row{margin:0;color:var(--lime);font-size:11px}.challenge-card button:disabled{opacity:.55;cursor:wait}.module-card>.eyebrow{margin-top:0}.module-card .mission-copy{margin:0}
-.challenge-status-card{display:grid;gap:14px}.challenge-personalization{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:3px 0 0;padding:12px 14px;border:1px solid rgba(0,245,255,.2);background:linear-gradient(90deg,rgba(0,245,255,.08),rgba(139,92,246,.06));color:#b9cce0;font-size:11px;line-height:1.45}.challenge-personalization span,.challenge-selection-reason b{color:var(--cyan);font:10px 'DM Mono';letter-spacing:.08em;text-transform:uppercase}.challenge-personalization>b{color:#f1fdff;font:600 13px 'Space Grotesk';letter-spacing:.05em}.challenge-personalization small{color:#9eb5ca;font:10px 'DM Mono'}.challenge-personalization p{width:100%;margin:0;color:#aebfd0}.challenge-status-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}.challenge-status-row span{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid rgba(148,163,184,.22);background:rgba(3,12,29,.46);color:#9eb4c8;font:10px 'DM Mono';letter-spacing:.06em}.challenge-status-row b{color:#efffff;font:600 13px 'Space Grotesk';letter-spacing:normal}.challenge-status-row .urgent{border-color:rgba(255,128,128,.7);color:#ffc0c0;background:rgba(255,93,93,.08)}.challenge-status-row .urgent b{color:#ffd0d0}.challenge-selection-reason{display:flex;gap:9px;align-items:baseline;margin:16px 0 0;color:#9fb3c7;font-size:11px;line-height:1.55}.challenge-instructions{margin:15px 0 0;padding-left:11px;border-left:2px solid rgba(139,92,246,.5);color:#a9bad0;font-size:11px;line-height:1.5}.challenge-options button:disabled{cursor:not-allowed;opacity:.6}.challenge-console .primary-button:disabled{cursor:not-allowed;opacity:.58}
+.daybreak-route{overflow:hidden}.daybreak-route:after{content:"";position:absolute;width:420px;height:420px;border:1px solid color-mix(in srgb, var(--violet) 2%, transparent);border-radius:50%;right:-190px;bottom:-240px;pointer-events:none}.route-timeline{display:grid;gap:0;align-content:center;position:relative;z-index:1}.route-stop{display:grid;grid-template-columns:44px 1fr;gap:13px;min-height:67px;position:relative}.route-stop:not(:last-child):before{content:"";position:absolute;top:29px;bottom:0;left:14px;border-left:1px dashed color-mix(in srgb, var(--cyan) 28%, transparent)}.route-stop>span{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;font:10px 'DM Mono';color:var(--ink);background:color-mix(in srgb, var(--cyan) 1%, transparent);border:1px solid color-mix(in srgb, var(--cyan) 32%, transparent);z-index:1}.route-stop b{display:block;color:var(--ink);font:600 13px 'Space Grotesk';margin:5px 0 4px}.route-stop b em{font-style:normal;color:var(--cyan);font:10px 'DM Mono';margin-left:8px}.route-stop small{display:block;color:var(--muted);font-size:11px;line-height:1.4;max-width:290px}
+.alarm-form .settings-form{max-width:none;margin:0;padding:0;background:none;border:0;color:var(--muted);font-size:11px;line-height:1.45}.alarm-form select,.settings-form select{width:100%;height:48px;border:1px solid rgba(148,163,184,.18);background:var(--surface-alt);color:var(--ink);padding:0 12px;border-radius:3px;font:14px 'Space Grotesk';outline:none}.alarm-form select:focus,.settings-form select:focus{border-color:var(--cyan);box-shadow:0 0 0 3px color-mix(in srgb, var(--cyan) 08%, transparent)}.alarm-form input:disabled{opacity:.48;cursor:not-allowed}.alarm-row{gap:18px}.alarm-row>div:last-child{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.alarm-row>div:last-child button{min-width:59px}.alarm-row .eyebrow{margin:0 0 6px}.alarm-row span+span{margin-top:3px}.alarm-row span{max-width:430px;line-height:1.4}
+.challenge-console{max-width:760px;margin:0 auto 28px;box-shadow:0 24px 80px rgba(0,0,0,.22)}.challenge-console .panel-cap button{border:0;background:transparent;color:var(--muted);font:10px 'DM Mono';text-transform:uppercase}.challenge-console .panel-cap button:hover{color:var(--cyan)}.challenge-console h2{margin-top:28px}.challenge-console form{margin-top:23px}.challenge-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.challenge-options button{min-height:49px;text-align:left;border:1px solid rgba(148,163,184,.18);background:color-mix(in srgb, var(--surface-alt) 55%, transparent);color:var(--muted);padding:12px 14px;border-radius:3px;font-size:13px;transition:.2s}.challenge-options button:hover,.challenge-options button.active{border-color:var(--cyan);color:var(--ink);background:color-mix(in srgb, var(--cyan) 09%, transparent);box-shadow:0 0 0 2px color-mix(in srgb, var(--cyan) 05%, transparent)}.challenge-console>.quiet-button{width:auto;margin-top:18px}.challenge-console .signal-row{margin:0;color:var(--lime);font-size:11px}.challenge-card button:disabled{opacity:.55;cursor:wait}.module-card>.eyebrow{margin-top:0}.module-card .mission-copy{margin:0}
+.challenge-status-card{display:grid;gap:14px}.challenge-personalization{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:3px 0 0;padding:12px 14px;border:1px solid color-mix(in srgb, var(--cyan) 2%, transparent);background:linear-gradient(90deg,color-mix(in srgb, var(--cyan) 08%, transparent),color-mix(in srgb, var(--violet) 06%, transparent));color:var(--muted);font-size:11px;line-height:1.45}.challenge-personalization span,.challenge-selection-reason b{color:var(--cyan);font:10px 'DM Mono';letter-spacing:.08em;text-transform:uppercase}.challenge-personalization>b{color:var(--ink);font:600 13px 'Space Grotesk';letter-spacing:.05em}.challenge-personalization small{color:var(--muted);font:10px 'DM Mono'}.challenge-personalization p{width:100%;margin:0;color:var(--muted)}.challenge-status-row{display:flex;gap:9px;flex-wrap:wrap;margin-top:20px}.challenge-status-row span{display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid rgba(148,163,184,.22);background:color-mix(in srgb, var(--surface-alt) 46%, transparent);color:var(--muted);font:10px 'DM Mono';letter-spacing:.06em}.challenge-status-row b{color:var(--ink);font:600 13px 'Space Grotesk';letter-spacing:normal}.challenge-status-row .urgent{border-color:rgba(255,128,128,.7);color:#ffc0c0;background:rgba(255,93,93,.08)}.challenge-status-row .urgent b{color:#ffd0d0}.challenge-selection-reason{display:flex;gap:9px;align-items:baseline;margin:16px 0 0;color:var(--muted);font-size:11px;line-height:1.55}.challenge-instructions{margin:15px 0 0;padding-left:11px;border-left:2px solid color-mix(in srgb, var(--violet) 5%, transparent);color:var(--muted);font-size:11px;line-height:1.5}.challenge-options button:disabled{cursor:not-allowed;opacity:.6}.challenge-console .primary-button:disabled{cursor:not-allowed;opacity:.58}
 @media(max-width:800px){.daybreak-route{grid-template-columns:1fr}.route-timeline{margin-top:8px}.alarm-row{align-items:flex-start}.alarm-row>div:last-child{justify-content:flex-start}.challenge-options{grid-template-columns:1fr}.challenge-console{padding:22px}.route-stop small{max-width:none}.challenge-status-row span{flex:1 1 145px}.challenge-selection-reason{align-items:flex-start;flex-direction:column;gap:4px}}
+
+/* -------------------------------------------------------------------------
+   Daybreak visual polish
+   A lightweight atmosphere layer shared by the dashboard and auth surfaces.
+   ------------------------------------------------------------------------- */
+:root{
+  --daybreak-glass:color-mix(in srgb, var(--surface) 88%, transparent);
+  --daybreak-glass-strong:color-mix(in srgb, var(--surface) 96%, transparent);
+  --daybreak-line:var(--edge-solid);
+  --daybreak-shadow:0 24px 80px rgba(20,10,35,.28);
+}
+
+::selection{background:color-mix(in srgb, var(--cyan) 30%, transparent);color:var(--ink)}
+body{overflow-x:hidden}
+body::-webkit-scrollbar{width:10px}
+body::-webkit-scrollbar-track{background:var(--bg-b)}
+body::-webkit-scrollbar-thumb{background:linear-gradient(var(--violet),var(--cyan));border:3px solid var(--bg-b);border-radius:999px}
+
+.dashboard-shell{
+  background:
+    radial-gradient(1100px 500px at 15% -10%, var(--bg-a), transparent 60%),
+    radial-gradient(1100px 600px at 85% 0%, var(--bg-glow), transparent 55%),
+    linear-gradient(175deg, var(--surface-alt) 0%, var(--bg-b) 100%);
+}
+
+.dashboard-shell:before,
+.auth-shell:before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:.16;
+  background-image:linear-gradient(color-mix(in srgb, var(--cyan) 6%, transparent) 1px,transparent 1px),linear-gradient(90deg,color-mix(in srgb, var(--cyan) 6%, transparent) 1px,transparent 1px);
+  background-size:72px 72px;
+  mask-image:linear-gradient(to bottom,black,transparent 88%);
+}
+
+.star-field{
+  opacity:.24;
+  animation:star-drift 28s linear infinite;
+}
+
+.dash-nav{
+  z-index:20;
+  background:linear-gradient(180deg,color-mix(in srgb, var(--surface-alt) 90%, transparent),color-mix(in srgb, var(--surface-alt) 50%, transparent));
+  border-bottom:1px solid color-mix(in srgb, var(--cyan) 8%, transparent);
+  backdrop-filter:blur(18px);
+}
+
+.dash-nav:after{
+  content:"";
+  position:absolute;
+  left:clamp(24px,6vw,100px);
+  right:clamp(24px,6vw,100px);
+  bottom:-1px;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),transparent);
+  opacity:.45;
+}
+
+.nav-links button{
+  position:relative;
+  transition:color .2s ease,background .2s ease,transform .2s ease;
+}
+.nav-links button:hover{transform:translateY(-1px)}
+.nav-links button.active:after{
+  content:"";
+  position:absolute;
+  left:12px;
+  right:12px;
+  bottom:1px;
+  height:2px;
+  border-radius:2px;
+  background:var(--cyan);
+  box-shadow:0 0 12px var(--cyan);
+}
+.avatar{
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+.avatar:hover{transform:translateY(-2px) rotate(4deg);box-shadow:0 0 22px color-mix(in srgb, var(--cyan) 3%, transparent)}
+
+.view-frame{
+  position:relative;
+  z-index:1;
+  animation:view-rise .55s cubic-bezier(.2,.75,.25,1) both;
+}
+
+.command-hero,
+.daybreak-ritual,
+.dashboard-grid,
+.module-shell{
+  position:relative;
+}
+
+.command-hero:before{
+  content:"";
+  position:absolute;
+  width:460px;
+  height:460px;
+  right:-170px;
+  top:-210px;
+  border:1px solid color-mix(in srgb, var(--cyan) 5%, transparent);
+  border-radius:50%;
+  box-shadow:0 0 0 32px color-mix(in srgb, var(--cyan) 1%, transparent),0 0 0 64px color-mix(in srgb, var(--cyan) 0.6%, transparent);
+  pointer-events:none;
+}
+
+.ritual-card,
+.mission-card,
+.assistant-card,
+.rhythm-card,
+.stat-card,
+.analytics-panel,
+.challenge-card,
+.module-card,
+.auth-panel{
+  background:
+    linear-gradient(135deg, var(--surface), var(--surface-alt)),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--cyan) 9%, transparent), transparent 45%);
+  border-color:var(--daybreak-line);
+  box-shadow:var(--daybreak-shadow),inset 0 1px 0 rgba(255,255,255,.045);
+  transition:border-color .25s ease,transform .25s ease,box-shadow .25s ease,background .8s ease;
+}
+
+.ritual-card:hover,
+.mission-card:hover,
+.assistant-card:hover,
+.rhythm-card:hover,
+.stat-card:hover,
+.analytics-panel:hover,
+.challenge-card:hover{
+  transform:translateY(-4px);
+  border-color:color-mix(in srgb, var(--cyan) 38%, transparent);
+  box-shadow:0 30px 90px rgba(0,0,0,.34),0 0 30px color-mix(in srgb, var(--cyan) 06%, transparent),inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+.ritual-card:after,
+.analytics-panel:after{
+  opacity:.8;
+}
+
+.quiet-button,
+.primary-button,
+.mission-bottom button,
+.ritual-action,
+.wake-alarm-primary{
+  position:relative;
+  overflow:hidden;
+  transition:transform .2s ease,filter .2s ease,box-shadow .2s ease;
+}
+.quiet-button:before,
+.primary-button:before,
+.mission-bottom button:before,
+.ritual-action:before,
+.wake-alarm-primary:before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.3) 50%,transparent 75%);
+  transform:translateX(-120%);
+  transition:transform .55s ease;
+}
+.quiet-button:hover:before,
+.primary-button:hover:before,
+.mission-bottom button:hover:before,
+.ritual-action:hover:before,
+.wake-alarm-primary:hover:before{transform:translateX(120%)}
+
+input,select,textarea{
+  transition:border-color .2s ease,box-shadow .2s ease,background .2s ease;
+}
+input:hover,select:hover,textarea:hover{background:color-mix(in srgb, var(--surface-alt) 70%, transparent);border-color:color-mix(in srgb, var(--cyan) 30%, transparent)}
+textarea{resize:vertical}
+
+.toast{
+  border-radius:12px;
+  box-shadow:0 18px 55px rgba(0,0,0,.35),0 0 22px color-mix(in srgb, var(--cyan) 08%, transparent);
+  backdrop-filter:blur(16px);
+  animation:toast-in .35s ease both;
+}
+
+.wake-alarm-backdrop{
+  backdrop-filter:blur(10px);
+  background:rgba(1,5,14,.72);
+}
+.wake-alarm-popup{
+  border-radius:20px;
+  box-shadow:0 35px 120px rgba(0,0,0,.65),0 0 0 1px color-mix(in srgb, var(--cyan) 18%, transparent),0 0 70px color-mix(in srgb, var(--cyan) 1%, transparent);
+  animation:popup-rise .45s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.auth-shell{
+  position:relative;
+  background:
+    radial-gradient(1100px 500px at 15% -10%, var(--bg-a), transparent 60%),
+    radial-gradient(1100px 600px at 85% 0%, var(--bg-glow), transparent 55%),
+    linear-gradient(175deg, var(--surface-alt) 0%, var(--bg-b) 100%);
+}
+.auth-panel{
+  backdrop-filter:blur(22px);
+  animation:panel-rise .7s cubic-bezier(.2,.8,.2,1) both;
+}
+.google-button,.primary-button{box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.google-button:hover{transform:translateY(-2px);box-shadow:0 16px 35px rgba(0,0,0,.3)}
+
+@keyframes star-drift{to{background-position:99px 105px,3px 141px}}
+@keyframes view-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes panel-rise{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+@keyframes popup-rise{from{opacity:0;transform:translateY(18px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes toast-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+
+.user-rows{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.user-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;border:1px solid rgba(148,163,184,.18);border-radius:6px;background:color-mix(in srgb, var(--surface-alt) 4%, transparent);flex-wrap:wrap}
+.user-row b{color:var(--ink);font-weight:600}
+.user-row small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.user-row select{height:36px;border:1px solid rgba(148,163,184,.18);background:var(--surface-alt);color:var(--ink);padding:0 10px;border-radius:3px;font:13px 'Space Grotesk';outline:none}
+
+.member-card{border:1px solid rgba(148,163,184,.18);border-radius:6px;background:color-mix(in srgb, var(--surface-alt) 4%, transparent);overflow:hidden}
+.member-card.expanded{border-color:var(--cyan)}
+.member-row-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 16px;background:transparent;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;flex-wrap:wrap}
+.member-row-toggle span{display:flex;align-items:center;gap:8px;color:var(--ink);font-weight:600}
+.note-badge{background:color-mix(in srgb, var(--cyan) 12%, transparent);color:var(--cyan);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:600;font-style:normal}
+.member-detail{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid rgba(148,163,184,.18)}
+.member-notes,.member-message{padding:16px}
+.member-notes{border-right:1px solid rgba(148,163,184,.18)}
+.coach-note{background:rgba(148,163,184,.06);border-radius:4px;padding:10px 12px;margin-bottom:8px}
+.coach-note p{margin:0 0 4px;color:var(--muted);font-size:12px}
+.coach-note small{color:var(--muted);font-size:10px}
+.member-notes textarea{width:100%;resize:vertical;border:1px solid rgba(148,163,184,.18);background:var(--surface-alt);color:var(--ink);padding:10px 12px;border-radius:3px;font:13px 'Space Grotesk';outline:none}
+.member-message label{display:block;margin-bottom:10px}
+.member-message input{width:100%}
+
+.assistant-chat{display:flex;flex-direction:column}
+.assistant-chat-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.assistant-chat-heading .assistant-mark{margin-bottom:4px}
+.assistant-reset{width:auto;padding:6px 10px;font-size:10px;white-space:nowrap}
+.assistant-thread{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;margin:12px 0;padding-right:4px}
+.assistant-bubble{margin:0;padding:9px 12px;border-radius:10px;font-size:12px;line-height:1.5;max-width:90%}
+.assistant-bubble-coach{align-self:flex-start;background:color-mix(in srgb, var(--cyan) 08%, transparent);border:1px solid color-mix(in srgb, var(--cyan) 18%, transparent);color:var(--ink)}
+.assistant-bubble-user{align-self:flex-end;background:color-mix(in srgb, var(--violet) 14%, transparent);border:1px solid color-mix(in srgb, var(--violet) 3%, transparent);color:var(--ink)}
+.assistant-bubble-pending{opacity:.6;font-style:italic}
+
+.notification-bell-wrap{position:relative}
+.notification-bell{position:relative;border:1px solid rgba(148,163,184,.22);background:color-mix(in srgb, var(--surface-alt) 46%, transparent);color:var(--muted);font:10px 'DM Mono';letter-spacing:.08em;padding:8px 12px;border-radius:3px}
+.notification-bell:hover{border-color:var(--cyan);color:var(--ink)}
+.notification-badge{position:absolute;top:-7px;right:-7px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;background:var(--cyan);color:#001019;font:9px 'DM Mono';display:flex;align-items:center;justify-content:center}
+.notification-panel{position:absolute;top:calc(100% + 10px);right:0;width:320px;max-height:420px;overflow-y:auto;background:var(--daybreak-glass-strong);border:1px solid var(--daybreak-line);border-radius:6px;box-shadow:var(--daybreak-shadow);z-index:20}
+.notification-panel-heading{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid rgba(148,163,184,.18);color:var(--muted);font:10px 'DM Mono';letter-spacing:.08em}
+.notification-panel-heading button{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1}
+.notification-list{display:flex;flex-direction:column}
+.notification-item{width:100%;text-align:left;border:0;border-bottom:1px solid rgba(148,163,184,.1);background:transparent;color:var(--muted);padding:12px 14px}
+.notification-item:hover{background:color-mix(in srgb, var(--cyan) 05%, transparent)}
+.notification-item.unread{background:color-mix(in srgb, var(--cyan) 06%, transparent);border-left:2px solid var(--cyan)}
+.notification-item b{display:block;font:600 12px 'Space Grotesk';color:var(--ink);margin-bottom:3px}
+.notification-item p{margin:0 0 5px;font-size:11px;line-height:1.4;color:var(--muted)}
+.notification-item small{color:var(--muted);font:9px 'DM Mono'}
+.notification-list .mission-copy{padding:16px 14px;margin:0}
+
+/* Radial gauges (Brain energy / Sleep battery / Habit orbit) */
+.gauge-stat{display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.gauge-ring{position:relative;width:84px;height:84px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--gauge-color,var(--cyan)) var(--gauge-value,0%),rgba(255,255,255,.08) 0);box-shadow:0 0 22px color-mix(in srgb, var(--cyan) 12%, transparent)}
+.gauge-ring::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--surface-alt)}
+.gauge-ring>div{position:relative;display:flex;align-items:baseline;gap:2px}
+.gauge-ring b{font:700 19px 'Syne';color:var(--ink);letter-spacing:-1px}
+.gauge-ring span{font-size:10px;color:var(--muted)}
+.gauge-stat.violet .gauge-ring{--gauge-color:var(--violet);box-shadow:0 0 22px color-mix(in srgb, var(--violet) 12%, transparent)}
+.gauge-stat.lime .gauge-ring{--gauge-color:var(--lime);box-shadow:0 0 22px color-mix(in srgb, var(--lime) 12%, transparent)}
+
+/* Animated gradient border for elevated cards */
+@property --border-angle{syntax:'<angle>';inherits:false;initial-value:0deg}
+.glow-border{position:relative}
+.glow-border::before{content:"";position:absolute;inset:-1px;border-radius:inherit;padding:1px;background:conic-gradient(from var(--border-angle),transparent 0 78%,var(--cyan) 88%,var(--violet) 96%,transparent 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:border-spin 5s linear infinite;opacity:0;transition:opacity .3s ease;pointer-events:none}
+.glow-border:hover::before{opacity:1}
+@keyframes border-spin{to{--border-angle:360deg}}
+
+/* Alarm urgency pulse for a ringing alarm */
+.wake-alarm-popup.is-ringing{animation:alarm-urgency 1.6s ease-in-out infinite}
+@keyframes alarm-urgency{
+  0%,100%{box-shadow:0 35px 120px rgba(0,0,0,.65),0 0 0 1px rgba(255,93,93,.25),0 0 70px rgba(255,93,93,.12)}
+  50%{box-shadow:0 35px 120px rgba(0,0,0,.65),0 0 0 1px rgba(255,93,93,.55),0 0 110px rgba(255,93,93,.28)}
+}
+
+/* Success celebration burst when a checkpoint is verified */
+.challenge-console.is-verified{position:relative}
+.challenge-console.is-verified::before,.challenge-console.is-verified::after{
+  content:"";position:absolute;inset:0;border-radius:inherit;border:1px solid color-mix(in srgb, var(--lime) 60%, transparent);
+  animation:success-burst 1.1s cubic-bezier(0,.6,.4,1) 1;pointer-events:none
+}
+.challenge-console.is-verified::after{animation-delay:.18s}
+@keyframes success-burst{
+  0%{transform:scale(1);opacity:.9}
+  100%{transform:scale(1.06);opacity:0}
+}
+
+/* Smoother tab/view transitions */
+.view-frame{animation:view-enter .45s cubic-bezier(.2,.8,.2,1) both}
+@keyframes view-enter{from{opacity:0;transform:translateY(8px) scale(.994);filter:blur(2px)}to{opacity:1;transform:none;filter:none}}
+
+/* Living, drifting background atmosphere */
+.star-field{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star-field::before,.star-field::after{
+  content:"";position:absolute;width:60vw;height:60vw;border-radius:50%;filter:blur(90px);opacity:.16;
+  animation:drift-blob 26s ease-in-out infinite alternate
+}
+.star-field::before{background:radial-gradient(circle,var(--cyan),transparent 65%);top:-20%;left:-10%}
+.star-field::after{background:radial-gradient(circle,var(--violet),transparent 65%);bottom:-25%;right:-15%;animation-duration:32s;animation-delay:-6s}
+@keyframes drift-blob{
+  0%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(6%,4%) scale(1.12)}
+  100%{transform:translate(-4%,-3%) scale(.96)}
+}
+
+/* Cursor-reactive spotlight across dark panels */
+.cursor-spotlight{position:fixed;inset:0;pointer-events:none;z-index:1;background:radial-gradient(420px circle at var(--spot-x,50%) var(--spot-y,50%),color-mix(in srgb, var(--cyan) 05%, transparent),transparent 70%);transition:opacity .25s ease;opacity:0}
+.cursor-spotlight.is-active{opacity:1}
+
+/* Typewriter cursor for the latest Gemini reply */
+.assistant-bubble-typing::after{content:"";display:inline-block;width:6px;height:12px;margin-left:2px;background:var(--cyan);vertical-align:middle;animation:type-caret .8s step-end infinite}
+@keyframes type-caret{50%{opacity:0}}
+
+@media(max-width:800px){
+  .member-detail{grid-template-columns:1fr}
+  .member-notes{border-right:0;border-bottom:1px solid rgba(148,163,184,.18)}
+  .dash-nav{height:72px;padding:0 18px}
+  .dash-nav:after{left:18px;right:18px}
+  .nav-status{display:none}
+  .command-hero:before{right:-280px;top:-250px}
+  .module-shell{padding-left:18px;padding-right:18px}
+  .auth-panel{backdrop-filter:blur(14px)}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important}
+}

@@ -1,0 +1,47 @@
+databases:
+  - name: brainos-db
+    plan: free
+    databaseName: brainos
+    user: brainos
+
+services:
+  - type: web
+    name: brainos-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      # Render's auto-generated Postgres URL uses the postgres:// scheme,
+      # which SQLAlchemy defaults to psycopg2 (not installed here). Paste in
+      # brainos-db's connection string with the scheme changed to
+      # postgresql+psycopg:// instead of wiring this to fromDatabase.
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: USE_GEMINI_CHALLENGES
+        value: "true"
+      - key: ADMIN_BOOTSTRAP_EMAILS
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_USE_TLS
+        value: "true"

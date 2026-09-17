@@ -1,0 +1,9 @@
+backend
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.local.example
+.pytest_cache
+.github

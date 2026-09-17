@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS missions (
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   challenge_type VARCHAR(40) NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_at TIMESTAMPTZ,
   reward INTEGER NOT NULL DEFAULT 180 CHECK (reward BETWEEN 0 AND 500),
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -99,6 +100,14 @@ CREATE TABLE IF NOT EXISTS sleep_logs (
   quality DOUBLE PRECISION NOT NULL CHECK (quality BETWEEN 0 AND 100)
 );
 
+CREATE TABLE IF NOT EXISTS snooze_events (
+  snooze_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  alarm_id INTEGER NOT NULL REFERENCES alarms(alarm_id) ON DELETE CASCADE,
+  snooze_minutes INTEGER NOT NULL CHECK (snooze_minutes BETWEEN 1 AND 30),
+  snoozed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS analytics (
   analytics_id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,6 +115,69 @@ CREATE TABLE IF NOT EXISTS analytics (
   habit_score INTEGER NOT NULL DEFAULT 68 CHECK (habit_score BETWEEN 0 AND 100),
   sleep_score INTEGER NOT NULL DEFAULT 72 CHECK (sleep_score BETWEEN 0 AND 100),
   recorded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+  notification_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  notification_type VARCHAR(40) NOT NULL,
+  title VARCHAR(160) NOT NULL,
+  message TEXT NOT NULL,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS device_tokens (
+  device_token_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token VARCHAR(512) NOT NULL UNIQUE,
+  platform VARCHAR(20) NOT NULL DEFAULT 'WEB',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coach_notes (
+  note_id SERIAL PRIMARY KEY,
+  coach_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  member_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  note TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS coach_assignments (
+  assignment_id SERIAL PRIMARY KEY,
+  coach_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  member_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (coach_id, member_id)
+);
+
+CREATE TABLE IF NOT EXISTS coach_help_messages (
+  message_id SERIAL PRIMARY KEY,
+  member_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  coach_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_role VARCHAR(20) NOT NULL,
+  content TEXT NOT NULL,
+  read BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assistant_messages (
+  message_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+  reset_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  code_hash VARCHAR(255) NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  used BOOLEAN NOT NULL DEFAULT FALSE,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -121,12 +193,34 @@ CREATE INDEX IF NOT EXISTS idx_challenge_attempts_alarm_id
   ON challenge_attempts(alarm_id);
 CREATE INDEX IF NOT EXISTS idx_sleep_logs_user_wake
   ON sleep_logs(user_id, wake_time DESC);
+CREATE INDEX IF NOT EXISTS idx_snooze_events_user_snoozed_at
+  ON snooze_events(user_id, snoozed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_snooze_events_alarm_snoozed_at
+  ON snooze_events(alarm_id, snoozed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analytics_user_recorded
   ON analytics(user_id, recorded_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+  ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_device_tokens_user
+  ON device_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_coach_notes_member_created
+  ON coach_notes(member_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_coach_assignments_coach
+  ON coach_assignments(coach_id);
+CREATE INDEX IF NOT EXISTS idx_coach_help_messages_member_created
+  ON coach_help_messages(member_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_assistant_messages_user_created
+  ON assistant_messages(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_sent
+  ON password_reset_codes(user_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_password_reset_codes_email
+  ON password_reset_codes(email, used, expires_at);
 
 -- -------------------------------------------------------------------------
 -- Additive migration support for databases created by earlier BrainOS builds.
 -- -------------------------------------------------------------------------
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+
 
 ALTER TABLE alarms ADD COLUMN IF NOT EXISTS challenge_type VARCHAR(30) DEFAULT 'AUTO';
 ALTER TABLE alarms ADD COLUMN IF NOT EXISTS wake_verification_mode VARCHAR(30) DEFAULT 'SINGLE';
@@ -146,6 +240,19 @@ ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS failed_attempts INTEGER 
 ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS time_limit_seconds INTEGER DEFAULT 75;
 ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 ALTER TABLE challenge_attempts ADD COLUMN IF NOT EXISTS verification_passed BOOLEAN DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS snooze_events (
+  snooze_id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  alarm_id INTEGER NOT NULL REFERENCES alarms(alarm_id) ON DELETE CASCADE,
+  snooze_minutes INTEGER NOT NULL DEFAULT 5,
+  snoozed_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_snooze_events_user_snoozed_at
+  ON snooze_events(user_id, snoozed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_snooze_events_alarm_snoozed_at
+  ON snooze_events(alarm_id, snoozed_at DESC);
 
 -- Reconcile legacy values with the current five-level difficulty model.
 UPDATE users SET role = 'USER'
