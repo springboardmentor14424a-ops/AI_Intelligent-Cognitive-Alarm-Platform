@@ -227,9 +227,6 @@ fastest win since the endpoint already exists.
 4. Set `SENTRY_DSN` as an environment variable on the deployed backend only
    (leave it unset locally so dev errors don't get reported).
 
-Say the word and I can make this exact change to `backend/main.py` and
-`requirements.txt` — it just needs your DSN as an env var afterward.
-
 ### Performance notes
 
 - The APScheduler job in `backend/alarm_service.py` / `main.py` polls active
