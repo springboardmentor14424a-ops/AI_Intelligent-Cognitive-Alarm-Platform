@@ -866,6 +866,14 @@ input:focus{
   z-index:1
 }
 
+/* The Gemini card sits beside the mission card AND the coach card stacked
+   below it. Without an explicit row span, the grid's default auto-placement
+   leaves the cell beside the coach card empty (since the full-width stats
+   row can't fit there either), showing up as a lopsided gap in that column. */
+.gemini-chat{
+  grid-row:span 2
+}
+
 .daybreak-ritual{
   max-width:1200px;
   margin:0 auto 16px;
@@ -1547,6 +1555,10 @@ input:focus{
 
   .dashboard-grid{
     grid-template-columns:1fr
+  }
+
+  .gemini-chat{
+    grid-row:auto
   }
 
   .command-hero{

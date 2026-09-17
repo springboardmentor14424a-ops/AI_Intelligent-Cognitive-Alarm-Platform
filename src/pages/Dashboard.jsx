@@ -2169,7 +2169,7 @@ function Command({ profile, alarms, analytics, nextAlarm, ringingAlarm, onSolveA
           </div>
         </article>
 
-        <article className="assistant-card assistant-chat glow-border">
+        <article className="assistant-card assistant-chat gemini-chat glow-border">
           <div className="assistant-chat-heading">
             <div><div className="assistant-mark">&#10022;</div><p className="eyebrow">GEMINI COACH</p></div>
             <button type="button" className="quiet-button assistant-reset" onClick={clearAssistantConversation}>New conversation</button>

@@ -3651,24 +3651,21 @@ def analytics(user: User = Depends(current_user), db: Session = Depends(db_sessi
     if records:
         latest = records[0]
         focus_score = latest.focus_score
-        habit_score = latest.habit_score
         sleep_score = latest.sleep_score
         history = [record.sleep_score for record in reversed(records)]
     else:
         sleep_score = (
             round(sum(float(record.quality) for record in sleep_records) / len(sleep_records))
             if sleep_records
-            else 0
+            else None
         )
-        focus_score = round(challenge_data["accuracy_percent"]) if attempts else 0
-        habit_score = 0
+        focus_score = round(challenge_data["accuracy_percent"]) if attempts else None
         history = [record.quality for record in reversed(sleep_records)]
 
     behavioral = behavioral_analytics_payload(user.id, db)
 
     return {
         "focus_score": focus_score,
-        "habit_score": habit_score,
         "sleep_score": sleep_score,
         "history": history,
         "challenge_performance": challenge_data,
